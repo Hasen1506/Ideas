@@ -34,7 +34,9 @@
       <label class="sel"><span>Horizon</span>
         <select id="horizon"><option value="3">3 yrs</option><option value="5" selected>5 yrs</option><option value="10">10 yrs</option></select>
       </label>
-      <button id="btnReal" class="chip on" title="Verified real prices and govt rates">Real data</button>
+      <button id="btnProj" class="chip" title="Show infrastructure projects">Projects</button>
+      <button id="btnReal" class="chip" title="Verified real prices and govt rates">Real data</button>
+      <button id="btnTint" class="chip on" title="Price colour overlay">Price tint</button>
       <button id="btnHeat" class="chip" title="Pipeline hotspots heat layer">Hotspots</button>
       <button id="btnSat" class="chip" title="Satellite imagery">Satellite</button>
       <button id="btn3d" class="chip" title="3D price terrain">3D</button>
@@ -66,9 +68,11 @@
   </footer>
 
   <div id="tooltip" class="tooltip"></div>
+  <div id="ovLegend" class="ov-legend glass hidden"></div>
+  <div id="yearBanner" class="year-banner hidden"><span id="yearBannerText"></span><button id="yearReset" class="btn sm">Back to today (2026)</button></div>
   <div id="drawHint" class="draw-hint hidden"></div>
   <div id="toast" class="toast"></div>
-  <div class="disclaimer">Data as of Oct 2026 | 186 verified projects | 738 verified price points across India | elsewhere modelled. Zoom in or right-click for plot-level reads. <a href="#" id="methodLink">How it works</a></div>
+  <div class="disclaimer">Data as of Oct 2026 | 186 verified projects | 738 verified price points across India | elsewhere modelled. Click anywhere for a spot-level read. <a href="#" id="methodLink">How it works</a></div>
 
   <div id="palette" class="palette hidden" role="dialog" aria-label="Search">
     <div class="palette-box glass">

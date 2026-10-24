@@ -51,10 +51,10 @@
   };
   const S = {
     layer: "price", year: MY, horizon: 5, scenario: "base",
-    tool: null, sel: null, three: false, sat: false, heat: false, zones: true,
+    tool: null, sel: null, three: false, sat: false, heat: false, zones: false,
     userCats: [], watch: store.get("bl_watch", []), compare: store.get("bl_compare", []),
     playing: false, draw: null, placing: null, area: null, catFilter: "all", catStage: "all",
-    simType: "airport", simStage: 2, simCred: 0.65, hoverId: null, radiusKm: 10, loc: null, real: true,
+    simType: "airport", simStage: 2, simCred: 0.65, hoverId: null, radiusKm: 10, loc: null, real: false, proj: false, tint: true,
     scr: { state: "all", sort: "opp", maxRisk: 100, maxPrice: 0 }
   };
   const opts = () => ({ year: S.year, horizon: S.horizon, scenario: S.scenario });
@@ -191,7 +191,7 @@
       "fill-extrusion-height": ["*", ["coalesce", ["feature-state", "h"], 0], 140000],
       "fill-extrusion-opacity": 0.88
     } });
-    add({ id: "grid-fill", type: "fill", source: "grid", paint: { "fill-color": gridRamp("price"), "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7.2, 0, 8.2, 0.8], "fill-outline-color": "rgba(0,0,0,0)" } });
+    add({ id: "grid-fill", type: "fill", source: "grid", paint: { "fill-color": gridRamp("price"), "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7.2, 0, 8.2, 0.5, 11, 0.36, 13.5, 0.12], "fill-outline-color": "rgba(0,0,0,0)" } });
     add({ id: "d-line", type: "line", source: "districts", paint: { "line-color": "rgba(255,255,255,0.07)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.3, 8, 1] } });
     add({ id: "s-line", type: "line", source: "states", paint: { "line-color": "rgba(220,230,255,0.28)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 8, 1.8] } });
     add({ id: "heat", type: "heatmap", source: "heat", layout: { visibility: "none" }, paint: {
@@ -218,12 +218,18 @@
     map.addLayer({ id: "cat-hl-zone", type: "fill", source: "catFocus", filter: ["==", ["get", "k"], "zone"], paint: { "fill-color": "#ffd166", "fill-opacity": 0.08 } });
     map.addLayer({ id: "cat-hl-buf", type: "line", source: "catFocus", filter: ["all", ["==", ["get", "k"], "geom"], ["==", ["geometry-type"], "LineString"]], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffd166", "line-width": kmPx("rkm", 2), "line-opacity": 0.1 } });
     map.addLayer({ id: "cat-hl-line", type: "line", source: "catFocus", filter: ["==", ["geometry-type"], "LineString"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffd166", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 9], "line-opacity": 0.95, "line-blur": 0.5 } });
-    map.addLayer({ id: "verified", type: "circle", source: "verified", paint: {
+    map.addLayer({ id: "verified", type: "circle", source: "verified", layout: { visibility: "none" }, paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 9, 6.5, 13, 10],
       "circle-color": ["match", ["get", "type"], "govt_auction", "#ffd166", "govt_allotment", "#ffb547", "registered", "#2ee6c5", "reported_deal", "#2ee6c5", "listing", "#c9d3e6", "derived_gv", "#7f8aa3", "#b98cff"],
       "circle-stroke-color": "#0a0f1a", "circle-stroke-width": 2, "circle-opacity": 0.95 } });
     map.addLayer({ id: "d-sel-glow", type: "line", source: "districts", filter: ["==", ["get", "id"], -1], paint: { "line-color": "#ffb547", "line-width": 9, "line-opacity": 0.35, "line-blur": 6 } });
 
+    // Clean first view: projects, zones and evidence dots start hidden; chips turn them on.
+    ["cat-glow", "cat-line-op", "cat-line-uc", "cat-infl"].forEach((l) => map.setLayoutProperty(l, "visibility", "none"));
+    // Make basemap place names readable over the price colours.
+    for (const l of (map.getStyle().layers || [])) if (l.type === "symbol") {
+      try { map.setPaintProperty(l.id, "text-color", "#eef2fb"); map.setPaintProperty(l.id, "text-halo-color", "rgba(7,11,20,0.92)"); map.setPaintProperty(l.id, "text-halo-width", 1.6); } catch (e) {}
+    }
     recompute();
     paint();
     buildMarkers();
@@ -329,6 +335,7 @@
   function setMarkerVisibility() {
     for (const c of allCats()) {
       const mk = markers.get(c.id); if (!mk) continue;
+      if (!S.proj && !c.user) { mk.getElement().style.display = "none"; continue; }
       const okT = S.catFilter === "all" || S.catFilter === c.t;
       const okS = S.catStage === "all" || String(c.stage) === S.catStage;
       mk.getElement().style.display = okT && okS ? "" : "none";
@@ -363,6 +370,7 @@
   function focusCatalyst(id) {
     const c = catById(id); if (!c) return;
     S.focusCat = id;
+    if (!S.proj) $("#btnProj").click();
     const T = BL.TYPES[c.t];
     const fs = [];
     if (c.pt) fs.push({ type: "Feature", properties: { k: "zone" }, geometry: { type: "Polygon", coordinates: [E.circleRing(c.pt[0], c.pt[1], T.r * 1.5, 72)] } });
@@ -439,9 +447,8 @@
       if (S.placing) return placeClick(ll);
       const vf = map.getLayer("verified") ? map.queryRenderedFeatures(e.point, { layers: ["verified"] })[0] : null;
       if (vf) return verifiedPopup(vf.properties.i);
-      if (map.getZoom() >= 8.2) return openLocation(ll[0], ll[1]);
       const f = map.queryRenderedFeatures(e.point, { layers: ["d-fill"] })[0];
-      if (f) openDetail(f.id ?? f.properties.id, false);
+      if (f) openLocation(ll[0], ll[1]);
     });
     map.on("contextmenu", (e) => { if (S.draw || S.placing) return; e.preventDefault && e.preventDefault(); openLocation(e.lngLat.lng, e.lngLat.lat); });
     map.on("mouseenter", "verified", () => { map.getCanvas().style.cursor = "pointer"; });
@@ -628,6 +635,8 @@
     S.year = y; yearEl.value = y;
     $("#yearVal").textContent = y;
     $("#yearTag").textContent = y === MY ? "Today" : y < MY ? "Modelled past" : "Projected";
+    const yb = $("#yearBanner");
+    if (yb) { yb.classList.toggle("hidden", y === MY); $("#yearBannerText").textContent = y < MY ? `Map shows modelled prices in ${y}` : `Map shows projected prices in ${y} (${BL.SCENARIOS[S.scenario].label.toLowerCase()} case)`; }
     if (S.layer !== "price") { S.layer = "price"; renderLayerSeg(); if (fromSlider) toast("The time machine shows prices, so the map has switched to the price lens."); }
     E.evaluate(models, opts());
     for (const m of models) m.delta = S.userCats.length ? m.mult / (m.baseMult || m.mult) - 1 : 0;
@@ -662,9 +671,30 @@
     map.setLayoutProperty("sat", "visibility", S.sat ? "visible" : "none");
     paint();
   });
+  $("#btnProj").addEventListener("click", (e) => {
+    S.proj = !S.proj; e.currentTarget.classList.toggle("on", S.proj);
+    ["cat-line-op", "cat-line-uc"].forEach((l) => map.setLayoutProperty(l, "visibility", S.proj ? "visible" : "none"));
+    ["cat-glow", "cat-infl"].forEach((l) => map.setLayoutProperty(l, "visibility", S.proj && S.zones ? "visible" : "none"));
+    setMarkerVisibility(); renderOverlayLegend();
+  });
+  $("#btnTint").addEventListener("click", (e) => {
+    S.tint = !S.tint; e.currentTarget.classList.toggle("on", S.tint);
+    ["d-fill", "grid-fill"].forEach((l) => map.setLayoutProperty(l, "visibility", S.tint ? "visible" : "none"));
+    if (S.three && !S.tint) $("#btn3d").click();
+  });
+  $("#yearReset").addEventListener("click", () => setYear(MY));
+  function renderOverlayLegend() {
+    const el = $("#ovLegend");
+    if (!S.proj && !S.real) { el.classList.add("hidden"); return; }
+    el.classList.remove("hidden");
+    el.innerHTML = (S.proj ? `<b>Projects</b>${Object.values(BL.TYPES).map((T) => `<div class="ov-row"><i style="background:${T.color}">${esc(T.icon)}</i>${esc(T.label)}</div>`).join("")}
+      <div class="ov-row"><span class="ov-line"></span>Solid line = open</div><div class="ov-row"><span class="ov-line dash"></span>Dashed = being built / planned</div><div class="ov-row muted">Faded marker = early stage or cancelled</div>` : "") +
+      (S.real ? `<b style="margin-top:6px;display:block">Real data</b><div class="ov-row"><span class="ov-dot" style="background:#ffd166"></span>Govt auction</div><div class="ov-row"><span class="ov-dot" style="background:#ffb547"></span>Govt allotment</div><div class="ov-row"><span class="ov-dot" style="background:#2ee6c5"></span>Registered / reported deal</div><div class="ov-row"><span class="ov-dot" style="background:#c9d3e6"></span>Listing (asking -10%)</div><div class="ov-row"><span class="ov-dot" style="background:#7f8aa3"></span>From govt guideline value</div><div class="ov-row"><span class="ov-dot" style="background:#b98cff"></span>Govt rate only</div>` : "");
+  }
   $("#btnReal").addEventListener("click", (e) => {
     S.real = !S.real; e.currentTarget.classList.toggle("on", S.real);
     map.setLayoutProperty("verified", "visibility", S.real ? "visible" : "none");
+    renderOverlayLegend();
     if (S.real) toast(`${VERIFIED.length} verified points across India (auctions, allotments, deals, listings, official rates). Click one for sources.`);
   });
   $("#btnHeat").addEventListener("click", (e) => {
@@ -731,7 +761,7 @@
     const ser = E.series(pm, S.scenario), con = E.contributions(pm, S.horizon, S.scenario);
     con.parts.forEach((p) => (p.color = p.c ? BL.TYPES[p.c.t].color : "#8fa3c7"));
     const ev = E.calibrationEvidence(lat, lon), cf = E.calibFactor(lat, lon);
-    const near = nearVerified(lat, lon, 12).slice(0, 6);
+    const near = nearVerified(lat, lon, 12).slice(0, 8);
     const gov = nearVerified(lat, lon, 8).find((x) => x.p.govt_sqyd);
     const dm = models.find((m) => m.name === pm.district);
     const projs = allCats().map((c) => ({ c, d: E.distToCatalyst(c, lat, lon) })).filter((x) => x.d < 60).sort((a, b) => a.d - b.d).slice(0, 8);
@@ -739,7 +769,8 @@
     $("#detailBody").innerHTML = `
       <div class="d-hero">
         <div class="kicker">Plot-level read | ${esc(pm.district || "")}${pm.state ? ", " + esc(pm.state) : ""}</div>
-        <h1 style="font-size:20px">${lat.toFixed(4)}, ${lon.toFixed(4)}</h1>
+        <h1 style="font-size:20px">${near.length && near[0].d < 6 ? "Near " + esc(near[0].p.loc) : esc(pm.district || "Selected spot")}</h1>
+        <div class="small muted">${lat.toFixed(4)}, ${lon.toFixed(4)}${near.length && near[0].d < 6 ? ` | ${near[0].d.toFixed(1)} km from ${esc(near[0].p.loc)}` : ""}</div>
         <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">
           <span class="tag">${pm.nearest ? Math.round(pm.nearestD) + " km from " + esc(pm.nearest.n) : ""}</span>
           <span class="tag ${conf[1]}">Confidence: ${conf[0]}</span>
@@ -805,7 +836,7 @@
           <span class="tag">${esc(near)}</span>
           <span class="tag"><span class="dotc" style="background:${m.u > 0.5 ? "#2ee6c5" : m.u > 0.15 ? "#ffd166" : "#8fa3c7"}"></span>${m.u > 0.5 ? "Urban core" : m.u > 0.15 ? "Peri-urban" : "Rural"}</span>
           ${m.ov ? '<span class="tag" style="border-color:#2ee6c5;color:#2ee6c5">Your data</span>' : ""}
-          ${m.calibrated ? `<span class="tag" style="border-color:#ffd166;color:#ffd166">Real-data calibrated (was ${fmtINR(m.oldPrice)})</span>` : ""}
+          ${m.calibrated ? `<span class="tag" style="border-color:#ffd166;color:#ffd166">Calibrated with real data</span>` : ""}
         </div>
         <div class="acts">
           <button class="icon-btn ${starred ? "on" : ""}" data-act="star" data-id="${m.id}" title="${starred ? "Remove from" : "Add to"} watchlist"><svg viewBox="0 0 24 24" width="17" height="17"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" fill="${starred ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
@@ -1066,7 +1097,7 @@
     const btHtml = BT ? `<h3>Back-test: did the model match reality?</h3>
       <p>Each row compares the documented price change around a past project (in excess of the wider city market) with what the old and the re-calibrated model predicted. Average log error fell from ${BT.oldLoss} to ${BT.newLoss}.</p>
       <table class="cmp"><tr><th>Place</th><th>Years</th><th>Actual</th><th>Old</th><th>New</th></tr>${BT.rows.map((r) => `<tr><td title="${esc(r.project)}"><a href="${esc(r.src)}" target="_blank" rel="noopener">${esc(r.loc.slice(0, 30))}</a></td><td>${r.y0}-${String(r.y1).slice(2)}</td><td>${r.obs.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.old / r.obs)) < 0.15 ? "best" : ""}">${r.old.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.now / r.obs)) < 0.15 ? "best" : ""}">${r.now.toFixed(2)}x</td></tr>`).join("")}</table>
-      <p style="margin-top:8px">What changed: airports and expressways now have a larger effect (airport max uplift 0.85 to 1.3, expressway 0.42 to 0.7, ring road 0.5 to 1.0). Metro and rapid rail were cut from 0.48 to 0.2, because land next to Namo Bharat stations barely moved beyond the city trend. More of the effect is now priced in before opening (85% by completion, up from 65%). Cheap rural land gets a larger percentage boost than built-up land. The model still under-predicts speculative peaks such as the Yamuna Expressway plots (3x).</p>` : "";
+      <p style="margin-top:8px">What changed (24 Oct 2026 re-fit): airport max uplift 0.85 to 1.8, expressway 0.42 to 1.1, ring road 0.5 to 1.5, metro and rapid rail restored to 0.35 (the earlier cut to 0.2 under-predicted Namo Bharat), and cheap rural land gets up to 2.3x the percentage boost of built-up land. About 85% of the effect is priced in by opening. Average log error is now ${BT.newLoss} versus ${BT.oldLoss} for the original model. Still under-predicted: speculative peaks like Yamuna Expressway plots (actual 1.9x vs model 1.16x) and the Hyderabad ORR belt, where the IT corridor also drove prices.</p>` : "";
     const vsHtml = VS ? `<h3>Real-data calibration across India</h3>
       <p>${VS.total} verified localities: ${VS.pricePoints} real land prices and ${VS.govtPoints} official government rates. Before calibration the model's typical error was ${Math.round(VS.errBefore * 100)}%. With real data the typical error, tested by hiding each point and predicting it from the rest, is ${Math.round(VS.errLOO * 100)}%. Areas far from any verified point stay model-only and are labelled that way.</p>
       <table class="cmp"><tr><th>State</th><th>Points</th><th>Error before</th><th>After</th></tr>${(VS.stateStats || []).map((x) => `<tr><td>${esc(x.s)}</td><td>${x.n}</td><td>${Math.round(x.before * 100)}%</td><td class="${x.after < x.before ? "best" : ""}">${Math.round(x.after * 100)}%</td></tr>`).join("")}</table>
@@ -1113,7 +1144,8 @@
     else if (t.id === "inView") { S.inView = t.checked; refreshPanel(); }
     else if (t.id === "zones") {
       S.zones = t.checked;
-      ["cat-glow", "cat-infl"].forEach((l) => map.setLayoutProperty(l, "visibility", S.zones ? "visible" : "none"));
+      ["cat-glow", "cat-infl"].forEach((l) => map.setLayoutProperty(l, "visibility", S.zones && S.proj ? "visible" : "none"));
+      if (S.zones && !S.proj) $("#btnProj").click();
     }
     else if (t.id === "scrState") { S.scr.state = t.value; refreshPanel(); }
     else if (t.id === "scrSort") { S.scr.sort = t.value; refreshPanel(); }

@@ -28,7 +28,7 @@ setTimeout(()=>{
  step('loaded',()=>{if(!w.BhoomiLens)throw new Error('no app')});
  step('layers',()=>{for(const b of d.querySelectorAll('#layerSeg button'))click(b)});
  step('tools',()=>{for(const b of d.querySelectorAll('#rail button[data-tool]')){click(b);if(!d.querySelector('#panelBody').innerHTML.length)throw new Error('empty '+b.dataset.tool)}});
- step('detail',()=>{map.fire('click',{lngLat:{lng:77,lat:28},point:{x:1,y:1}});if(!d.querySelector('#detailBody h1'))throw new Error('no detail')});
+ step('detail',()=>{map.fire('click',{lngLat:{lng:77,lat:28},point:{x:1,y:1}});const od=d.querySelector('#detailBody [data-act="open-d"]');if(!od)throw new Error('no district link on spot card');click(od);if(!d.querySelector('#detailBody h1'))throw new Error('no detail')});
  step('detail acts',()=>{for(const a of ['star','cmp','report'])click(d.querySelector(`#detailBody [data-act="${a}"]`))});
  step('radius',()=>{click(d.querySelector('#detailBody [data-act="radius"]'));if(!d.querySelector('#panelBody').textContent.includes('Median'))throw new Error('no area')});
  step('area csv',()=>click(d.querySelector('[data-act="area-csv"]')));
@@ -41,7 +41,8 @@ setTimeout(()=>{
  step('sim clear',()=>click(d.querySelector('[data-act="sim-clear"]')));
  step('year',()=>{const y=d.querySelector('#year');y.value=2033;y.dispatchEvent(new w.Event('input'));y.value=2016;y.dispatchEvent(new w.Event('input'))});
  step('scenario',()=>{const s=d.querySelector('#scenario');s.value='bear';s.dispatchEvent(new w.Event('change'));const h=d.querySelector('#horizon');h.value='10';h.dispatchEvent(new w.Event('change'))});
- step('toggles',()=>['#btn3d','#btnSat','#btnHeat'].forEach(s=>click(d.querySelector(s))));
+ step('toggles',()=>['#btn3d','#btnSat','#btnHeat','#btnProj','#btnTint','#btnTint','#btnProj'].forEach(s=>click(d.querySelector(s))));
+ step('year banner',()=>{const y=d.querySelector('#year');y.value=2031;y.dispatchEvent(new w.Event('input'));if(d.querySelector('#yearBanner').classList.contains('hidden'))throw new Error('no banner');click(d.querySelector('#yearReset'));if(!d.querySelector('#yearBanner').classList.contains('hidden'))throw new Error('banner stuck')});
  step('catalysts filter',()=>{click(d.querySelector('#rail [data-tool="catalysts"]'));const s=d.querySelector('#catType');s.value='airport';s.dispatchEvent(new w.Event('change',{bubbles:true}));click(d.querySelector('[data-act="fly-cat"]'))});
  step('screener',()=>{click(d.querySelector('#rail [data-tool="screener"]'));const s=d.querySelector('#scrSort');s.value='cheap';s.dispatchEvent(new w.Event('change',{bubbles:true}));click(d.querySelector('[data-act="csv"]'))});
  step('compare/watch',()=>{click(d.querySelector('#rail [data-tool="compare"]'));click(d.querySelector('#rail [data-tool="watchlist"]'));console.log('   ',d.querySelector('#panelBody').textContent.slice(0,120))});

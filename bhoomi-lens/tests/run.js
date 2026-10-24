@@ -76,6 +76,9 @@ ok(E.eff(delayed, 2028, "base") <= E.eff(prr, 2028, "base") + 1e-9, "Delay lower
 const at = (lat, lon) => E.pointModel(lat, lon, BL.CATALYSTS, models, { horizon: 5 });
 const G = [
   ["Minjur (TN) within 0.5x-2.5x of verified ~Rs1,000/sq ft", at(13.28, 80.26).basePrice, 500, 2500],
+  ["Ponneri SRO villages: derived value present", (globalThis.BL_VERIFIED || []).filter((p) => p.type === "derived_gv" && /Ponneri/.test(p.taluk || p.loc)).length, 1, 1e9],
+  ["Every verified row has a source", (globalThis.BL_VERIFIED || []).filter((p) => !(p.src || p.govt_src)).length, 0, 0],
+  ["Metro uplift restored >= 0.3", BL.TYPES.metro.U, 0.3, 1],
   ["Kokapet (Hyd) premium land > Rs10,000/sq ft", at(17.40, 78.335).basePrice, 10000, 60000],
   ["Jaisalmer rural < Rs300/sq ft", models.find((m) => m.name === "Jaisalmer").priceNow, 10, 300],
   ["Mumbai district > Rs10,000/sq ft", models.find((m) => m.name === "Mumbai").priceNow, 10000, 80000],
