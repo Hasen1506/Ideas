@@ -7,7 +7,7 @@ Bhoomi Lens is a fully client-side web app. It needs no build step, no API keys 
 ## Run it
 
 - **Locally:** double-click `bhoomi-lens/index.html`, or serve the folder with `npx serve bhoomi-lens` or `python3 -m http.server -d bhoomi-lens`.
-- **Online:** the included GitHub Actions workflow publishes the app to GitHub Pages on every push to `main`. If the first run fails, open **Settings > Pages**, set **Source** to **GitHub Actions**, then re-run the workflow.
+- **Online:** in the repo, open **Settings > Pages**, set **Source** to **Deploy from a branch**, and choose `main` and `/ (root)`. The app is then live at `https://hasen1506.github.io/Ideas/bhoomi-lens/`.
 
 ## What it does
 

@@ -9,6 +9,8 @@
 - Scores risk and opportunity for each district.
 - Lets you draw any area or simulate a new airport, metro or expressway.
 
-It runs entirely in the browser: open `bhoomi-lens/index.html` and it works. To publish it online, go to **Settings > Pages > Source** and choose **GitHub Actions**. The included workflow then deploys it on every push.
+It runs entirely in the browser: open `bhoomi-lens/index.html` and it works.
+
+**Publish it:** go to **Settings > Pages**, set **Source** to **Deploy from a branch**, and choose `main` and `/ (root)`. It goes live at https://hasen1506.github.io/Ideas/bhoomi-lens/
 
 See [bhoomi-lens/README.md](bhoomi-lens/README.md) for the full feature list and how the model works.
