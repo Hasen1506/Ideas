@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Bhoomi Lens - Land intelligence for India</title>
+  <meta name="description" content="See what land across India is worth, what will move it, and what could go wrong. District-level valuation, infrastructure ripple modelling, risk and opportunity scoring." />
+  <meta name="theme-color" content="#070b14" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ffb547'/%3E%3Cstop offset='1' stop-color='%232ee6c5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='url(%23g)' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='url(%23g)'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <link href="css/app.css" rel="stylesheet" />
+</head>
+<body>
+  <div id="map" aria-label="Map of India"></div>
+  <div class="vignette"></div>
+
+  <header class="topbar glass">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb547"/><stop offset="1" stop-color="#2ee6c5"/></linearGradient></defs><circle cx="16" cy="16" r="13" fill="none" stroke="url(#lg)" stroke-width="2.5"/><circle cx="16" cy="16" r="7.5" fill="none" stroke="url(#lg)" stroke-width="1.5" opacity=".6"/><circle cx="16" cy="16" r="3.2" fill="url(#lg)"/></svg>
+      <div><b>Bhoomi Lens</b><span>Land intelligence for India</span></div>
+    </div>
+    <button id="searchBtn" class="search" title="Search (Ctrl K)">
+      <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Search districts, projects, cities</span><kbd>Ctrl K</kbd>
+    </button>
+    <div id="layerSeg" class="seg" role="tablist" aria-label="Map layer"></div>
+    <div class="top-right">
+      <label class="sel"><span>Scenario</span>
+        <select id="scenario"><option value="bear">Bear</option><option value="base" selected>Base</option><option value="bull">Bull</option></select>
+      </label>
+      <label class="sel"><span>Horizon</span>
+        <select id="horizon"><option value="3">3 yrs</option><option value="5" selected>5 yrs</option><option value="10">10 yrs</option></select>
+      </label>
+      <button id="btnHeat" class="chip" title="Pipeline hotspots heat layer">Hotspots</button>
+      <button id="btnSat" class="chip" title="Satellite imagery">Satellite</button>
+      <button id="btn3d" class="chip" title="3D price terrain">3D</button>
+    </div>
+  </header>
+
+  <nav class="rail glass" id="rail" aria-label="Tools"></nav>
+
+  <aside id="panel" class="panel glass hidden" aria-live="polite">
+    <div class="panel-head"><h2 id="panelTitle"></h2><button id="panelClose" class="icon-btn" aria-label="Close">
+      <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
+    <div id="panelBody" class="panel-body"></div>
+  </aside>
+
+  <aside id="detail" class="detail glass hidden" aria-live="polite"><div id="detailBody"></div></aside>
+
+  <footer class="dock glass">
+    <div id="legend" class="legend"></div>
+    <div class="time">
+      <button id="playBtn" class="play" aria-label="Play time machine">
+        <svg id="playIcon" viewBox="0 0 24 24" width="14" height="14"><path d="M7 5l12 7-12 7z" fill="currentColor"/></svg>
+      </button>
+      <div class="time-track">
+        <input type="range" id="year" min="2015" max="2036" step="1" value="2026" aria-label="Year" />
+        <div class="time-ticks"><span>2015</span><span>2020</span><span>2026</span><span>2031</span><span>2036</span></div>
+      </div>
+      <div class="year-label"><b id="yearVal">2026</b><span id="yearTag">Today</span></div>
+    </div>
+  </footer>
+
+  <div id="tooltip" class="tooltip"></div>
+  <div id="drawHint" class="draw-hint hidden"></div>
+  <div id="toast" class="toast"></div>
+  <div class="disclaimer">Modelled estimates, not transaction data. <a href="#" id="methodLink">How it works</a></div>
+
+  <div id="palette" class="palette hidden" role="dialog" aria-label="Search">
+    <div class="palette-box glass">
+      <input id="paletteInput" placeholder="Search a district, city, project or state..." autocomplete="off" />
+      <div id="paletteList" class="palette-list"></div>
+      <div class="palette-foot"><span><kbd>Up</kbd><kbd>Down</kbd> navigate</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div>
+    </div>
+  </div>
+
+  <div id="intro" class="intro hidden">
+    <div class="intro-box glass">
+      <div class="intro-kicker">Bhoomi Lens</div>
+      <h1>See what land is worth, what will move it, and what could go wrong.</h1>
+      <div class="intro-grid">
+        <div><b>Explore</b><p>Every district in India, priced, forecast and risk-scored. Switch lenses at the top and click any district.</p></div>
+        <div><b>Draw an area</b><p>Lasso, circle or box any patch of land and get a full investment read-out for it.</p></div>
+        <div><b>Simulate</b><p>Drop a hypothetical airport, metro or expressway and watch the price ripple spread.</p></div>
+        <div><b>Time machine</b><p>Scrub from 2015 to 2036 and watch growth spill outward along corridors.</p></div>
+      </div>
+      <p class="intro-note">All figures are modelled, indicative estimates built from public reference points. They are not registered transaction data or investment advice.</p>
+      <button id="introGo" class="btn primary">Start exploring</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="data/districts.js"></script>
+  <script src="data/states.js"></script>
+  <script src="data/overrides.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
