@@ -214,9 +214,13 @@
     add({ id: "draw-line", type: "line", source: "draw", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": "#ffb547", "line-width": 2, "line-dasharray": [2, 1] } });
     add({ id: "draw-pt", type: "circle", source: "draw", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 4.5, "circle-color": "#0a0f1a", "circle-stroke-color": "#ffb547", "circle-stroke-width": 2 } });
     map.addLayer({ id: "d-sel", type: "line", source: "districts", filter: ["==", ["get", "id"], -1], paint: { "line-color": "#ffffff", "line-width": 2.4 } });
+    map.addSource("catFocus", { type: "geojson", data: emptyFC() });
+    map.addLayer({ id: "cat-hl-zone", type: "fill", source: "catFocus", filter: ["==", ["get", "k"], "zone"], paint: { "fill-color": "#ffd166", "fill-opacity": 0.08 } });
+    map.addLayer({ id: "cat-hl-buf", type: "line", source: "catFocus", filter: ["all", ["==", ["get", "k"], "geom"], ["==", ["geometry-type"], "LineString"]], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffd166", "line-width": kmPx("rkm", 2), "line-opacity": 0.1 } });
+    map.addLayer({ id: "cat-hl-line", type: "line", source: "catFocus", filter: ["==", ["geometry-type"], "LineString"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffd166", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 9], "line-opacity": 0.95, "line-blur": 0.5 } });
     map.addLayer({ id: "verified", type: "circle", source: "verified", paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 9, 6.5, 13, 10],
-      "circle-color": ["match", ["get", "type"], "govt_auction", "#ffd166", "registered", "#2ee6c5", "reported_deal", "#2ee6c5", "listing", "#c9d3e6", "#b98cff"],
+      "circle-color": ["match", ["get", "type"], "govt_auction", "#ffd166", "govt_allotment", "#ffb547", "registered", "#2ee6c5", "reported_deal", "#2ee6c5", "listing", "#c9d3e6", "derived_gv", "#7f8aa3", "#b98cff"],
       "circle-stroke-color": "#0a0f1a", "circle-stroke-width": 2, "circle-opacity": 0.95 } });
     map.addLayer({ id: "d-sel-glow", type: "line", source: "districts", filter: ["==", ["get", "id"], -1], paint: { "line-color": "#ffb547", "line-width": 9, "line-opacity": 0.35, "line-blur": 6 } });
 
@@ -358,6 +362,16 @@
   }
   function focusCatalyst(id) {
     const c = catById(id); if (!c) return;
+    S.focusCat = id;
+    const T = BL.TYPES[c.t];
+    const fs = [];
+    if (c.pt) fs.push({ type: "Feature", properties: { k: "zone" }, geometry: { type: "Polygon", coordinates: [E.circleRing(c.pt[0], c.pt[1], T.r * 1.5, 72)] } });
+    const g = c.pt ? { type: "Point", coordinates: c.pt } : { type: "LineString", coordinates: c.path || E.circleRing(c.ring.lon, c.ring.lat, c.ring.rdeg * 111, 96) };
+    fs.push({ type: "Feature", properties: { k: "geom", color: T.color, rkm: T.r * 1.5 }, geometry: g });
+    if (map.getSource("catFocus")) map.getSource("catFocus").setData({ type: "FeatureCollection", features: fs });
+    for (const [cid, mk] of markers) mk.getElement().style.opacity = cid === id ? "1" : "0.35";
+    if (map.getLayer("cat-hl-line")) map.setPaintProperty("cat-hl-line", "line-color", T.color);
+    showProjectCard(c);
     if (popup) popup.remove();
     if (c.pt) map.flyTo({ center: c.pt, zoom: Math.max(map.getZoom(), 8.5), duration: 1200 });
     else {
@@ -365,10 +379,31 @@
       const b = pts.reduce((bb, p) => bb.extend(p), new maplibregl.LngLatBounds(pts[0], pts[0]));
       map.fitBounds(b, { padding: padFor(), duration: 1200 });
     }
-    popup = new maplibregl.Popup({ offset: 16, maxWidth: "320px" }).setLngLat(markerPos(c)).setHTML(catPopupHTML(c)).addTo(map);
+    popup = null;
     const mk = markers.get(id);
     const inner = mk && mk.getElement().firstChild;
     if (inner) { inner.classList.add("pulse"); setTimeout(() => inner.classList.remove("pulse"), 4000); }
+  }
+
+  function clearFocus() {
+    S.focusCat = null;
+    if (map.getSource("catFocus")) map.getSource("catFocus").setData(emptyFC());
+    for (const [, mk] of markers) mk.getElement().style.opacity = "";
+  }
+  function showProjectCard(c) {
+    const T = BL.TYPES[c.t];
+    const hit = models.map((m) => { const L = m.links.find((l) => l.c.id === c.id); return L ? { m, d: L.d, up: L.w * (E.eff(c, MY + S.horizon, S.scenario) - E.eff(c, MY, "base")) } : null; }).filter(Boolean).sort((a, b) => b.up - a.up).slice(0, 8);
+    const pts = (window.BL_VERIFIED || []).map((p, i) => ({ p, i, d: E.distToCatalyst(c, p.lat, p.lon) })).filter((x) => x.d < T.r * 1.5).sort((a, b) => a.d - b.d).slice(0, 8);
+    S.sel = null; S.loc = null;
+    document.body.classList.add("detail-open"); $("#detail").classList.remove("hidden");
+    $("#detailBody").innerHTML = `<div class="d-hero"><div class="kicker">${esc(T.label)} | ${esc(c.ag || "")}</div><h1 style="font-size:20px">${esc(c.n)}</h1>
+      <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px"><span class="tag">${esc(BL.STAGES[c.stage])}</span>${c.cancelled ? '<span class="tag down">Cancelled</span>' : `<span class="tag">${Math.round(E.completionP(c, S.scenario) * 100)}% likely by ${E.effEta(c, S.scenario)}</span>`}${c.delays ? `<span class="tag warn">Delayed ${c.delays}x</span>` : ""}<span class="tag">as of ${esc(c.asof || BL.DATA_ASOF)}</span></div>
+      <div class="acts"><button class="icon-btn" data-act="clear-focus" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div></div>
+      <div class="d-body">${catPopupHTML(c)}
+      <h3>Districts it moves most (next ${S.horizon} yrs)</h3>${hit.length ? hit.map((h, i) => listItem(h.m, i, `<span class="pill ${h.up < 0 ? "r" : ""}">${pct(h.up)}</span>`)).join("") : '<div class="empty">Effect too small at district level. Zoom in on the corridor.</div>'}
+      ${pts.length ? `<h3>Verified prices inside its reach</h3>${pts.map((x) => `<div class="list-item" data-act="verified" data-i="${x.i}"><div class="grow"><b>${esc(x.p.loc)}</b> <span class="small muted">${x.d.toFixed(1)} km</span></div><span class="pill s">${x.p.txn_sqyd ? fmtINR(x.p.txn_sqyd / 9) + "/sq ft" : "govt " + fmtINR((x.p.govt_sqyd || x.p.govt_sqyd_agri) / 9)}</span></div>`).join("")}` : ""}
+      <p class="small muted" style="margin-top:10px">The highlighted band on the map is the project's modelled reach (about ${Math.round(T.r * 1.5)} km).</p></div>`;
+    $("#detail").scrollTop = 0;
   }
 
   /* ------------------------------------------------------------------ */
@@ -688,7 +723,7 @@
   function nearVerified(lat, lon, maxKm) {
     return (window.BL_VERIFIED || []).map((p, i) => ({ p, i, d: E.hav(lat, lon, p.lat, p.lon) })).filter((x) => x.d <= maxKm).sort((a, b) => a.d - b.d);
   }
-  const TYPE_LABEL = { govt_auction: "Govt auction (actual sale)", registered: "Registered sale", reported_deal: "Reported deal", listing: "Listing (asking, -10%)" };
+  const TYPE_LABEL = { govt_auction: "Govt auction (actual sale)", registered: "Registered sale", reported_deal: "Reported deal", listing: "Listing (asking, -10%)", govt_allotment: "Govt allotment (actual)", derived_gv: "Derived from govt guideline value" };
   function renderLocation() {
     const { lon, lat } = S.loc;
     const pm = E.pointModel(lat, lon, allCats(), models, opts());
@@ -719,6 +754,16 @@
           <div class="kpi"><div class="k">${S.horizon}-yr outlook</div><div class="v up">${pm.mult.toFixed(2)}x</div><div class="s">${pct(pm.cagr)} per year, ${esc(BL.SCENARIOS[S.scenario].label.toLowerCase())}</div></div>
           ${gov ? `<div class="kpi wide"><div class="k">Official govt market value nearby (${esc(gov.p.loc)}, ${gov.d.toFixed(1)} km)</div><div class="v">${fmtINR(gov.p.govt_sqyd)}<span class="small muted"> /sq yd</span></div><div class="s">${esc(gov.p.govt_date || "")} | <a href="${esc(gov.p.govt_src)}" target="_blank" rel="noopener">source</a> | market is ${Math.round((1 - gov.p.govt_sqyd / 9 / pm.basePrice) * 100)}% above it</div></div>` : ""}
         </div>
+        <h3>How this price was arrived at</h3>
+        <div class="card small" style="line-height:1.6">${(() => {
+          const cc = E.calibContrib(lat, lon);
+          const raw = pm.modelPrice;
+          return `<div class="row sb"><span class="muted">1. Base model (state farmland baseline + pull of ${esc(pm.nearest ? pm.nearest.n : "nearest city")})</span><b>${fmtINR(raw)}</b></div>
+            <div class="row sb"><span class="muted">2. Real-data adjustment from verified prices nearby</span><b class="${cc.factor < 1 ? "down" : "up"}">x${cc.factor.toFixed(2)}</b></div>
+            <div class="row sb" style="border-top:1px solid var(--line);margin-top:4px;padding-top:4px"><span>Estimate today</span><b>${fmtINR(pm.basePrice)}</b></div>
+            ${cc.top.length ? `<div class="muted" style="margin-top:6px">Weight of evidence: ${cc.top.map((t) => `${esc(t.loc)} ${Math.round(t.share * 100)}% (${t.d.toFixed(1)} km, real ${fmtINR(t.real)})`).join("; ")}; model prior ${Math.round(cc.priorShare * 100)}%.</div>` : '<div class="muted" style="margin-top:6px">No verified price within ~50 km, so this is model-only.</div>'}
+            <div class="muted" style="margin-top:4px">3. Forecast = today's estimate grown by the state drift and each project's priced-in share x completion odds (see drivers below).</div>`;
+        })()}</div>
         <h3>Analyse around this point</h3>
         <div class="btn-row">${[2, 5, 10, 15, 25, 50].map((r) => `<button class="btn sm" data-act="loc-radius" data-r="${r}" data-lon="${lon}" data-lat="${lat}">${r} km</button>`).join("")}</div>
         ${near.length ? `<h3>Real prices nearby (${near.length})</h3><div class="card" style="padding:4px 12px">${near.map((x) => `<div class="cat-row" data-act="verified" data-i="${x.i}"><span class="cat-ico" style="background:${x.p.type === "govt_auction" ? "#ffd166" : x.p.price ? "#c9d3e6" : "#b98cff"}">${x.p.price ? "Rs" : "G"}</span><div class="grow"><div class="cn">${esc(x.p.loc)}</div><div class="small muted">${x.p.price ? fmtINR(x.p.txn_sqyd) + "/sq yd | " + esc(TYPE_LABEL[x.p.type] || x.p.type) + " | " + esc(x.p.date || "") : "Govt rate " + fmtINR(x.p.govt_sqyd || x.p.govt_sqyd_agri) + "/sq yd"} | ${x.d.toFixed(1)} km</div></div></div>`).join("")}</div>` : ""}
@@ -936,7 +981,9 @@
   }
 
   function pCatalysts() {
-    const list = allCats().filter((c) => (S.catFilter === "all" || c.t === S.catFilter) && (S.catStage === "all" || String(c.stage) === S.catStage))
+    const bb = S.inView && map.getBounds ? map.getBounds() : null;
+    const inB = (c) => !bb || (c.pt ? [c.pt] : c.path || [[c.ring.lon, c.ring.lat]]).some((p) => p[0] >= bb.getWest() && p[0] <= bb.getEast() && p[1] >= bb.getSouth() && p[1] <= bb.getNorth());
+    const list = allCats().filter((c) => (S.catFilter === "all" || c.t === S.catFilter) && (S.catStage === "all" || String(c.stage) === S.catStage) && inB(c))
       .sort((a, b) => E.effEta(a, S.scenario) - E.effEta(b, S.scenario));
     const types = ["all", ...Object.keys(BL.TYPES)];
     const delayed = allCats().filter((c) => c.stage < 4 && E.effEta(c, "bear") - c.eta >= 3).length;
@@ -947,7 +994,8 @@
       </div>
       <div class="field"><label><span>Type</span></label><select id="catType">${types.map((t) => `<option value="${t}" ${S.catFilter === t ? "selected" : ""}>${t === "all" ? "All types" : esc(BL.TYPES[t].label)}</option>`).join("")}</select></div>
       <div class="field"><label><span>Stage</span></label><select id="catStage"><option value="all">All stages</option>${BL.STAGES.map((s, i) => `<option value="${i}" ${S.catStage === String(i) ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></div>
-      <label class="row small muted" style="margin:4px 0 10px;cursor:pointer"><input type="checkbox" id="zones" ${S.zones ? "checked" : ""}/> Show influence zones on the map</label>
+      <label class="row small muted" style="margin:4px 0 4px;cursor:pointer"><input type="checkbox" id="zones" ${S.zones ? "checked" : ""}/> Show influence zones on the map</label>
+      <label class="row small muted" style="margin:0 0 10px;cursor:pointer"><input type="checkbox" id="inView" ${S.inView ? "checked" : ""}/> Only projects in the current map view</label>
       <div class="card" style="padding:4px 12px">${list.length ? list.map((c) => catRow(c, `${c.ag} | credibility ${Math.round(c.cred * 100)}`)).join("") : '<div class="empty">No projects match.</div>'}</div>`;
   }
 
@@ -1029,6 +1077,10 @@
       <p><b>Data as of ${esc(BL.DATA_ASOF)}.</b> Project statuses were verified in ${esc(BL.DATA_ASOF)} for ${BL.CATALYSTS.length} projects, each with a source link (click a project marker). Prices are calibrated to verified local evidence where it exists; elsewhere they are modelled and marked "Model only".</p>
       ${vsHtml}${btHtml}
       <p><b>What this is.</b> Bhoomi Lens is a modelled land-intelligence map. It turns public reference points into an estimate of what land is worth today, where it is heading and what could go wrong. It is not a record of registered transactions.</p>
+      <h3>Where every number comes from</h3>
+      <p>No price in the app is invented, but they are not all the same kind of evidence. Each verified point is tagged with its type, date and source link (click any dot with Real data on):</p>
+      <p>- <b>Govt auction / allotment</b> (gold): an actual sale or allotment price by a government authority.<br/>- <b>Registered / reported deal</b> (teal): reported registrations or land deals.<br/>- <b>Listing</b> (light grey): portal asking prices, cut by 10% to approximate sale prices.<br/>- <b>Official govt rate</b> (shown inside each point): guideline, circle, ready reckoner or jantri value.<br/>- <b>Derived village value</b> (dark grey, Tamil Nadu only): the official guideline median x ${VS ? VS.tnMult : 2}x, the median market-to-guideline ratio across ${VS ? VS.tnPairs : 0} Tamil Nadu localities with both numbers. Used at a third of the weight of a real price.</p>
+      <p>Individual registered sale deeds are not included: state registration portals require captchas and document-by-document searches. Everywhere else the price is the model, adjusted by the nearest verified evidence. Each plot-level card shows exactly how its price was built: base model, the real-data adjustment, and which verified points pulled it and by how much.</p>
       <h3>1. Price today</h3>
       <p>Each district's price combines a rural baseline (typical agricultural land per acre in that state) with urban gravity: the pull of ${BL.ANCHORS.length} city anchors, each decaying with distance. Circle rates are modelled from state-level guidance-to-market ratios.</p>
       <h3>2. Catalyst uplift</h3>
@@ -1058,6 +1110,7 @@
     const t = e.target;
     if (t.id === "catType") { S.catFilter = t.value; setMarkerVisibility(); refreshPanel(); }
     else if (t.id === "catStage") { S.catStage = t.value; setMarkerVisibility(); refreshPanel(); }
+    else if (t.id === "inView") { S.inView = t.checked; refreshPanel(); }
     else if (t.id === "zones") {
       S.zones = t.checked;
       ["cat-glow", "cat-infl"].forEach((l) => map.setLayoutProperty(l, "visibility", S.zones ? "visible" : "none"));
@@ -1083,7 +1136,8 @@
     const num = id != null && /^\d+$/.test(id) ? +id : id;
     switch (act) {
       case "open-d": openDetail(num); break;
-      case "close-detail": closeDetail(); break;
+      case "close-detail": closeDetail(); clearFocus(); break;
+      case "clear-focus": clearFocus(); closeDetail(); break;
       case "fly-cat": focusCatalyst(id); break;
       case "fly-pt": map.flyTo({ center: [+a.dataset.lon, +a.dataset.lat], zoom: 12, duration: 1000 }); new maplibregl.Popup({ offset: 8 }).setLngLat([+a.dataset.lon, +a.dataset.lat]).setHTML(`<b>Grid cell</b><div class="small muted">${(+a.dataset.lat).toFixed(4)}, ${(+a.dataset.lon).toFixed(4)}</div>`).addTo(map); break;
       case "star": toggleList("watch", num); toast(S.watch.includes(num) ? "Added to watchlist" : "Removed from watchlist"); break;

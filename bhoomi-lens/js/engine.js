@@ -165,6 +165,17 @@
     }
     return Math.exp(num / den);
   }
+  /* Explain the real-data adjustment at a point: which verified points pulled it, and how hard. */
+  function calibContrib(lat, lon, top = 5) {
+    const list = []; let den = 0.3;
+    for (const c of CAL) {
+      if (Math.abs(c.lat - lat) > 0.8 || Math.abs(c.lon - lon) > 0.8) continue;
+      const d = hav(lat, lon, c.lat, c.lon), k = c.w * Math.exp(-d / 9);
+      den += k; list.push({ loc: c.loc, d, k, real: c.real, model: c.model, res: c.res });
+    }
+    list.sort((a, b) => b.k - a.k);
+    return { factor: calibFactor(lat, lon), priorShare: 0.3 / den, top: list.slice(0, top).map((x) => Object.assign(x, { share: x.k / den })) };
+  }
   function calibrationEvidence(lat, lon) {
     let s = 0;
     for (const c of CAL) { const d = hav(lat, lon, c.lat, c.lon); s += c.w * Math.exp(-d / 9); }
@@ -256,9 +267,11 @@
     const sc = BL.SCENARIOS[scen] || BL.SCENARIOS.base;
     const MY = BL.MODEL_YEAR;
     const g = year > MY ? m.g + sc.gAdj : m.g;
-    const e0 = E(m, MY, "base");
-    const ey = E(m, year, year > MY ? scen : "base");
-    return m.basePrice * Math.pow(1 + g, year - MY) * (1 + ey) / (1 + e0);
+    // Multiplicative per project: an already-priced-in project cancels out exactly instead of diluting other growth.
+    const sy = year > MY ? scen : "base";
+    let r = 1;
+    for (const L of m.links) r *= (1 + L.w * eff(L.c, year, sy)) / (1 + L.w * eff(L.c, MY, "base"));
+    return m.basePrice * Math.pow(1 + g, year - MY) * r;
   }
 
   function sigmaAt(m, year, scen = "base") {
@@ -514,6 +527,6 @@
     hav, segDist, distToCatalyst, eff, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
     prepare, relink, evaluate, priceAt, sigmaAt, series, contributions, riskOf, momentum, analogueFor,
     pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,
-    setCalibration, calibFactor, calibrationEvidence, calibrateDistricts, oppScore, buildModel
+    setCalibration, calibFactor, calibContrib, calibrationEvidence, calibrateDistricts, oppScore, buildModel
   };
 })(typeof window !== "undefined" ? window : globalThis);
