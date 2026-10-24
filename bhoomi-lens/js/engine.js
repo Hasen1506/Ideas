@@ -82,9 +82,18 @@
   function realisation(c, year, scen = "base") {
     const T = BL.TYPES[c.t] || BL.TYPES.expressway;
     const eta = effEta(c, scen);
+    const K = BL.CURVE || { ann: 0.35, done: 0.85 };
     if (year < c.ann) return 0;
-    if (year <= eta) return 0.3 + 0.35 * ((year - c.ann) / Math.max(1, eta - c.ann));
-    return 0.65 + 0.35 * clamp((year - eta) / T.lag);
+    if (year <= eta) return K.ann + (K.done - K.ann) * ((year - c.ann) / Math.max(1, eta - c.ann));
+    return K.done + (1 - K.done) * clamp((year - eta) / T.lag);
+  }
+
+  /* Land leverage: the same project moves cheap rural land far more (in %) than built-up urban land.
+   * Calibrated on Devanahalli / Yamuna Expressway (rural, 2-3x excess) vs Ulwe / Dwarka Expwy (urban, 1.2-1.4x). */
+  function leverage(u) {
+    const L = BL.LEVERAGE;
+    if (!L) return 1;
+    return L.a + L.b * (1 - u);
   }
 
   /* ---------------- Fundamentals ---------------- */
@@ -115,8 +124,40 @@
     return { d, w };
   }
 
+  /* ---------------- Real-data calibration ----------------
+   * Verified price points (registered sales, govt auctions) pull the modelled surface
+   * toward reality: residual r = ln(real / model) is spread with an exponential kernel
+   * (about 9 km) and shrinks back to zero where there is no evidence.
+   */
+  let CAL = [];
+  function setCalibration(points, catalysts) {
+    CAL = [];
+    for (const p of points || []) {
+      if (!(p.price > 0)) continue;
+      const m = buildModel("cal", p.loc || "cal", p.state || "", p.lat, p.lon, 0, catalysts, true);
+      CAL.push({ lat: p.lat, lon: p.lon, real: p.price, model: m.basePrice, res: Math.log(p.price / m.basePrice), w: p.w || 1, loc: p.loc });
+    }
+    return CAL;
+  }
+  function calibFactor(lat, lon) {
+    if (!CAL.length) return 1;
+    let num = 0, den = 0.3;
+    for (const c of CAL) {
+      if (Math.abs(c.lat - lat) > 0.8 || Math.abs(c.lon - lon) > 0.8) continue;
+      const d = hav(lat, lon, c.lat, c.lon);
+      const k = c.w * Math.exp(-d / 9);
+      num += k * c.res; den += k;
+    }
+    return Math.exp(num / den);
+  }
+  function calibrationEvidence(lat, lon) {
+    let s = 0;
+    for (const c of CAL) { const d = hav(lat, lon, c.lat, c.lon); s += c.w * Math.exp(-d / 9); }
+    return s;
+  }
+
   /* ---------------- Preparation (static, cached) ---------------- */
-  function buildModel(id, name, state, lat, lon, area, catalysts) {
+  function buildModel(id, name, state, lat, lon, area, catalysts, raw) {
     const st = stateOf(state);
     const h = hash01(name + "|" + state);
     const h2 = hash01(state + "#" + name);
@@ -124,19 +165,49 @@
     const g0 = urbanGravity(lat, lon, area);
     const urban = g0.urban * (0.85 + 0.3 * h2);
     const u = 1 - Math.exp(-urban / 1500);
+    const uL = clamp(Math.log10(Math.max(rural + urban, 1) / 50) / Math.log10(400));
+    const lev = leverage(uL);
     const links = [];
     for (const c of catalysts) {
       const cw = catalystWeight(c, lat, lon, area);
-      if (cw.w > 0.004) links.push({ c, w: cw.w, d: cw.d });
+      if (cw.w * lev > 0.004) links.push({ c, w: cw.w * lev, d: cw.d });
     }
     links.sort((a, b) => b.w - a.w);
     return {
+      lev,
       id, name, state, lat, lon, area, st, h, h2, rural, urban, u,
       nearest: g0.nearest, nearestD: g0.nearestD,
-      basePrice: rural + urban,
+      basePrice: (rural + urban) * (raw || area > 0 ? 1 : calibFactor(lat, lon)),
+      modelPrice: rural + urban,
       g: st.g + 0.012 * u + (h - 0.5) * 0.012,
       links
     };
+  }
+
+  /* District price = median of the calibrated point surface over the district polygon. */
+  function calibrateDistricts(models, features, catalysts) {
+    const changed = [];
+    if (!CAL.length) return changed;
+    const fById = new Map(features.map((f) => [f.properties.id, f]));
+    for (const m of models) {
+      let near = false;
+      for (const c of CAL) if (hav(m.lat, m.lon, c.lat, c.lon) < 70) { near = true; break; }
+      if (!near) continue;
+      const f = fById.get(m.id); if (!f) continue;
+      const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+      let ring = polys[0][0], best = 0;
+      for (const p of polys) { const a = polyAreaKm2(p[0]); if (a > best) { best = a; ring = p[0]; } }
+      const { pts } = sampleGrid(ring, 160);
+      const vals = pts.map(([lon, lat]) => buildModel("g", m.name + lon + lat, m.state, lat, lon, 0, [], false).basePrice).sort((a, b) => a - b);
+      const med = vals[Math.floor(vals.length / 2)];
+      const ev = calibrationEvidence(m.lat, m.lon);
+      if (!(med > 0)) continue;
+      const old = m.basePrice;
+      m.basePrice = med;
+      m.calibrated = true; m.oldPrice = old; m.evidence = ev;
+      changed.push({ id: m.id, name: m.name, state: m.state, old, now: med });
+    }
+    return changed;
   }
 
   function prepare(features, catalysts) {
@@ -152,7 +223,8 @@
       m.links = [];
       for (const c of catalysts) {
         const cw = catalystWeight(c, m.lat, m.lon, m.area);
-        if (cw.w > 0.004) m.links.push({ c, w: cw.w, d: cw.d });
+        const lev = m.lev || 1;
+        if (cw.w * lev > 0.004) m.links.push({ c, w: cw.w * lev, d: cw.d });
       }
       m.links.sort((a, b) => b.w - a.w);
     }
@@ -272,15 +344,19 @@
       m.vec = featuresFor(m, m.cagr);
       m.raw = m.cagr - 0.025 * m.vec[0] - 0.06 * (m.risk.total / 100) + 0.025 * m.gap + 0.02 * (m.liq / 100) + 0.05 * clamp(m.mom / 0.5) - 0.02 * Math.max(0, m.hi - m.lo - 1);
     }
-    // Percentile rank for the opportunity score.
-    const sorted = models.map((m) => m.raw).sort((a, b) => a - b);
-    const n = sorted.length;
-    for (const m of models) {
-      let lo = 0, hi = n;
-      while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid] < m.raw) lo = mid + 1; else hi = mid; }
-      m.opp = Math.round((100 * lo) / Math.max(1, n - 1));
-    }
+    // Opportunity score: logistic of the z-score, capped at 3-95 so nothing reads as a "certain" 100.
+    const n = models.length;
+    const mu = models.reduce((s, m) => s + m.raw, 0) / Math.max(1, n);
+    const sd = Math.sqrt(models.reduce((s, m) => s + (m.raw - mu) ** 2, 0) / Math.max(1, n)) || 1;
+    BL.OPP_STATS = { mu, sd };
+    for (const m of models) m.opp = oppScore(m.raw);
     return models;
+  }
+
+  function oppScore(raw) {
+    const st = BL.OPP_STATS || { mu: 0.06, sd: 0.02 };
+    const z = (raw - st.mu) / (st.sd || 1);
+    return Math.round(Math.max(3, Math.min(95, 100 / (1 + Math.exp(-1.25 * z)))));
   }
 
   /* ---------------- Point model (area analysis, hotspots) ---------------- */
@@ -422,6 +498,7 @@
   BL.Engine = {
     hav, segDist, distToCatalyst, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
     prepare, relink, evaluate, priceAt, sigmaAt, series, contributions, riskOf, momentum, analogueFor,
-    pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE
+    pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,
+    setCalibration, calibFactor, calibrationEvidence, calibrateDistricts, oppScore, buildModel
   };
 })(typeof window !== "undefined" ? window : globalThis);

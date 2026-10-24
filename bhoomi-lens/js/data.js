@@ -117,18 +117,27 @@
    * r : decay distance in km
    * lag: years after completion until the effect is fully priced in
    */
+  /* Uplift parameters re-calibrated (Oct 2026) against observed land-price changes around
+   * Hyderabad ORR, Bengaluru KIA, Delhi-Meerut RRTS, Yamuna Expwy/Jewar, Navi Mumbai airport + Atal Setu,
+   * Dwarka Expressway and Samruddhi. See data/backtest.js and the "How the model works" panel. */
   BL.TYPES = {
-    airport:    { label: "Airport", U: 0.85, r: 28, lag: 4, color: "#ffb547", icon: "A" },
-    expressway: { label: "Expressway", U: 0.42, r: 9, lag: 3, color: "#5ad1ff", icon: "E" },
-    metro:      { label: "Metro / RRTS", U: 0.48, r: 4.5, lag: 2, color: "#b98cff", icon: "M" },
-    hsr:        { label: "High-speed rail", U: 0.32, r: 7, lag: 4, color: "#ff7ab6", icon: "H" },
-    industrial: { label: "Industrial node", U: 0.62, r: 18, lag: 5, color: "#7cf29a", icon: "I" },
-    port:       { label: "Port", U: 0.42, r: 22, lag: 5, color: "#4fe3d0", icon: "P" },
-    city:       { label: "New city / capital", U: 0.75, r: 22, lag: 6, color: "#ff9f6e", icon: "C" },
-    ring:       { label: "Ring road", U: 0.5, r: 8, lag: 3, color: "#7fb2ff", icon: "R" },
-    freight:    { label: "Freight corridor", U: 0.24, r: 10, lag: 4, color: "#c7d36f", icon: "F" },
+    airport:    { label: "Airport", U: 1.3, r: 30, lag: 4, color: "#ffb547", icon: "A" },
+    expressway: { label: "Expressway", U: 0.7, r: 8, lag: 3, color: "#5ad1ff", icon: "E" },
+    metro:      { label: "Metro / RRTS", U: 0.2, r: 3.5, lag: 2, color: "#b98cff", icon: "M" },
+    hsr:        { label: "High-speed rail", U: 0.2, r: 6, lag: 4, color: "#ff7ab6", icon: "H" },
+    industrial: { label: "Industrial node", U: 0.55, r: 16, lag: 5, color: "#7cf29a", icon: "I" },
+    port:       { label: "Port", U: 0.38, r: 20, lag: 5, color: "#4fe3d0", icon: "P" },
+    city:       { label: "New city / capital", U: 0.65, r: 20, lag: 6, color: "#ff9f6e", icon: "C" },
+    ring:       { label: "Ring road", U: 1.0, r: 7, lag: 3, color: "#7fb2ff", icon: "R" },
+    freight:    { label: "Freight corridor", U: 0.18, r: 10, lag: 4, color: "#c7d36f", icon: "F" },
     finance:    { label: "Finance / IT hub", U: 0.6, r: 12, lag: 4, color: "#f3e27a", icon: "$" }
   };
+  /* Share of a project's effect priced in on announcement and by completion (was 30% / 65%). */
+  BL.CURVE = { ann: 0.35, done: 0.85 };
+  /* Land leverage multiplier = a + b * (1 - price-urbanness), where price-urbanness = log10(price/50)/log10(400).
+   * Rural land (~Rs 50/sq ft) gets ~2x the percentage uplift; built-up land (Rs 20k+/sq ft) ~0.45x. */
+  BL.LEVERAGE = { a: 0.45, b: 1.6 };
+  BL.DATA_ASOF = "Oct 2026";
 
   BL.STAGES = ["Announced", "Approved / DPR", "Land acquisition", "Under construction", "Operational"];
   BL.STAGE_P = [0.35, 0.5, 0.65, 0.86, 1.0];

@@ -34,6 +34,7 @@
       <label class="sel"><span>Horizon</span>
         <select id="horizon"><option value="3">3 yrs</option><option value="5" selected>5 yrs</option><option value="10">10 yrs</option></select>
       </label>
+      <button id="btnReal" class="chip on" title="Verified real prices (Hyderabad)">Real data</button>
       <button id="btnHeat" class="chip" title="Pipeline hotspots heat layer">Hotspots</button>
       <button id="btnSat" class="chip" title="Satellite imagery">Satellite</button>
       <button id="btn3d" class="chip" title="3D price terrain">3D</button>
@@ -67,7 +68,7 @@
   <div id="tooltip" class="tooltip"></div>
   <div id="drawHint" class="draw-hint hidden"></div>
   <div id="toast" class="toast"></div>
-  <div class="disclaimer">Modelled estimates, not transaction data. <a href="#" id="methodLink">How it works</a></div>
+  <div class="disclaimer">Data as of Oct 2026 | 186 verified projects | Hyderabad calibrated with real prices | elsewhere modelled. Zoom in or right-click for plot-level reads. <a href="#" id="methodLink">How it works</a></div>
 
   <div id="palette" class="palette hidden" role="dialog" aria-label="Search">
     <div class="palette-box glass">
@@ -97,6 +98,9 @@
   <script src="data/states.js"></script>
   <script src="data/overrides.js"></script>
   <script src="js/data.js"></script>
+  <script src="data/projects.js"></script>
+  <script src="data/hyderabad.js"></script>
+  <script src="data/backtest.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/app.js"></script>

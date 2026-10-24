@@ -286,3 +286,8 @@ body.detail-open .maplibregl-ctrl-top-right { right: 420px; }
 @media print {
   body { overflow: visible; background: #fff; color: #000; }
 }
+
+.pin { width: 22px; height: 22px; border-radius: 50% 50% 50% 0; background: var(--grad); transform: rotate(-45deg); box-shadow: 0 0 0 3px rgba(7,11,20,.8), 0 6px 18px rgba(0,0,0,.5); }
+.cat-row .muted a, .note a { color: var(--teal); }
+.tag.up { color: var(--teal); border-color: rgba(46,230,197,.5); } .tag.warn { color: var(--saffron); border-color: rgba(255,181,71,.5); }
+.disclaimer { max-width: 60vw; text-align: right; }

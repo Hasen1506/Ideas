@@ -54,7 +54,7 @@
     tool: null, sel: null, three: false, sat: false, heat: false, zones: true,
     userCats: [], watch: store.get("bl_watch", []), compare: store.get("bl_compare", []),
     playing: false, draw: null, placing: null, area: null, catFilter: "all", catStage: "all",
-    simType: "airport", simStage: 2, simCred: 0.65, hoverId: null,
+    simType: "airport", simStage: 2, simCred: 0.65, hoverId: null, radiusKm: 10, loc: null, real: true,
     scr: { state: "all", sort: "opp", maxRisk: 100, maxPrice: 0 }
   };
   const opts = () => ({ year: S.year, horizon: S.horizon, scenario: S.scenario });
@@ -64,7 +64,17 @@
   const GEO = window.BL_DISTRICTS;
   const STATES_GEO = window.BL_STATES_GEO;
   const OVR = window.BL_OVERRIDES || {};
+  if (window.BL_PROJECTS && window.BL_PROJECTS.length) BL.CATALYSTS = window.BL_PROJECTS;
+  const VERIFIED = window.BL_VERIFIED || [];
+  E.setCalibration(VERIFIED.filter((p) => p.price > 0), BL.CATALYSTS);
   let models = E.prepare(GEO.features, BL.CATALYSTS);
+  E.calibrateDistricts(models, GEO.features, BL.CATALYSTS);
+  (function realCircleRatio() {
+    const r = VERIFIED.filter((p) => p.price > 0 && p.govt_sqyd > 0).map((p) => p.govt_sqyd / p.txn_sqyd).filter((x) => x > 0.08 && x < 1.3).sort((a, b) => a - b);
+    if (!r.length) return;
+    const med = r[r.length >> 1];
+    for (const m of models) if (m.calibrated) m.st = Object.assign({}, m.st, { cg: med });
+  })();
   for (const m of models) {
     const o = OVR[m.name + "|" + m.state];
     if (o) { m.ov = o; if (o.price) m.basePrice = o.price; }
@@ -96,25 +106,18 @@
   const sub = ["a", "b", "c", "d"];
   const map = new maplibregl.Map({
     container: "map",
-    style: {
-      version: 8,
-      sources: {
-        base: { type: "raster", tiles: sub.map((s) => `https://${s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png`), tileSize: 256, attribution: "&copy; OpenStreetMap contributors &copy; CARTO" },
-        labels: { type: "raster", tiles: sub.map((s) => `https://${s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png`), tileSize: 256 },
-        sat: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, maxzoom: 18, attribution: "Imagery &copy; Esri" }
-      },
-      layers: [
-        { id: "bg", type: "background", paint: { "background-color": "#070b14" } },
-        { id: "base", type: "raster", source: "base" },
-        { id: "sat", type: "raster", source: "sat", layout: { visibility: "none" }, paint: { "raster-opacity": 0.9, "raster-saturation": -0.2 } }
-      ]
-    },
+    // Key-free basemap: OpenFreeMap (OpenStreetMap vector tiles, no API key, no sign-up).
+    style: "https://tiles.openfreemap.org/styles/dark",
     center: [80.5, 22.6], zoom: 4.15, minZoom: 3.2, maxZoom: 15.5,
     maxBounds: [[55, -2], [106, 42]],
     attributionControl: { compact: true },
     dragRotate: true
   });
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+  const FALLBACK_STYLE = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1222" } }] };
+  let mapReady = false;
+  setTimeout(() => { if (!mapReady) { console.warn("Basemap slow or unavailable - using plain background"); map.setStyle(FALLBACK_STYLE); } }, 10000);
+  let BEFORE;
   map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
 
   // meters-per-pixel aware radius (km -> px) for circles and corridor widths
@@ -128,6 +131,14 @@
     return out;
   };
 
+  const gridRamp = (key) => {
+    const cols = RAMPS[key], out = ["interpolate", ["linear"], ["get", "v"]];
+    cols.forEach((c, i) => out.push(i / (cols.length - 1), c));
+    return out;
+  };
+  function verifiedFC() {
+    return { type: "FeatureCollection", features: (window.BL_VERIFIED || []).map((p, i) => ({ type: "Feature", properties: { i, type: p.price ? p.type : "govt" }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } })) };
+  }
   function catLineFC() {
     const fs = [];
     for (const c of allCats()) {
@@ -150,7 +161,17 @@
   const emptyFC = () => ({ type: "FeatureCollection", features: [] });
 
   map.on("load", () => {
+    if (mapReady) return;
+    mapReady = true;
+    const sty = map.getStyle() || { layers: [] };
+    const firstSym = (sty.layers || []).find((l) => l.type === "symbol");
+    BEFORE = firstSym ? firstSym.id : undefined;
+    const add = (l) => map.addLayer(l, BEFORE);
+    map.addSource("sat", { type: "raster", tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg"], tileSize: 256, maxzoom: 15, attribution: "Sentinel-2 cloudless by EOX (Copernicus Sentinel data 2020)" });
+    add({ id: "sat", type: "raster", source: "sat", layout: { visibility: "none" }, paint: { "raster-opacity": 0.95 } });
     map.addSource("districts", { type: "geojson", data: GEO });
+    map.addSource("grid", { type: "geojson", data: emptyFC() });
+    map.addSource("verified", { type: "geojson", data: verifiedFC() });
     map.addSource("states", { type: "geojson", data: STATES_GEO });
     map.addSource("catLines", { type: "geojson", data: catLineFC() });
     map.addSource("catPts", { type: "geojson", data: catPtFC() });
@@ -158,50 +179,78 @@
     map.addSource("cells", { type: "geojson", data: emptyFC() });
     map.addSource("draw", { type: "geojson", data: emptyFC() });
 
-    map.addLayer({ id: "d-fill", type: "fill", source: "districts", paint: {
+    add({ id: "d-fill", type: "fill", source: "districts", paint: {
       "fill-color": ramp("price"),
       "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.94, 0.74],
       "fill-opacity-transition": { duration: 200 }
     } });
-    map.addLayer({ id: "d-ext", type: "fill-extrusion", source: "districts", layout: { visibility: "none" }, paint: {
+    add({ id: "d-ext", type: "fill-extrusion", source: "districts", layout: { visibility: "none" }, paint: {
       "fill-extrusion-color": ramp("price"),
       "fill-extrusion-height": ["*", ["coalesce", ["feature-state", "h"], 0], 140000],
       "fill-extrusion-opacity": 0.88
     } });
-    map.addLayer({ id: "d-line", type: "line", source: "districts", paint: { "line-color": "rgba(255,255,255,0.07)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.3, 8, 1] } });
-    map.addLayer({ id: "s-line", type: "line", source: "states", paint: { "line-color": "rgba(220,230,255,0.28)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 8, 1.8] } });
-    map.addLayer({ id: "heat", type: "heatmap", source: "heat", layout: { visibility: "none" }, paint: {
+    add({ id: "grid-fill", type: "fill", source: "grid", paint: { "fill-color": gridRamp("price"), "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7.2, 0, 8.2, 0.8], "fill-outline-color": "rgba(0,0,0,0)" } });
+    add({ id: "d-line", type: "line", source: "districts", paint: { "line-color": "rgba(255,255,255,0.07)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.3, 8, 1] } });
+    add({ id: "s-line", type: "line", source: "states", paint: { "line-color": "rgba(220,230,255,0.28)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 8, 1.8] } });
+    add({ id: "heat", type: "heatmap", source: "heat", layout: { visibility: "none" }, paint: {
       "heatmap-weight": ["interpolate", ["linear"], ["get", "up"], 0, 0, 0.6, 1],
       "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 3, 0.7, 9, 2.2],
       "heatmap-radius": ["interpolate", ["exponential", 2], ["zoom"], 3, 6, 6, 18, 10, 90],
       "heatmap-opacity": 0.85,
       "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(0,0,0,0)", 0.15, "rgba(46,230,197,0.35)", 0.4, "#2ee6c5", 0.65, "#ffd166", 0.85, "#ff7a59", 1, "#ff3d6e"]
     } });
-    map.addLayer({ id: "cat-glow", type: "line", source: "catLines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": kmPx("rkm", 2), "line-opacity": 0.09, "line-blur": 6 } });
-    map.addLayer({ id: "cat-line-op", type: "line", source: "catLines", filter: ["==", ["get", "op"], 1], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.6, 10, 4] } });
-    map.addLayer({ id: "cat-line-uc", type: "line", source: "catLines", filter: ["==", ["get", "op"], 0], layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.6, 10, 4], "line-dasharray": [2, 1.5] } });
-    map.addLayer({ id: "cat-infl", type: "circle", source: "catPts", paint: { "circle-radius": kmPx("rkm"), "circle-color": ["get", "color"], "circle-opacity": 0.07, "circle-stroke-color": ["get", "color"], "circle-stroke-opacity": 0.45, "circle-stroke-width": 1, "circle-pitch-alignment": "map" } });
-    map.addLayer({ id: "cells", type: "circle", source: "cells", paint: {
+    add({ id: "cat-glow", type: "line", source: "catLines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": kmPx("rkm", 2), "line-opacity": 0.09, "line-blur": 6 } });
+    add({ id: "cat-line-op", type: "line", source: "catLines", filter: ["==", ["get", "op"], 1], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.6, 10, 4] } });
+    add({ id: "cat-line-uc", type: "line", source: "catLines", filter: ["==", ["get", "op"], 0], layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.6, 10, 4], "line-dasharray": [2, 1.5] } });
+    add({ id: "cat-infl", type: "circle", source: "catPts", paint: { "circle-radius": kmPx("rkm"), "circle-color": ["get", "color"], "circle-opacity": 0.07, "circle-stroke-color": ["get", "color"], "circle-stroke-opacity": 0.45, "circle-stroke-width": 1, "circle-pitch-alignment": "map" } });
+    add({ id: "cells", type: "circle", source: "cells", paint: {
       "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 5, 1.5, 9, 4, 12, 12],
       "circle-color": ["interpolate", ["linear"], ["get", "g"], 0.03, "#33307f", 0.07, "#d045c0", 0.11, "#ffa27a", 0.15, "#fff3c4"],
       "circle-opacity": 0.85, "circle-stroke-width": 0
     } });
-    map.addLayer({ id: "draw-fill", type: "fill", source: "draw", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": "#ffb547", "fill-opacity": 0.08 } });
-    map.addLayer({ id: "draw-line", type: "line", source: "draw", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": "#ffb547", "line-width": 2, "line-dasharray": [2, 1] } });
-    map.addLayer({ id: "draw-pt", type: "circle", source: "draw", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 4.5, "circle-color": "#0a0f1a", "circle-stroke-color": "#ffb547", "circle-stroke-width": 2 } });
-    map.addLayer({ id: "labels", type: "raster", source: "labels", paint: { "raster-opacity": 0.9 } });
+    add({ id: "draw-fill", type: "fill", source: "draw", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": "#ffb547", "fill-opacity": 0.08 } });
+    add({ id: "draw-line", type: "line", source: "draw", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": "#ffb547", "line-width": 2, "line-dasharray": [2, 1] } });
+    add({ id: "draw-pt", type: "circle", source: "draw", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 4.5, "circle-color": "#0a0f1a", "circle-stroke-color": "#ffb547", "circle-stroke-width": 2 } });
     map.addLayer({ id: "d-sel", type: "line", source: "districts", filter: ["==", ["get", "id"], -1], paint: { "line-color": "#ffffff", "line-width": 2.4 } });
+    map.addLayer({ id: "verified", type: "circle", source: "verified", paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 9, 6.5, 13, 10],
+      "circle-color": ["match", ["get", "type"], "govt_auction", "#ffd166", "registered", "#2ee6c5", "reported_deal", "#2ee6c5", "listing", "#c9d3e6", "#b98cff"],
+      "circle-stroke-color": "#0a0f1a", "circle-stroke-width": 2, "circle-opacity": 0.95 } });
     map.addLayer({ id: "d-sel-glow", type: "line", source: "districts", filter: ["==", ["get", "id"], -1], paint: { "line-color": "#ffb547", "line-width": 9, "line-opacity": 0.35, "line-blur": 6 } });
 
     recompute();
     paint();
     buildMarkers();
     bindMapEvents();
+    map.on("moveend", scheduleGrid);
     readHash();
     loader.classList.add("done");
     setTimeout(() => loader.remove(), 600);
     if (!store.get("bl_intro", false)) $("#intro").classList.remove("hidden");
   });
+
+  /* ---------------- Fine price surface (zoom >= 7.2) ---------------- */
+  const GRID_LENSES = ["price", "growth"];
+  let gridT = null;
+  function scheduleGrid() { clearTimeout(gridT); gridT = setTimeout(buildGrid, 220); }
+  function buildGrid() {
+    const src = map.getSource && map.getSource("grid"); if (!src) return;
+    if (map.getZoom() < 7.2 || !GRID_LENSES.includes(S.layer)) { src.setData(emptyFC()); return; }
+    const b = map.getBounds();
+    const w = b.getWest(), e = b.getEast(), n = b.getNorth(), so = b.getSouth();
+    const cols = 46, step = (e - w) / cols, rows = Math.ceil((n - so) / step);
+    const L = LAYERS[S.layer], fs = [], cats = allCats();
+    for (let r = 0; r < rows && r < 60; r++) for (let c = 0; c < cols; c++) {
+      const lon = w + (c + 0.5) * step, lat = so + (r + 0.5) * step;
+      let nd = 1e9; for (const m of models) { const d = (m.lat - lat) ** 2 + ((m.lon - lon) * 0.95) ** 2; if (d < nd) nd = d; }
+      if (nd > 0.8) continue;
+      const pm = E.pointModel(lat, lon, cats, models, opts());
+      const v = clamp(L.norm({ price: S.year === MY ? pm.basePrice : E.priceAt(pm, S.year, S.scenario), cagr: pm.cagr }));
+      const h = step / 2;
+      fs.push({ type: "Feature", properties: { v }, geometry: { type: "Polygon", coordinates: [[[lon - h, lat - h], [lon + h, lat - h], [lon + h, lat + h], [lon - h, lat + h], [lon - h, lat - h]]] } });
+    }
+    src.setData({ type: "FeatureCollection", features: fs });
+  }
 
   function paint() {
     const L = LAYERS[S.layer];
@@ -212,9 +261,14 @@
     }
     map.setPaintProperty("d-fill", "fill-color", ramp(S.layer));
     map.setPaintProperty("d-ext", "fill-extrusion-color", ramp(S.layer));
-    map.setPaintProperty("d-fill", "fill-opacity", ["case", ["boolean", ["feature-state", "hover"], false], 0.94, S.sat ? 0.42 : 0.74]);
+    const base = S.sat ? 0.42 : 0.74;
+    const fade = GRID_LENSES.includes(S.layer) ? ["interpolate", ["linear"], ["zoom"], 7.2, base, 8.2, 0.06] : base;
+    map.setPaintProperty("d-fill", "fill-opacity", ["case", ["boolean", ["feature-state", "hover"], false], 0.94, fade]);
+    if (map.getLayer("grid-fill")) map.setPaintProperty("grid-fill", "fill-color", gridRamp(GRID_LENSES.includes(S.layer) ? S.layer : "price"));
+    scheduleGrid();
     renderLegend();
     if (S.sel != null) renderDetail();
+    else if (S.loc) renderLocation();
     if (S.tool) refreshPanel();
     writeHash();
   }
@@ -234,14 +288,16 @@
     markers.clear();
     for (const c of allCats()) {
       const T = BL.TYPES[c.t];
+      const wrap = document.createElement("div");
       const el = document.createElement("div");
-      el.className = "cat-mk" + (c.user ? " user" : "") + (c.stage < 2 ? " dim" : "");
+      wrap.appendChild(el);
+      el.className = "cat-mk" + (c.user ? " user" : "") + (c.stage < 2 || c.cancelled ? " dim" : "");
       el.style.background = T.color;
       el.style.color = T.color;
       el.innerHTML = `<span style="color:#0a0f1a">${esc(T.icon)}</span>`;
       el.title = c.n;
-      el.addEventListener("click", (ev) => { ev.stopPropagation(); if (S.draw || S.placing) return; focusCatalyst(c.id); });
-      const mk = new maplibregl.Marker({ element: el }).setLngLat(markerPos(c)).addTo(map);
+      wrap.addEventListener("click", (ev) => { ev.stopPropagation(); if (S.draw || S.placing) return; focusCatalyst(c.id); });
+      const mk = new maplibregl.Marker({ element: wrap, anchor: "center" }).setLngLat(markerPos(c)).addTo(map);
       markers.set(c.id, mk);
     }
     setMarkerVisibility();
@@ -272,7 +328,10 @@
       <div class="row sb small"><span class="muted">Completion probability</span><b>${Math.round(p * 100)}%</b></div>
       <div class="row sb small"><span class="muted">${c.stage >= 4 ? "Opened" : "Expected"} (${esc(BL.SCENARIOS[S.scenario].label)})</span><b>${eta}</b></div>
       <div class="row sb small"><span class="muted">Agency credibility</span><b>${Math.round(c.cred * 100)} / 100</b></div>
-      <p class="small muted" style="margin:8px 0 0;line-height:1.5">${esc(c.note || "")}</p>
+      ${c.cancelled ? '<div class="small down" style="margin-top:6px"><b>Cancelled / dropped.</b> Any price premium should unwind.</div>' : ""}
+      ${c.status ? `<p class="small" style="margin:8px 0 0;line-height:1.5">${esc(c.status)}</p>` : ""}
+      <p class="small muted" style="margin:6px 0 0;line-height:1.5">${esc(c.note || "")}</p>
+      ${c.src ? `<div class="small" style="margin-top:6px">Status as of ${esc(c.asof || BL.DATA_ASOF)} | <a href="${esc(c.src)}" target="_blank" rel="noopener">Source</a>${c.src2 ? ` | <a href="${esc(c.src2)}" target="_blank" rel="noopener">Source 2</a>` : ""}</div>` : ""}
       ${c.user ? `<button class="btn sm danger" style="margin-top:8px" data-act="sim-remove" data-id="${esc(c.id)}">Remove simulated project</button>` : ""}
     </div>`;
   }
@@ -287,7 +346,8 @@
     }
     popup = new maplibregl.Popup({ offset: 16, maxWidth: "320px" }).setLngLat(markerPos(c)).setHTML(catPopupHTML(c)).addTo(map);
     const mk = markers.get(id);
-    if (mk) { mk.getElement().classList.add("pulse"); setTimeout(() => mk.getElement().classList.remove("pulse"), 4000); }
+    const inner = mk && mk.getElement().firstChild;
+    if (inner) { inner.classList.add("pulse"); setTimeout(() => inner.classList.remove("pulse"), 4000); }
   }
 
   /* ------------------------------------------------------------------ */
@@ -321,9 +381,14 @@
       const ll = [e.lngLat.lng, e.lngLat.lat];
       if (S.draw) return drawClick(ll);
       if (S.placing) return placeClick(ll);
+      const vf = map.getLayer("verified") ? map.queryRenderedFeatures(e.point, { layers: ["verified"] })[0] : null;
+      if (vf) return verifiedPopup(vf.properties.i);
+      if (map.getZoom() >= 8.2) return openLocation(ll[0], ll[1]);
       const f = map.queryRenderedFeatures(e.point, { layers: ["d-fill"] })[0];
       if (f) openDetail(f.id ?? f.properties.id, false);
     });
+    map.on("contextmenu", (e) => { if (S.draw || S.placing) return; e.preventDefault && e.preventDefault(); openLocation(e.lngLat.lng, e.lngLat.lat); });
+    map.on("mouseenter", "verified", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("dblclick", (e) => {
       if (S.draw && S.draw.mode === "poly") { e.preventDefault(); finishPoly(); }
       else if (S.placing && S.placing.path) { e.preventDefault(); finishPlacement(); }
@@ -352,7 +417,7 @@
     S.draw = { mode, pts: [], a: null };
     map.doubleClickZoom.disable();
     map.getCanvas().style.cursor = "crosshair";
-    const msg = { poly: "Click to add points. Double-click or press Enter to finish.", circle: "Click the centre, then click again to set the radius.", rect: "Click one corner, then click the opposite corner." }[mode];
+    const msg = { poly: "Click to add points. Double-click or press Enter to finish.", circle: "Click anywhere to drop a circle of the radius set in the panel.", rect: "Click one corner, then click the opposite corner." }[mode];
     showHint(`<b>Draw</b><span class="muted">${msg}</span><button class="btn sm ghost" data-act="draw-cancel">Cancel (Esc)</button>`);
     refreshPanel();
   }
@@ -367,6 +432,7 @@
   function drawClick(ll) {
     const d = S.draw;
     if (d.mode === "poly") { d.pts.push(ll); renderDraw(d.pts, "poly"); }
+    else if (d.mode === "circle") { finishArea(E.circleRing(ll[0], ll[1], S.radiusKm, 72)); }
     else if (!d.a) { d.a = ll; }
     else {
       const ring = d.mode === "circle" ? E.circleRing(d.a[0], d.a[1], Math.max(0.5, E.hav(d.a[1], d.a[0], ll[1], ll[0])), 72) : rectRing(d.a, ll);
@@ -376,6 +442,9 @@
   function drawMove(ll) {
     const d = S.draw;
     if (d.mode === "poly" && d.pts.length) renderDraw(d.pts.concat([ll]), "poly");
+    else if (d.mode === "circle") {
+      renderDraw(E.circleRing(ll[0], ll[1], S.radiusKm, 72).slice(0, -1), "poly");
+    }
     else if (d.a) {
       if (d.mode === "circle") {
         const r = E.hav(d.a[1], d.a[0], ll[1], ll[0]);
@@ -466,8 +535,8 @@
   }
   function ripple(pos) {
     for (let i = 0; i < 3; i++) setTimeout(() => {
-      const el = document.createElement("div"); el.className = "ripple";
-      const mk = new maplibregl.Marker({ element: el }).setLngLat(pos).addTo(map);
+      const wrap = document.createElement("div"); const el = document.createElement("div"); el.className = "ripple"; wrap.appendChild(el);
+      const mk = new maplibregl.Marker({ element: wrap, anchor: "center" }).setLngLat(pos).addTo(map);
       setTimeout(() => mk.remove(), 2300);
     }, i * 450);
   }
@@ -535,8 +604,12 @@
   $("#btnSat").addEventListener("click", (e) => {
     S.sat = !S.sat; e.currentTarget.classList.toggle("on", S.sat);
     map.setLayoutProperty("sat", "visibility", S.sat ? "visible" : "none");
-    map.setLayoutProperty("base", "visibility", S.sat ? "none" : "visible");
     paint();
+  });
+  $("#btnReal").addEventListener("click", (e) => {
+    S.real = !S.real; e.currentTarget.classList.toggle("on", S.real);
+    map.setLayoutProperty("verified", "visibility", S.real ? "visible" : "none");
+    if (S.real) { map.flyTo({ center: [78.42, 17.38], zoom: 9.2, duration: 1400 }); toast("Hyderabad: 64 verified points (auctions, listings, official rates). Click one for sources."); }
   });
   $("#btnHeat").addEventListener("click", (e) => {
     S.heat = !S.heat; e.currentTarget.classList.toggle("on", S.heat);
@@ -560,7 +633,7 @@
     map.fitBounds(b, { padding: padFor(), duration: 1100, maxZoom: 9.5 });
   }
   function openDetail(id, fly = true) {
-    S.sel = id;
+    S.sel = id; S.loc = null; if (pinMk) { pinMk.remove(); pinMk = null; }
     document.body.classList.add("detail-open");
     map.setFilter("d-sel", ["==", ["get", "id"], id]);
     map.setFilter("d-sel-glow", ["==", ["get", "id"], id]);
@@ -571,12 +644,79 @@
     writeHash();
   }
   function closeDetail() {
-    S.sel = null;
+    S.sel = null; S.loc = null; if (pinMk) { pinMk.remove(); pinMk = null; }
     document.body.classList.remove("detail-open");
     $("#detail").classList.add("hidden");
     map.setFilter("d-sel", ["==", ["get", "id"], -1]);
     map.setFilter("d-sel-glow", ["==", ["get", "id"], -1]);
     writeHash();
+  }
+
+  /* ---------------- Location (plot-level) card ---------------- */
+  let pinMk = null;
+  function openLocation(lon, lat) {
+    S.sel = null; S.loc = { lon, lat };
+    map.setFilter("d-sel", ["==", ["get", "id"], -1]); map.setFilter("d-sel-glow", ["==", ["get", "id"], -1]);
+    if (pinMk) pinMk.remove();
+    const wrap = document.createElement("div"); wrap.innerHTML = '<div class="pin"></div>';
+    pinMk = new maplibregl.Marker({ element: wrap, anchor: "bottom" }).setLngLat([lon, lat]).addTo(map);
+    document.body.classList.add("detail-open");
+    $("#detail").classList.remove("hidden");
+    renderLocation(); $("#detail").scrollTop = 0;
+  }
+  function nearVerified(lat, lon, maxKm) {
+    return (window.BL_VERIFIED || []).map((p, i) => ({ p, i, d: E.hav(lat, lon, p.lat, p.lon) })).filter((x) => x.d <= maxKm).sort((a, b) => a.d - b.d);
+  }
+  const TYPE_LABEL = { govt_auction: "Govt auction (actual sale)", registered: "Registered sale", reported_deal: "Reported deal", listing: "Listing (asking, -10%)" };
+  function renderLocation() {
+    const { lon, lat } = S.loc;
+    const pm = E.pointModel(lat, lon, allCats(), models, opts());
+    pm.priceNow = pm.basePrice;
+    const ser = E.series(pm, S.scenario), con = E.contributions(pm, S.horizon, S.scenario);
+    con.parts.forEach((p) => (p.color = p.c ? BL.TYPES[p.c.t].color : "#8fa3c7"));
+    const ev = E.calibrationEvidence(lat, lon), cf = E.calibFactor(lat, lon);
+    const near = nearVerified(lat, lon, 12).slice(0, 6);
+    const gov = nearVerified(lat, lon, 8).find((x) => x.p.govt_sqyd);
+    const dm = models.find((m) => m.name === pm.district);
+    const projs = allCats().map((c) => ({ c, d: E.distToCatalyst(c, lat, lon) })).filter((x) => x.d < 60).sort((a, b) => a.d - b.d).slice(0, 8);
+    const conf = ev > 1.2 ? ["High", "up"] : ev > 0.35 ? ["Medium", "warn"] : ["Model only", "muted"];
+    $("#detailBody").innerHTML = `
+      <div class="d-hero">
+        <div class="kicker">Plot-level read | ${esc(pm.district || "")}${pm.state ? ", " + esc(pm.state) : ""}</div>
+        <h1 style="font-size:20px">${lat.toFixed(4)}, ${lon.toFixed(4)}</h1>
+        <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">
+          <span class="tag">${pm.nearest ? Math.round(pm.nearestD) + " km from " + esc(pm.nearest.n) : ""}</span>
+          <span class="tag ${conf[1]}">Confidence: ${conf[0]}</span>
+          ${Math.abs(cf - 1) > 0.05 ? `<span class="tag" style="border-color:#ffd166;color:#ffd166">Real-data adjusted ${pct(cf - 1, 0)}</span>` : ""}
+        </div>
+        <div class="acts"><button class="icon-btn" data-act="close-detail" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
+      </div>
+      <div class="d-body">
+        <h3>Value at this spot</h3>
+        <div class="kpis">
+          <div class="kpi"><div class="k">Est. land price</div><div class="v">${fmtINR(pm.basePrice)}<span class="small muted"> /sq ft</span></div><div class="s">${fmtINR(pm.basePrice * 9)} /sq yd | ${fmtINR(pm.basePrice * E.SQFT_PER_ACRE)} /acre</div></div>
+          <div class="kpi"><div class="k">${S.horizon}-yr outlook</div><div class="v up">${pm.mult.toFixed(2)}x</div><div class="s">${pct(pm.cagr)} per year, ${esc(BL.SCENARIOS[S.scenario].label.toLowerCase())}</div></div>
+          ${gov ? `<div class="kpi wide"><div class="k">Official govt market value nearby (${esc(gov.p.loc)}, ${gov.d.toFixed(1)} km)</div><div class="v">${fmtINR(gov.p.govt_sqyd)}<span class="small muted"> /sq yd</span></div><div class="s">${esc(gov.p.govt_date || "")} | <a href="${esc(gov.p.govt_src)}" target="_blank" rel="noopener">source</a> | market is ${Math.round((1 - gov.p.govt_sqyd / 9 / pm.basePrice) * 100)}% above it</div></div>` : ""}
+        </div>
+        <h3>Analyse around this point</h3>
+        <div class="btn-row">${[2, 5, 10, 15, 25, 50].map((r) => `<button class="btn sm" data-act="loc-radius" data-r="${r}" data-lon="${lon}" data-lat="${lat}">${r} km</button>`).join("")}</div>
+        ${near.length ? `<h3>Real prices nearby (${near.length})</h3><div class="card" style="padding:4px 12px">${near.map((x) => `<div class="cat-row" data-act="verified" data-i="${x.i}"><span class="cat-ico" style="background:${x.p.type === "govt_auction" ? "#ffd166" : x.p.price ? "#c9d3e6" : "#b98cff"}">${x.p.price ? "Rs" : "G"}</span><div class="grow"><div class="cn">${esc(x.p.loc)}</div><div class="small muted">${x.p.price ? fmtINR(x.p.txn_sqyd) + "/sq yd | " + esc(TYPE_LABEL[x.p.type] || x.p.type) + " | " + esc(x.p.date || "") : "Govt rate " + fmtINR(x.p.govt_sqyd || x.p.govt_sqyd_agri) + "/sq yd"} | ${x.d.toFixed(1)} km</div></div></div>`).join("")}</div>` : ""}
+        <h3>Price path</h3><div class="card">${C.fan(ser, { cursor: S.year !== MY ? S.year : null })}</div>
+        <h3>What drives the next ${S.horizon} years</h3><div class="card">${C.bars(con.parts)}</div>
+        <h3>Projects within 60 km</h3>
+        <div class="card" style="padding:4px 12px">${projs.length ? projs.map((x) => catRow(x.c, `${x.d.toFixed(1)} km away`)).join("") : '<div class="empty">No tracked project within 60 km.</div>'}</div>
+        ${dm ? `<div class="btn-row" style="margin-top:12px"><button class="btn sm" data-act="open-d" data-id="${dm.id}">Open ${esc(dm.name)} district card</button></div>` : ""}
+        <p class="small muted" style="margin-top:12px">Confidence reflects how much verified price evidence sits within about 10 km. "Model only" means no real transactions nearby yet.</p>
+      </div>`;
+  }
+  function verifiedPopup(i) {
+    const p = (window.BL_VERIFIED || [])[i]; if (!p) return;
+    if (popup) popup.remove();
+    popup = new maplibregl.Popup({ offset: 10, maxWidth: "320px" }).setLngLat([p.lon, p.lat]).setHTML(`<div style="min-width:230px">
+      <b>${esc(p.loc)}</b><div class="small muted">${esc(p.district)}, Telangana | verified data point</div>
+      ${p.price ? `<div class="row sb small" style="margin-top:8px"><span class="muted">${esc(TYPE_LABEL[p.type] || p.type)}</span><b>${fmtINR(p.txn_sqyd)}/sq yd</b></div><div class="small muted">${esc(p.date || "")} | ${fmtINR(p.price)}/sq ft used in model</div>${p.note ? `<p class="small" style="margin:6px 0 0;line-height:1.45">${esc(p.note)}</p>` : ""}<div class="small"><a href="${esc(p.src)}" target="_blank" rel="noopener">Price source</a></div>` : ""}
+      ${p.govt_sqyd || p.govt_sqyd_agri ? `<div class="row sb small" style="margin-top:8px"><span class="muted">Official market value${p.govt_sqyd ? "" : " (agri)"}</span><b>${fmtINR(p.govt_sqyd || p.govt_sqyd_agri)}/sq yd</b></div><div class="small"><span class="muted">${esc(p.govt_date || "")}</span> | <a href="${esc(p.govt_src)}" target="_blank" rel="noopener">Rate source</a></div>` : ""}
+      <button class="btn sm" style="margin-top:8px" data-act="open-loc" data-lon="${p.lon}" data-lat="${p.lat}">Plot-level read here</button></div>`).addTo(map);
   }
 
   function riskWord(v) { return v < 0.33 ? "Low" : v < 0.6 ? "Moderate" : "High"; }
@@ -599,6 +739,7 @@
           <span class="tag">${esc(near)}</span>
           <span class="tag"><span class="dotc" style="background:${m.u > 0.5 ? "#2ee6c5" : m.u > 0.15 ? "#ffd166" : "#8fa3c7"}"></span>${m.u > 0.5 ? "Urban core" : m.u > 0.15 ? "Peri-urban" : "Rural"}</span>
           ${m.ov ? '<span class="tag" style="border-color:#2ee6c5;color:#2ee6c5">Your data</span>' : ""}
+          ${m.calibrated ? `<span class="tag" style="border-color:#ffd166;color:#ffd166">Real-data calibrated (was ${fmtINR(m.oldPrice)})</span>` : ""}
         </div>
         <div class="acts">
           <button class="icon-btn ${starred ? "on" : ""}" data-act="star" data-id="${m.id}" title="${starred ? "Remove from" : "Add to"} watchlist"><svg viewBox="0 0 24 24" width="17" height="17"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" fill="${starred ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
@@ -607,7 +748,7 @@
           <button class="icon-btn" data-act="close-detail" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
         <div class="score-row">
-          <div class="score">${C.gauge(m.opp, { color: "#2ee6c5" })}<div><div class="lab">Opportunity</div><div class="txt">${m.opp >= 80 ? "Top quintile" : m.opp >= 60 ? "Above average" : m.opp >= 40 ? "Average" : "Below average"}</div></div></div>
+          <div class="score">${C.gauge(m.opp, { color: "#2ee6c5" })}<div><div class="lab">Opportunity</div><div class="txt">${m.opp >= 75 ? "Strong" : m.opp >= 60 ? "Above average" : m.opp >= 40 ? "Average" : "Below average"}</div></div></div>
           <div class="score">${C.gauge(R.total, { color: "#ff5c7a" })}<div><div class="lab">Risk</div><div class="txt">${R.total < 38 ? "Contained" : R.total < 50 ? "Moderate" : "Elevated"}</div></div></div>
           <div class="score">${C.gauge(m.liq, { color: "#5ad1ff" })}<div><div class="lab">Liquidity</div><div class="txt">${m.liq > 65 ? "Easy exit" : m.liq > 40 ? "Fair" : "Thin market"}</div></div></div>
         </div>
@@ -653,7 +794,7 @@
   }
   function catRow(c, sub) {
     const T = BL.TYPES[c.t];
-    return `<div class="cat-row" data-act="fly-cat" data-id="${esc(c.id)}"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><div class="cn ellipsis">${esc(c.n)}</div><div class="row small muted" style="gap:8px;margin-top:3px">${C.stage(c.stage)}<span>${esc(BL.STAGES[c.stage])}</span><span>| ${c.stage >= 4 ? "open" : "ETA " + E.effEta(c, S.scenario)}</span></div>${sub ? `<div class="small muted" style="margin-top:2px">${esc(sub)}</div>` : ""}</div><span class="pill ${E.completionP(c, S.scenario) < 0.5 ? "r" : ""}">${Math.round(E.completionP(c, S.scenario) * 100)}%</span></div>`;
+    return `<div class="cat-row" data-act="fly-cat" data-id="${esc(c.id)}"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><div class="cn ellipsis">${esc(c.n)}</div><div class="row small muted" style="gap:8px;margin-top:3px">${C.stage(c.stage)}<span>${esc(BL.STAGES[c.stage])}</span><span>| ${c.stage >= 4 ? "open" : "ETA " + E.effEta(c, S.scenario)}</span></div>${sub ? `<div class="small muted" style="margin-top:2px">${esc(sub)}</div>` : ""}${c.cancelled ? '<div class="small down">Cancelled</div>' : ""}</div><span class="pill ${E.completionP(c, S.scenario) < 0.5 ? "r" : ""}">${Math.round(E.completionP(c, S.scenario) * 100)}%</span></div>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -709,7 +850,9 @@
 
   function pDraw() {
     const modes = [["poly", "Lasso"], ["circle", "Radius"], ["rect", "Box"]];
-    const tools = `<div class="tabs">${modes.map(([k, l]) => `<button class="${S.draw && S.draw.mode === k ? "on" : ""}" data-act="draw-mode" data-mode="${k}">${l}</button>`).join("")}</div>`;
+    const tools = `<div class="tabs">${modes.map(([k, l]) => `<button class="${S.draw && S.draw.mode === k ? "on" : ""}" data-act="draw-mode" data-mode="${k}">${l}</button>`).join("")}</div>
+      <div class="field"><label><span>Radius for the Radius tool</span><span>${S.radiusKm} km</span></label><input type="range" id="radiusKm" min="1" max="60" step="1" value="${S.radiusKm}"/>
+      <div class="btn-row" style="margin-top:6px">${[2, 5, 10, 15, 25, 50].map((r) => `<button class="btn sm ${S.radiusKm === r ? "primary" : ""}" data-act="set-radius" data-r="${r}">${r} km</button>`).join("")}</div></div>`;
     if (!S.area) return `<p class="lead">Pick a shape and outline any patch of land: a village cluster, a corridor or a whole taluk. Bhoomi Lens samples it on a fine grid and runs the full model on every cell.</p>${tools}
       <div class="empty">${S.draw ? "Drawing in progress. Follow the hint at the top of the map." : "Choose Lasso, Radius or Box to begin."}</div>
       <h3>Try a hotspot</h3>
@@ -810,7 +953,7 @@
       if (L.c.stage < 4 && eta <= MY + 3) out.push({ k: "up", t: `${L.c.n} expected by ${eta} (${Math.round(E.completionP(L.c, S.scenario) * 100)}% likely)` });
       if (L.c.stage <= 1 && L.c.cred < 0.55) out.push({ k: "warn", t: `${L.c.n} is early-stage with low delivery credibility` });
     }
-    if (m.opp >= 80) out.push({ k: "up", t: "Top-quintile opportunity score" });
+    if (m.opp >= 75) out.push({ k: "up", t: "Strong opportunity score" });
     if (m.risk.total >= 55) out.push({ k: "down", t: "Elevated composite risk. Check title and flood exposure." });
     if (m.gap >= 0.5) out.push({ k: "warn", t: "Wide circle-rate gap. A rate revision would raise stamp duty." });
     if (m.liq < 35) out.push({ k: "warn", t: "Thin market. Exits may take time." });
@@ -850,7 +993,18 @@
   }
 
   function pMethod() {
+    const BT = window.BL_BACKTEST, VS = window.BL_VERIFIED_SUMMARY;
+    const btHtml = BT ? `<h3>Back-test: did the model match reality?</h3>
+      <p>Each row compares the documented price change around a past project (in excess of the wider city market) with what the old and the re-calibrated model predicted. Average log error fell from ${BT.oldLoss} to ${BT.newLoss}.</p>
+      <table class="cmp"><tr><th>Place</th><th>Years</th><th>Actual</th><th>Old</th><th>New</th></tr>${BT.rows.map((r) => `<tr><td title="${esc(r.project)}"><a href="${esc(r.src)}" target="_blank" rel="noopener">${esc(r.loc.slice(0, 30))}</a></td><td>${r.y0}-${String(r.y1).slice(2)}</td><td>${r.obs.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.old / r.obs)) < 0.15 ? "best" : ""}">${r.old.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.now / r.obs)) < 0.15 ? "best" : ""}">${r.now.toFixed(2)}x</td></tr>`).join("")}</table>
+      <p style="margin-top:8px">What changed: airports and expressways now have a larger effect (airport max uplift 0.85 to 1.3, expressway 0.42 to 0.7, ring road 0.5 to 1.0). Metro and rapid rail were cut from 0.48 to 0.2, because land next to Namo Bharat stations barely moved beyond the city trend. More of the effect is now priced in before opening (85% by completion, up from 65%). Cheap rural land gets a larger percentage boost than built-up land. The model still under-predicts speculative peaks such as the Yamuna Expressway plots (3x).</p>` : "";
+    const vsHtml = VS ? `<h3>Hyderabad: real-data calibration</h3>
+      <p>${VS.pricePoints} real price points and ${VS.govtPoints} official government market values across 64 localities. Before calibration the model over-priced the region by a median ${Math.round((VS.modelOverRealBefore - 1) * 100)}%, with a typical error of ${Math.round(VS.errBefore * 100)}%. After calibration the typical leave-one-out error is ${Math.round(VS.errLOO * 100)}%.</p>
+      <table class="cmp"><tr><th>District</th><th>Old est.</th><th>Now</th><th>Change</th></tr>${VS.districts.map((d) => `<tr><td>${esc(d.n)}</td><td>${fmtINR(d.old)}</td><td>${fmtINR(d.now)}</td><td class="${d.now < d.old ? "down" : "up"}">${pct(d.now / d.old - 1, 0)}</td></tr>`).join("")}</table>
+      <p style="margin-top:8px"><b>Sources</b></p>${VS.sources.map((x) => `<p>- <b>${esc(x[0])}</b>: ${esc(x[1])}. Reliability: ${esc(x[2])}.</p>`).join("")}<p class="warn">${esc(VS.gaps)}</p>` : "";
     return `<div class="note">
+      <p><b>Data as of ${esc(BL.DATA_ASOF)}.</b> Project statuses were verified in ${esc(BL.DATA_ASOF)} for ${BL.CATALYSTS.length} projects, each with a source link (click a project marker). Prices outside Hyderabad are still modelled estimates.</p>
+      ${vsHtml}${btHtml}
       <p><b>What this is.</b> Bhoomi Lens is a modelled land-intelligence map. It turns public reference points into an estimate of what land is worth today, where it is heading and what could go wrong. It is not a record of registered transactions.</p>
       <h3>1. Price today</h3>
       <p>Each district's price combines a rural baseline (typical agricultural land per acre in that state) with urban gravity: the pull of ${BL.ANCHORS.length} city anchors, each decaying with distance. Circle rates are modelled from state-level guidance-to-market ratios.</p>
@@ -875,6 +1029,7 @@
     if (t.id === "simStage") { S.simStage = +t.value; keepName(refreshPanel); }
     else if (t.id === "simCred") { S.simCred = +t.value; keepName(refreshPanel); }
     else if (t.id === "scrRisk") { S.scr.maxRisk = +t.value; refreshPanelKeepScroll(); }
+    else if (t.id === "radiusKm") { S.radiusKm = +t.value; const lab = t.parentElement.querySelector("label span:last-child"); if (lab) lab.textContent = S.radiusKm + " km"; }
   });
   $("#panelBody").addEventListener("change", (e) => {
     const t = e.target;
@@ -917,6 +1072,10 @@
       case "quick-area": finishArea(E.circleRing(+a.dataset.lon, +a.dataset.lat, +a.dataset.r, 72)); break;
       case "sim-here": { const m = byId.get(num); openTool("simulate", true); map.flyTo({ center: [m.lon, m.lat], zoom: 8 }); toast("Pick a project type, then press Place on map"); break; }
       case "draw-mode": startDraw(a.dataset.mode); break;
+      case "set-radius": S.radiusKm = +a.dataset.r; if (S.loc && a.dataset.go) finishArea(E.circleRing(S.loc.lon, S.loc.lat, S.radiusKm, 72)); else refreshPanelKeepScroll(); break;
+      case "loc-radius": S.radiusKm = +a.dataset.r; finishArea(E.circleRing(+a.dataset.lon, +a.dataset.lat, S.radiusKm, 72)); break;
+      case "open-loc": openLocation(+a.dataset.lon, +a.dataset.lat); break;
+      case "verified": verifiedPopup(+a.dataset.i); break;
       case "draw-cancel": cancelDraw(); break;
       case "clear-area": clearArea(); break;
       case "area-csv": areaCSV(); break;
@@ -1004,7 +1163,21 @@
     const q = pin.value.trim().toLowerCase();
     if (!q) pItems = [...INDEX.filter((x) => x.k === "City").slice(0, 6), ...INDEX.filter((x) => x.k === "Project").slice(0, 6)];
     else pItems = INDEX.map((x) => { const t = x.t.toLowerCase(); const sc = t.startsWith(q) ? 3 : t.includes(q) ? 2 : x.s.toLowerCase().includes(q) ? 1 : 0; return { x, sc }; }).filter((o) => o.sc).sort((a, b) => b.sc - a.sc || a.x.t.length - b.x.t.length).slice(0, 40).map((o) => o.x);
-    pIdx = 0; drawPalette();
+    pIdx = 0; drawPalette(); geocode(q);
+  }
+  let geoT = null, geoQ = "";
+  function geocode(q) {
+    clearTimeout(geoT);
+    if (q.length < 3 || !window.fetch) return;
+    geoT = setTimeout(() => {
+      geoQ = q;
+      fetch("https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&limit=6&q=" + encodeURIComponent(q), { headers: { "Accept-Language": "en" } })
+        .then((r) => r.json()).then((res) => {
+          if (geoQ !== pin.value.trim().toLowerCase() || pal.classList.contains("hidden")) return;
+          const extra = (res || []).map((g) => ({ k: "Place", t: g.display_name.split(",").slice(0, 2).join(","), s: g.display_name.split(",").slice(2, 4).join(",").trim(), go: () => { map.flyTo({ center: [+g.lon, +g.lat], zoom: 12, duration: 1400 }); openLocation(+g.lon, +g.lat); } }));
+          pItems = pItems.filter((x) => x.k !== "Place").concat(extra); drawPalette();
+        }).catch(() => {});
+    }, 380);
   }
   function drawPalette() {
     plist.innerHTML = pItems.length ? pItems.map((x, i) => `<div class="p-item ${i === pIdx ? "on" : ""}" data-i="${i}"><span class="pk">${esc(x.k)}</span><div class="grow"><b>${esc(x.t)}</b> <span class="small muted">${esc(x.s)}</span></div></div>`).join("") : '<div class="empty">No matches</div>';
