@@ -4,11 +4,12 @@ const fs = require("fs"), path = require("path");
 const ROOT = path.join(__dirname, "..");
 const load = (f) => eval(fs.readFileSync(path.join(ROOT, f), "utf8").replace(/window\./g, "globalThis."));
 global.window = undefined;
-["data/districts.js", "data/projects.js", "data/verified.js", "data/backtest.js"].forEach(load);
+["data/districts.js", "data/projects.js", "data/verified.js", "data/tn_villages.js", "data/backtest.js"].forEach(load);
 require(path.join(ROOT, "js/data.js")); require(path.join(ROOT, "js/engine.js"));
 const BL = globalThis.BL, E = BL.Engine;
 BL.CATALYSTS = globalThis.BL_PROJECTS;
 const GEO = globalThis.BL_DISTRICTS;
+globalThis.BL_VERIFIED = (globalThis.BL_VERIFIED || []).filter((p) => !/SRO villages \(/.test(p.loc || "")).concat(E.expandTNVillages(globalThis.BL_TN_VILLAGES, (globalThis.BL_VERIFIED_SUMMARY || {}).tnMult || 2.03));
 const pts = (globalThis.BL_VERIFIED || []).filter((p) => p.price > 0);
 E.setCalibration(pts, BL.CATALYSTS);
 const models = E.prepare(GEO.features, BL.CATALYSTS);
@@ -76,7 +77,10 @@ ok(E.eff(delayed, 2028, "base") <= E.eff(prr, 2028, "base") + 1e-9, "Delay lower
 const at = (lat, lon) => E.pointModel(lat, lon, BL.CATALYSTS, models, { horizon: 5 });
 const G = [
   ["Minjur (TN) within 0.5x-2.5x of verified ~Rs1,000/sq ft", at(13.28, 80.26).basePrice, 500, 2500],
-  ["Ponneri SRO villages: derived value present", (globalThis.BL_VERIFIED || []).filter((p) => p.type === "derived_gv" && /Ponneri/.test(p.taluk || p.loc)).length, 1, 1e9],
+  ["Ponneri SRO: >= 20 geocoded villages", (globalThis.BL_VERIFIED || []).filter((p) => p.village && /Ponneri/.test(p.taluk)).length, 20, 1e9],
+  ["TN villages loaded >= 3000", (globalThis.BL_TN_VILLAGES || []).length, 3000, 1e9],
+  ["No SRO-group placeholders remain", (globalThis.BL_VERIFIED || []).filter((p) => /SRO villages \(/.test(p.loc || "")).length, 0, 0],
+  ["Every TN village inside Tamil Nadu bounds", (globalThis.BL_TN_VILLAGES || []).filter((r) => r[3] < 8 || r[3] > 13.6 || r[4] < 76.2 || r[4] > 80.4).length, 0, 0],
   ["Every verified row has a source", (globalThis.BL_VERIFIED || []).filter((p) => !(p.src || p.govt_src)).length, 0, 0],
   ["Metro uplift restored >= 0.3", BL.TYPES.metro.U, 0.3, 1],
   ["Kokapet (Hyd) premium land > Rs10,000/sq ft", at(17.40, 78.335).basePrice, 10000, 60000],
@@ -86,7 +90,7 @@ const G = [
 ];
 for (const [name, v, lo, hi] of G) ok(v >= lo && v <= hi, `GOLDEN ${name}: got ${Math.round(v)}`);
 /* 5. Calibration quality (leave-one-out) */
-const sample = pts.filter((_, i) => i % 3 === 0);
+const sample = pts.filter((p, i) => !p.derived && i % 2 === 0);
 const err = [];
 for (const p of sample) { E.setCalibration(pts.filter((q) => q !== p), BL.CATALYSTS); const m = E.buildModel("x", p.loc, p.state, p.lat, p.lon, 0, [], false).basePrice; err.push(Math.abs(Math.log(m / p.price))); }
 E.setCalibration(pts, BL.CATALYSTS);

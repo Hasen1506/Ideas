@@ -145,19 +145,29 @@
    * (about 9 km) and shrinks back to zero where there is no evidence.
    */
   let CAL = [];
+  // Spatial buckets (0.4 deg) so thousands of village points stay fast.
+  let BUCK = new Map();
+  const bk = (lat, lon) => Math.floor(lat / 0.4) + ":" + Math.floor(lon / 0.4);
+  function nearCal(lat, lon) {
+    const out = [], i0 = Math.floor(lat / 0.4), j0 = Math.floor(lon / 0.4);
+    for (let i = i0 - 2; i <= i0 + 2; i++) for (let j = j0 - 2; j <= j0 + 2; j++) { const b = BUCK.get(i + ":" + j); if (b) for (const c of b) out.push(c); }
+    return out;
+  }
   function setCalibration(points, catalysts) {
-    CAL = [];
+    CAL = []; BUCK = new Map();
     for (const p of points || []) {
       if (!(p.price > 0)) continue;
       const m = buildModel("cal", p.loc || "cal", p.state || "", p.lat, p.lon, 0, catalysts, true);
-      CAL.push({ lat: p.lat, lon: p.lon, real: p.price, model: m.basePrice, res: Math.log(p.price / m.basePrice), w: p.w || 1, loc: p.loc });
+      const c = { lat: p.lat, lon: p.lon, real: p.price, model: m.basePrice, res: Math.log(p.price / m.basePrice), w: p.w || 1, loc: p.loc };
+      CAL.push(c);
+      const k = bk(p.lat, p.lon); if (!BUCK.has(k)) BUCK.set(k, []); BUCK.get(k).push(c);
     }
     return CAL;
   }
   function calibFactor(lat, lon) {
     if (!CAL.length) return 1;
     let num = 0, den = 0.3;
-    for (const c of CAL) {
+    for (const c of nearCal(lat, lon)) {
       if (Math.abs(c.lat - lat) > 0.8 || Math.abs(c.lon - lon) > 0.8) continue;
       const d = hav(lat, lon, c.lat, c.lon);
       const k = c.w * Math.exp(-d / 9);
@@ -168,7 +178,7 @@
   /* Explain the real-data adjustment at a point: which verified points pulled it, and how hard. */
   function calibContrib(lat, lon, top = 5) {
     const list = []; let den = 0.3;
-    for (const c of CAL) {
+    for (const c of nearCal(lat, lon)) {
       if (Math.abs(c.lat - lat) > 0.8 || Math.abs(c.lon - lon) > 0.8) continue;
       const d = hav(lat, lon, c.lat, c.lon), k = c.w * Math.exp(-d / 9);
       den += k; list.push({ loc: c.loc, d, k, real: c.real, model: c.model, res: c.res });
@@ -178,7 +188,7 @@
   }
   function calibrationEvidence(lat, lon) {
     let s = 0;
-    for (const c of CAL) { const d = hav(lat, lon, c.lat, c.lon); s += c.w * Math.exp(-d / 9); }
+    for (const c of nearCal(lat, lon)) { const d = hav(lat, lon, c.lat, c.lon); s += c.w * Math.exp(-d / 9); }
     return s;
   }
 
@@ -217,7 +227,7 @@
     const fById = new Map(features.map((f) => [f.properties.id, f]));
     for (const m of models) {
       let near = false;
-      for (const c of CAL) if (hav(m.lat, m.lon, c.lat, c.lon) < 70) { near = true; break; }
+      for (const c of nearCal(m.lat, m.lon)) if (hav(m.lat, m.lon, c.lat, c.lon) < 70) { near = true; break; }
       if (!near) continue;
       const f = fById.get(m.id); if (!f) continue;
       const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
@@ -523,7 +533,24 @@
     return out;
   }
 
+  /* Tamil Nadu village guideline values -> low-weight derived evidence rows. */
+  function expandTNVillages(rows, mult) {
+    return (rows || []).map((r) => {
+      const [v, sro, dist, lat, lon, gmin, gmax, gmed, streets, fuzzy, path] = r;
+      const gv = gmed || Math.round(Math.sqrt(gmin * gmax));
+      const src = "https://proquiro.com/tools/tamil-nadu-guideline-value/" + path;
+      return {
+        loc: v, district: dist, taluk: sro + " SRO", state: "Tamil Nadu", lat, lon, land: "plot",
+        govt_sqyd: gv * 9, govt_date: "2026-10", govt_src: src,
+        govt_note: `TNREGINET guideline values, ${streets} streets, Rs${gmin}-${gmax}/sq ft` + (gmed ? `, median Rs${gmed}` : `, value used = midpoint Rs${gv}`) + (fuzzy ? ". Location matched approximately by name." : "."),
+        derived: true, type: "derived_gv", price: Math.round(gv * mult), txn_sqyd: Math.round(gv * mult) * 9, w: gmed ? 0.06 : 0.04,
+        date: "2026-10", src, note: `Derived: guideline Rs${gv}/sq ft x Tamil Nadu market-to-guideline multiple ${mult}`, village: true
+      };
+    });
+  }
+
   BL.Engine = {
+    expandTNVillages,
     hav, segDist, distToCatalyst, eff, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
     prepare, relink, evaluate, priceAt, sigmaAt, series, contributions, riskOf, momentum, analogueFor,
     pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,

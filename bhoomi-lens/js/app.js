@@ -65,7 +65,9 @@
   const STATES_GEO = window.BL_STATES_GEO;
   const OVR = window.BL_OVERRIDES || {};
   if (window.BL_PROJECTS && window.BL_PROJECTS.length) BL.CATALYSTS = window.BL_PROJECTS;
-  const VERIFIED = window.BL_VERIFIED || [];
+  window.BL_VERIFIED = (window.BL_VERIFIED || []).filter((p) => !/SRO villages \(/.test(p.loc || ""))
+    .concat(E.expandTNVillages(window.BL_TN_VILLAGES, (window.BL_VERIFIED_SUMMARY || {}).tnMult || 2.03));
+  const VERIFIED = window.BL_VERIFIED;
   E.setCalibration(VERIFIED.filter((p) => p.price > 0), BL.CATALYSTS);
   let models = E.prepare(GEO.features, BL.CATALYSTS);
   E.calibrateDistricts(models, GEO.features, BL.CATALYSTS);
@@ -1099,6 +1101,7 @@
       <table class="cmp"><tr><th>Place</th><th>Years</th><th>Actual</th><th>Old</th><th>New</th></tr>${BT.rows.map((r) => `<tr><td title="${esc(r.project)}"><a href="${esc(r.src)}" target="_blank" rel="noopener">${esc(r.loc.slice(0, 30))}</a></td><td>${r.y0}-${String(r.y1).slice(2)}</td><td>${r.obs.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.old / r.obs)) < 0.15 ? "best" : ""}">${r.old.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.now / r.obs)) < 0.15 ? "best" : ""}">${r.now.toFixed(2)}x</td></tr>`).join("")}</table>
       <p style="margin-top:8px">What changed (24 Oct 2026 re-fit): airport max uplift 0.85 to 1.8, expressway 0.42 to 1.1, ring road 0.5 to 1.5, metro and rapid rail restored to 0.35 (the earlier cut to 0.2 under-predicted Namo Bharat), and cheap rural land gets up to 2.3x the percentage boost of built-up land. About 85% of the effect is priced in by opening. Average log error is now ${BT.newLoss} versus ${BT.oldLoss} for the original model. Still under-predicted: speculative peaks like Yamuna Expressway plots (actual 1.9x vs model 1.16x) and the Hyderabad ORR belt, where the IT corridor also drove prices.</p>` : "";
     const vsHtml = VS ? `<h3>Real-data calibration across India</h3>
+      <p>Tamil Nadu village layer: ${VS.tnVillagesCrawled ? VS.tnVillagesCrawled.toLocaleString("en-IN") : ""} villages crawled from all 595 sub-registrar offices, ${VS.tnVillages ? VS.tnVillages.toLocaleString("en-IN") : ""} automatically geocoded and loaded as very-low-weight derived evidence (official guideline value x ${VS.tnMult}).</p>
       <p>${VS.total} verified localities: ${VS.pricePoints} real land prices and ${VS.govtPoints} official government rates. Before calibration the model's typical error was ${Math.round(VS.errBefore * 100)}%. With real data the typical error, tested by hiding each point and predicting it from the rest, is ${Math.round(VS.errLOO * 100)}%. Areas far from any verified point stay model-only and are labelled that way.</p>
       <table class="cmp"><tr><th>State</th><th>Points</th><th>Error before</th><th>After</th></tr>${(VS.stateStats || []).map((x) => `<tr><td>${esc(x.s)}</td><td>${x.n}</td><td>${Math.round(x.before * 100)}%</td><td class="${x.after < x.before ? "best" : ""}">${Math.round(x.after * 100)}%</td></tr>`).join("")}</table>
       <p style="margin-top:8px"><b>Biggest district corrections</b></p>

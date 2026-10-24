@@ -1,6 +1,6 @@
 /* End-to-end UI scenarios in jsdom with a MapLibre stub. Setup: npm i jsdom@24, then: node bhoomi-lens/tests/e2e.js */
 const {JSDOM}=require('jsdom');const fs=require('fs');
-const html=fs.readFileSync(require('path').join(__dirname,'..','index.html'),'utf8').replace(/<script[^>]*><\/script>/g,'');
+const html=fs.readFileSync(require('path').join('/home/user/app','index.html'),'utf8').replace(/<script[^>]*><\/script>/g,'');
 const dom=new JSDOM(html,{runScripts:'outside-only',pretendToBeVisual:true,url:'http://localhost/'});
 const w=dom.window;
 const errs=[];w.addEventListener('error',e=>errs.push(e.message));
@@ -20,8 +20,8 @@ window.performance=window.performance||{now:()=>Date.now()};
 window.open=()=>({document:{write(){},close(){}}});
 URL.createObjectURL=()=>'blob:x';URL.revokeObjectURL=()=>{};
 `);
-for(const f of ['data/districts.js','data/states.js','data/overrides.js','js/data.js','data/projects.js','data/verified.js','data/backtest.js','js/engine.js','js/charts.js','js/app.js']){
- try{w.eval(fs.readFileSync(require('path').join(__dirname,'..',f),'utf8'))}catch(e){console.log('LOAD ERR',f,e.stack);process.exit(1)}}
+for(const f of ['data/districts.js','data/states.js','data/overrides.js','js/data.js','data/projects.js','data/verified.js','data/tn_villages.js','data/backtest.js','js/engine.js','js/charts.js','js/app.js']){
+ try{w.eval(fs.readFileSync(require('path').join('/home/user/app',f),'utf8'))}catch(e){console.log('LOAD ERR',f,e.stack);process.exit(1)}}
 const step=(name,fn)=>{try{fn();console.log('ok',name)}catch(e){console.log('FAIL',name,e.stack.split('\n').slice(0,4).join(' | '))}};
 setTimeout(()=>{
  const d=w.document,map=w.__map,click=el=>el.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
