@@ -72,8 +72,10 @@
   (function realCircleRatio() {
     const r = VERIFIED.filter((p) => p.price > 0 && p.govt_sqyd > 0).map((p) => p.govt_sqyd / p.txn_sqyd).filter((x) => x > 0.08 && x < 1.3).sort((a, b) => a - b);
     if (!r.length) return;
+    const byS = {};
+    for (const p of VERIFIED) if (p.price > 0 && p.govt_sqyd > 0 && p.txn_sqyd) { const x = p.govt_sqyd / p.txn_sqyd; if (x > 0.08 && x < 1.3) (byS[p.state] = byS[p.state] || []).push(x); }
     const med = r[r.length >> 1];
-    for (const m of models) if (m.calibrated) m.st = Object.assign({}, m.st, { cg: med });
+    for (const m of models) if (m.calibrated) { const a = (byS[m.state] || []).sort((x, y) => x - y); m.st = Object.assign({}, m.st, { cg: a.length >= 3 ? a[a.length >> 1] : med }); }
   })();
   for (const m of models) {
     const o = OVR[m.name + "|" + m.state];
@@ -230,6 +232,21 @@
   });
 
   /* ---------------- Fine price surface (zoom >= 7.2) ---------------- */
+  const BOX = new Map();
+  function fBox(f) {
+    if (BOX.has(f)) return BOX.get(f);
+    const b = [180, 90, -180, -90];
+    const walk = (c) => { if (typeof c[0] === "number") { if (c[0] < b[0]) b[0] = c[0]; if (c[1] < b[1]) b[1] = c[1]; if (c[0] > b[2]) b[2] = c[0]; if (c[1] > b[3]) b[3] = c[1]; } else c.forEach(walk); };
+    walk(f.geometry.coordinates); BOX.set(f, b); return b;
+  }
+  function insideIndia(lon, lat, cand) {
+    for (const f of cand) {
+      const b = fBox(f); if (lon < b[0] || lon > b[2] || lat < b[1] || lat > b[3]) continue;
+      const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+      for (const p of polys) if (E.pointInPoly(lon, lat, p[0])) return true;
+    }
+    return false;
+  }
   const GRID_LENSES = ["price", "growth"];
   let gridT = null;
   function scheduleGrid() { clearTimeout(gridT); gridT = setTimeout(buildGrid, 220); }
@@ -238,12 +255,15 @@
     if (map.getZoom() < 7.2 || !GRID_LENSES.includes(S.layer)) { src.setData(emptyFC()); return; }
     const b = map.getBounds();
     const w = b.getWest(), e = b.getEast(), n = b.getNorth(), so = b.getSouth();
-    const cols = 46, step = (e - w) / cols, rows = Math.ceil((n - so) / step);
+    // Cover the whole viewport (plus one cell of padding) with ~2,800 cells, clipped to India's land boundary.
+    const step = Math.sqrt(((e - w) * (n - so)) / 2800);
+    const x0 = Math.floor(w / step) * step - step, y0 = Math.floor(so / step) * step - step;
+    const cols = Math.ceil((e - x0) / step) + 1, rows = Math.ceil((n - y0) / step) + 1;
     const L = LAYERS[S.layer], fs = [], cats = allCats();
-    for (let r = 0; r < rows && r < 60; r++) for (let c = 0; c < cols; c++) {
-      const lon = w + (c + 0.5) * step, lat = so + (r + 0.5) * step;
-      let nd = 1e9; for (const m of models) { const d = (m.lat - lat) ** 2 + ((m.lon - lon) * 0.95) ** 2; if (d < nd) nd = d; }
-      if (nd > 0.8) continue;
+    const cand = GEO.features.filter((f) => { const b = fBox(f); return !(b[2] < w - step || b[0] > e + step || b[3] < so - step || b[1] > n + step); });
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const lon = x0 + (c + 0.5) * step, lat = y0 + (r + 0.5) * step;
+      if (!insideIndia(lon, lat, cand)) continue;
       const pm = E.pointModel(lat, lon, cats, models, opts());
       const v = clamp(L.norm({ price: S.year === MY ? pm.basePrice : E.priceAt(pm, S.year, S.scenario), cagr: pm.cagr }));
       const h = step / 2;
@@ -331,6 +351,7 @@
       ${c.cancelled ? '<div class="small down" style="margin-top:6px"><b>Cancelled / dropped.</b> Any price premium should unwind.</div>' : ""}
       ${c.status ? `<p class="small" style="margin:8px 0 0;line-height:1.5">${esc(c.status)}</p>` : ""}
       <p class="small muted" style="margin:6px 0 0;line-height:1.5">${esc(c.note || "")}</p>
+      ${c.events && c.events.length ? `<div class="small" style="margin-top:8px"><b>Timeline</b>${c.events.slice(-5).map((ev) => `<div class="row" style="gap:6px;padding:2px 0"><span class="muted" style="width:54px;flex:none">${esc(ev.date)}</span><span class="${/scrap|cancel|delay|halt|stay/.test(ev.kind) ? "down" : /open/.test(ev.kind) ? "up" : ""}">${esc(ev.kind.replace(/_/g, " "))}</span><span class="muted grow">${ev.src ? `<a href="${esc(ev.src)}" target="_blank" rel="noopener">${esc(ev.note || "source")}</a>` : esc(ev.note || "")}</span></div>`).join("")}</div>` : ""}
       ${c.src ? `<div class="small" style="margin-top:6px">Status as of ${esc(c.asof || BL.DATA_ASOF)} | <a href="${esc(c.src)}" target="_blank" rel="noopener">Source</a>${c.src2 ? ` | <a href="${esc(c.src2)}" target="_blank" rel="noopener">Source 2</a>` : ""}</div>` : ""}
       ${c.user ? `<button class="btn sm danger" style="margin-top:8px" data-act="sim-remove" data-id="${esc(c.id)}">Remove simulated project</button>` : ""}
     </div>`;
@@ -609,7 +630,7 @@
   $("#btnReal").addEventListener("click", (e) => {
     S.real = !S.real; e.currentTarget.classList.toggle("on", S.real);
     map.setLayoutProperty("verified", "visibility", S.real ? "visible" : "none");
-    if (S.real) { map.flyTo({ center: [78.42, 17.38], zoom: 9.2, duration: 1400 }); toast("Hyderabad: 64 verified points (auctions, listings, official rates). Click one for sources."); }
+    if (S.real) toast(`${VERIFIED.length} verified points across India (auctions, allotments, deals, listings, official rates). Click one for sources.`);
   });
   $("#btnHeat").addEventListener("click", (e) => {
     S.heat = !S.heat; e.currentTarget.classList.toggle("on", S.heat);
@@ -713,7 +734,7 @@
     const p = (window.BL_VERIFIED || [])[i]; if (!p) return;
     if (popup) popup.remove();
     popup = new maplibregl.Popup({ offset: 10, maxWidth: "320px" }).setLngLat([p.lon, p.lat]).setHTML(`<div style="min-width:230px">
-      <b>${esc(p.loc)}</b><div class="small muted">${esc(p.district)}, Telangana | verified data point</div>
+      <b>${esc(p.loc)}</b><div class="small muted">${esc(p.district)}${p.taluk ? ", " + esc(p.taluk) : ""}, ${esc(p.state || "")} | verified data point</div>
       ${p.price ? `<div class="row sb small" style="margin-top:8px"><span class="muted">${esc(TYPE_LABEL[p.type] || p.type)}</span><b>${fmtINR(p.txn_sqyd)}/sq yd</b></div><div class="small muted">${esc(p.date || "")} | ${fmtINR(p.price)}/sq ft used in model</div>${p.note ? `<p class="small" style="margin:6px 0 0;line-height:1.45">${esc(p.note)}</p>` : ""}<div class="small"><a href="${esc(p.src)}" target="_blank" rel="noopener">Price source</a></div>` : ""}
       ${p.govt_sqyd || p.govt_sqyd_agri ? `<div class="row sb small" style="margin-top:8px"><span class="muted">Official market value${p.govt_sqyd ? "" : " (agri)"}</span><b>${fmtINR(p.govt_sqyd || p.govt_sqyd_agri)}/sq yd</b></div><div class="small"><span class="muted">${esc(p.govt_date || "")}</span> | <a href="${esc(p.govt_src)}" target="_blank" rel="noopener">Rate source</a></div>` : ""}
       <button class="btn sm" style="margin-top:8px" data-act="open-loc" data-lon="${p.lon}" data-lat="${p.lat}">Plot-level read here</button></div>`).addTo(map);
@@ -794,7 +815,7 @@
   }
   function catRow(c, sub) {
     const T = BL.TYPES[c.t];
-    return `<div class="cat-row" data-act="fly-cat" data-id="${esc(c.id)}"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><div class="cn ellipsis">${esc(c.n)}</div><div class="row small muted" style="gap:8px;margin-top:3px">${C.stage(c.stage)}<span>${esc(BL.STAGES[c.stage])}</span><span>| ${c.stage >= 4 ? "open" : "ETA " + E.effEta(c, S.scenario)}</span></div>${sub ? `<div class="small muted" style="margin-top:2px">${esc(sub)}</div>` : ""}${c.cancelled ? '<div class="small down">Cancelled</div>' : ""}</div><span class="pill ${E.completionP(c, S.scenario) < 0.5 ? "r" : ""}">${Math.round(E.completionP(c, S.scenario) * 100)}%</span></div>`;
+    return `<div class="cat-row" data-act="fly-cat" data-id="${esc(c.id)}"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><div class="cn ellipsis">${esc(c.n)}</div><div class="row small muted" style="gap:8px;margin-top:3px">${C.stage(c.stage)}<span>${esc(BL.STAGES[c.stage])}</span><span>| ${c.stage >= 4 ? "open" : "ETA " + E.effEta(c, S.scenario)}</span></div>${sub ? `<div class="small muted" style="margin-top:2px">${esc(sub)}</div>` : ""}${c.cancelled ? '<div class="small down">Cancelled: premium unwinding</div>' : c.delays ? `<div class="small warn">Delayed ${c.delays}x | as of ${esc(c.asof || "")}</div>` : c.asof ? `<div class="small muted">as of ${esc(c.asof)}</div>` : ""}</div><span class="pill ${E.completionP(c, S.scenario) < 0.5 ? "r" : ""}">${Math.round(E.completionP(c, S.scenario) * 100)}%</span></div>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -998,12 +1019,14 @@
       <p>Each row compares the documented price change around a past project (in excess of the wider city market) with what the old and the re-calibrated model predicted. Average log error fell from ${BT.oldLoss} to ${BT.newLoss}.</p>
       <table class="cmp"><tr><th>Place</th><th>Years</th><th>Actual</th><th>Old</th><th>New</th></tr>${BT.rows.map((r) => `<tr><td title="${esc(r.project)}"><a href="${esc(r.src)}" target="_blank" rel="noopener">${esc(r.loc.slice(0, 30))}</a></td><td>${r.y0}-${String(r.y1).slice(2)}</td><td>${r.obs.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.old / r.obs)) < 0.15 ? "best" : ""}">${r.old.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.now / r.obs)) < 0.15 ? "best" : ""}">${r.now.toFixed(2)}x</td></tr>`).join("")}</table>
       <p style="margin-top:8px">What changed: airports and expressways now have a larger effect (airport max uplift 0.85 to 1.3, expressway 0.42 to 0.7, ring road 0.5 to 1.0). Metro and rapid rail were cut from 0.48 to 0.2, because land next to Namo Bharat stations barely moved beyond the city trend. More of the effect is now priced in before opening (85% by completion, up from 65%). Cheap rural land gets a larger percentage boost than built-up land. The model still under-predicts speculative peaks such as the Yamuna Expressway plots (3x).</p>` : "";
-    const vsHtml = VS ? `<h3>Hyderabad: real-data calibration</h3>
-      <p>${VS.pricePoints} real price points and ${VS.govtPoints} official government market values across 64 localities. Before calibration the model over-priced the region by a median ${Math.round((VS.modelOverRealBefore - 1) * 100)}%, with a typical error of ${Math.round(VS.errBefore * 100)}%. After calibration the typical leave-one-out error is ${Math.round(VS.errLOO * 100)}%.</p>
+    const vsHtml = VS ? `<h3>Real-data calibration across India</h3>
+      <p>${VS.total} verified localities: ${VS.pricePoints} real land prices and ${VS.govtPoints} official government rates. Before calibration the model's typical error was ${Math.round(VS.errBefore * 100)}%. With real data the typical error, tested by hiding each point and predicting it from the rest, is ${Math.round(VS.errLOO * 100)}%. Areas far from any verified point stay model-only and are labelled that way.</p>
+      <table class="cmp"><tr><th>State</th><th>Points</th><th>Error before</th><th>After</th></tr>${(VS.stateStats || []).map((x) => `<tr><td>${esc(x.s)}</td><td>${x.n}</td><td>${Math.round(x.before * 100)}%</td><td class="${x.after < x.before ? "best" : ""}">${Math.round(x.after * 100)}%</td></tr>`).join("")}</table>
+      <p style="margin-top:8px"><b>Biggest district corrections</b></p>
       <table class="cmp"><tr><th>District</th><th>Old est.</th><th>Now</th><th>Change</th></tr>${VS.districts.map((d) => `<tr><td>${esc(d.n)}</td><td>${fmtINR(d.old)}</td><td>${fmtINR(d.now)}</td><td class="${d.now < d.old ? "down" : "up"}">${pct(d.now / d.old - 1, 0)}</td></tr>`).join("")}</table>
       <p style="margin-top:8px"><b>Sources</b></p>${VS.sources.map((x) => `<p>- <b>${esc(x[0])}</b>: ${esc(x[1])}. Reliability: ${esc(x[2])}.</p>`).join("")}<p class="warn">${esc(VS.gaps)}</p>` : "";
     return `<div class="note">
-      <p><b>Data as of ${esc(BL.DATA_ASOF)}.</b> Project statuses were verified in ${esc(BL.DATA_ASOF)} for ${BL.CATALYSTS.length} projects, each with a source link (click a project marker). Prices outside Hyderabad are still modelled estimates.</p>
+      <p><b>Data as of ${esc(BL.DATA_ASOF)}.</b> Project statuses were verified in ${esc(BL.DATA_ASOF)} for ${BL.CATALYSTS.length} projects, each with a source link (click a project marker). Prices are calibrated to verified local evidence where it exists; elsewhere they are modelled and marked "Model only".</p>
       ${vsHtml}${btHtml}
       <p><b>What this is.</b> Bhoomi Lens is a modelled land-intelligence map. It turns public reference points into an estimate of what land is worth today, where it is heading and what could go wrong. It is not a record of registered transactions.</p>
       <h3>1. Price today</h3>

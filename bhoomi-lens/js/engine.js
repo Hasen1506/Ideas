@@ -66,6 +66,7 @@
   };
 
   function completionP(c, scen = "base") {
+    if (c.scrapYear) return 0;
     if (c.stage >= 4) return 1;
     const sc = BL.SCENARIOS[scen] || BL.SCENARIOS.base;
     const base = BL.STAGE_P[c.stage] * (0.55 + 0.45 * c.cred);
@@ -87,6 +88,20 @@
     if (year <= eta) return K.ann + (K.done - K.ann) * ((year - c.ann) / Math.max(1, eta - c.ann));
     return K.done + (1 - K.done) * clamp((year - eta) / T.lag);
   }
+
+  /* Effective priced-in share x completion odds, with scrapping handled explicitly.
+   * Before a project is scrapped the market priced it at its pre-scrap stage/credibility; from the
+   * scrap year the premium unwinds (about 60% gone in year one, almost all by year three). */
+  function eff(c, year, scen = "base") {
+    if (c.scrapYear) {
+      const pre = Object.assign({}, c, { scrapYear: 0, stage: c.preStage ?? 1, cred: c.preCred ?? 0.5, eta: c.preEta || c.eta });
+      if (year < c.scrapYear) return realisation(pre, year, "base") * completionP(pre, "base");
+      const v = realisation(pre, c.scrapYear - 1, "base") * completionP(pre, "base");
+      return v * Math.exp(-(year - c.scrapYear + 1) / 1.1);
+    }
+    return realisation(c, year, scen) * completionP(c, scen);
+  }
+  function uncert(c, year, scen) { return c.scrapYear ? 0 : (1 - completionP(c, scen)) * realisation(c, year, scen); }
 
   /* Land leverage: the same project moves cheap rural land far more (in %) than built-up urban land.
    * Calibrated on Devanahalli / Yamuna Expressway (rural, 2-3x excess) vs Ulwe / Dwarka Expwy (urban, 1.2-1.4x). */
@@ -233,7 +248,7 @@
   /* ---------------- Evaluation ---------------- */
   function E(m, year, scen) {
     let s = 0;
-    for (const L of m.links) s += L.w * realisation(L.c, year, scen) * completionP(L.c, scen);
+    for (const L of m.links) s += L.w * eff(L.c, year, scen);
     return s;
   }
 
@@ -250,7 +265,7 @@
     const MY = BL.MODEL_YEAR;
     if (year <= MY) return 0;
     let unc = 0;
-    for (const L of m.links) unc += L.w * (1 - completionP(L.c, scen)) * realisation(L.c, year, scen);
+    for (const L of m.links) unc += L.w * uncert(L.c, year, scen);
     const liqPenalty = 0.03 * (1 - m.u);
     return 0.045 * Math.sqrt(year - MY) + 0.9 * unc + liqPenalty;
   }
@@ -273,7 +288,7 @@
     const fund = Math.pow(1 + m.g + sc.gAdj, horizon);
     const parts = [{ label: "Market drift and city spillover", v: fund - 1, kind: "fund" }];
     for (const L of m.links.slice(0, 8)) {
-      const dE = L.w * (realisation(L.c, Y, scen) * completionP(L.c, scen) - realisation(L.c, MY, "base") * completionP(L.c, "base"));
+      const dE = L.w * (eff(L.c, Y, scen) - eff(L.c, MY, "base"));
       const v = fund * dE / (1 + e0);
       if (Math.abs(v) > 0.002) parts.push({ label: L.c.n, v, kind: L.c.t, c: L.c, d: L.d });
     }
@@ -297,7 +312,7 @@
 
   function momentum(m, scen = "base") {
     let s = 0;
-    for (const L of m.links) if (L.c.stage < 4 || L.c.eta >= BL.MODEL_YEAR - 1) s += L.w * completionP(L.c, scen) * (1 - realisation(L.c, BL.MODEL_YEAR, "base"));
+    for (const L of m.links) if (!L.c.scrapYear && (L.c.stage < 4 || L.c.eta >= BL.MODEL_YEAR - 1)) s += L.w * completionP(L.c, scen) * (1 - realisation(L.c, BL.MODEL_YEAR, "base"));
     return s;
   }
 
@@ -487,7 +502,7 @@
           let up = 0;
           for (const c of catalysts) {
             const cw = catalystWeight(c, gy, gx, 0);
-            up += cw.w * completionP(c, opts.scenario) * (1 - realisation(c, BL.MODEL_YEAR, "base"));
+            if (!c.scrapYear) up += cw.w * completionP(c, opts.scenario) * (1 - realisation(c, BL.MODEL_YEAR, "base"));
           }
           if (up > 0.03) out.push({ lon: +gx.toFixed(3), lat: +gy.toFixed(3), up });
         }
@@ -496,7 +511,7 @@
   }
 
   BL.Engine = {
-    hav, segDist, distToCatalyst, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
+    hav, segDist, distToCatalyst, eff, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
     prepare, relink, evaluate, priceAt, sigmaAt, series, contributions, riskOf, momentum, analogueFor,
     pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,
     setCalibration, calibFactor, calibrationEvidence, calibrateDistricts, oppScore, buildModel

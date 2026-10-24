@@ -291,3 +291,7 @@ body.detail-open .maplibregl-ctrl-top-right { right: 420px; }
 .cat-row .muted a, .note a { color: var(--teal); }
 .tag.up { color: var(--teal); border-color: rgba(46,230,197,.5); } .tag.warn { color: var(--saffron); border-color: rgba(255,181,71,.5); }
 .disclaimer { max-width: 60vw; text-align: right; }
+
+.d-hero h1 { padding-right: 150px; word-break: break-word; }
+.panel, .detail { max-height: calc(100vh - 180px); }
+@media (max-height: 720px) { .dock { height: 60px; } .panel, .detail { bottom: 82px; } .disclaimer { bottom: 76px; } }
