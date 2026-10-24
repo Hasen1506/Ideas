@@ -191,7 +191,7 @@
       "fill-extrusion-height": ["*", ["coalesce", ["feature-state", "h"], 0], 140000],
       "fill-extrusion-opacity": 0.88
     } });
-    add({ id: "grid-fill", type: "fill", source: "grid", paint: { "fill-color": gridRamp("price"), "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7.2, 0, 8.2, 0.5, 11, 0.36, 13.5, 0.12], "fill-outline-color": "rgba(0,0,0,0)" } });
+    add({ id: "grid-fill", type: "fill", source: "grid", paint: { "fill-color": gridRamp("price"), "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7.2, 0, 8.2, 0.5, 11, 0.4, 13.5, 0.3, 16, 0.24], "fill-outline-color": "rgba(0,0,0,0)" } });
     add({ id: "d-line", type: "line", source: "districts", paint: { "line-color": "rgba(255,255,255,0.07)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.3, 8, 1] } });
     add({ id: "s-line", type: "line", source: "states", paint: { "line-color": "rgba(220,230,255,0.28)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 8, 1.8] } });
     add({ id: "heat", type: "heatmap", source: "heat", layout: { visibility: "none" }, paint: {
