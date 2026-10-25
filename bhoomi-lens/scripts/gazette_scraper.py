@@ -18,11 +18,7 @@ from bs4 import BeautifulSoup
 BASE = "https://gazettetracker.com"
 DELAY = float(os.environ.get("GZ_DELAY", "2.0"))
 UA = {"User-Agent": "Mozilla/5.0 (bhoomi-lens research scraper; weekly; contact owner)"}
-STATES = ["andhra-pradesh","arunachal-pradesh","assam","bihar","chhattisgarh","goa","gujarat","haryana",
- "himachal-pradesh","jharkhand","karnataka","kerala","madhya-pradesh","maharashtra","manipur","meghalaya",
- "mizoram","nagaland","odisha","punjab","rajasthan","sikkim","tamil-nadu","telangana","tripura",
- "uttar-pradesh","uttarakhand","west-bengal","andaman-and-nicobar-islands","chandigarh",
- "dadra-and-nagar-haveli-and-daman-and-diu","delhi","jammu-and-kashmir","ladakh","lakshadweep","puducherry"]
+STATES = ["tamil-nadu","karnataka","kerala","andhra-pradesh","telangana","puducherry","maharashtra","arunachal-pradesh","assam","bihar","chhattisgarh","goa","gujarat","haryana","himachal-pradesh","jharkhand","madhya-pradesh","manipur","meghalaya","mizoram","nagaland","odisha","punjab","rajasthan","sikkim","tripura","uttar-pradesh","uttarakhand","west-bengal","andaman-and-nicobar-islands","chandigarh","dadra-and-nagar-haveli-and-daman-and-diu","delhi","jammu-and-kashmir","ladakh","lakshadweep"]
 TYPE_PATTERNS = [("3A", r"section\s*3\s*\(?A\)?(?![a-z])"), ("3D", r"section\s*3\s*\(?D\)?"),
                  ("20A", r"(section|clause)\s*\(?20\s*\(?A\)?"), ("20E", r"(section|clause)\s*\(?20\s*\(?E\)?")]
 _last = [0.0]
@@ -176,6 +172,8 @@ def main():
             if not rec["state"]: rec["state"] = slug.replace("-", " ").title()
             done[gid] = rec; processed += 1
             print(f"{slug}: {gid} {rec['type']} {rec['so']} villages={len(rec['villages'])}")
+            if processed % 5 == 0:   # checkpoint often so a time-capped run keeps its work
+                json.dump({"generated": dt.date.today().isoformat(), "records": list(done.values()) + [r for r in data["records"] if r["gid"] not in done], "stats": stats, "failures": failures}, open(a.out, "w"), ensure_ascii=False)
         stats[slug] = {"found": found, "processed": processed}
         others = [r for r in data["records"] if r["gid"] not in done]
         data = {"generated": dt.date.today().isoformat(), "records": list(done.values()) + others,
