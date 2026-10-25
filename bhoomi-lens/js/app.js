@@ -838,7 +838,7 @@
           ${gov ? `<div class="kpi wide"><div class="k">Official govt market value nearby (${esc(gov.p.loc)}, ${gov.d.toFixed(1)} km)</div><div class="v">${fmtINR(gov.p.govt_sqyd)}<span class="small muted"> /sq yd</span></div><div class="s">${esc(gov.p.govt_date || "")} | <a href="${esc(gov.p.govt_src)}" target="_blank" rel="noopener">source</a> | market is ${Math.round((pm.basePrice / (gov.p.govt_sqyd / 9) - 1) * 100)}% above it</div></div>` : ""}
         </div>
         ${(() => { const v = nearVerified(lat, lon, 5).find((x) => x.p.village && E.landTypeFor(x.p.path, x.p.district)); return v ? `<h3>By land type (Tamil Nadu, nearest guideline village ${esc(v.p.loc)}, ${v.d.toFixed(1)} km)</h3><div class="card">${landTypeHTML(E.landTypeFor(v.p.path, v.p.district))}</div>` : ""; })()}
-        ${BL.Insights ? BL.Insights.block({ pm, lat, lon, nearAll: nearVerified(lat, lon, 12), gov, conf: conf[0], place: near.length && near[0].d < 6 ? "Near " + near[0].p.loc : (pm.district || "Selected spot"), ser, con, horizon: S.horizon }) : ""}
+        ${BL.Insights ? BL.Insights.block({ pm, lat, lon, nearAll: nearVerified(lat, lon, 12), gov, conf: conf[0], place: near.length && near[0].d < 6 ? "Near " + near[0].p.loc : (pm.district || "Selected spot"), ser, con, horizon: S.horizon, scenario: S.scenario }) : ""}
         <h3>How this price was arrived at</h3>
         <div class="card small" style="line-height:1.6">${(() => {
           const cc = E.calibContrib(lat, lon);
