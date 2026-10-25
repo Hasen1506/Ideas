@@ -548,7 +548,7 @@
         low: Math.round(gmin * m), high: Math.round(gmax * m), mult: m, multBasis: rbasis || "state default",
         date: "2026-10", retrieved: "2026-10-25", src,
         method: `Official street guideline Rs${gmin}-${gmax}/sq ft (${gmed ? "median Rs" + gmed : "midpoint Rs" + gv}) x ${dist} market-to-guideline multiple ${m} (${rbasis || "state default"}).`,
-        note: `Derived: guideline Rs${gv}/sq ft x ${dist} multiple ${m}`, village: true
+        note: `Derived: guideline Rs${gv}/sq ft x ${dist} multiple ${m}`, village: true, path
       };
     });
   }
@@ -575,8 +575,19 @@
     });
   }
 
+  // Land-type values for a TN village (official class rate x fitted district multiple), with confidence + method.
+  function landTypeFor(path, district) {
+    const LT = (typeof window !== "undefined" ? window : globalThis).BL_LANDTYPE; if (!LT || !path) return null;
+    const v = LT.villages[path]; if (!v) return null;
+    const out = {};
+    const pick = (t) => { const d = LT.districts[t][district]; return d && d.asserted ? { m: d.multiple, conf: d.confidence, basis: `${district} fit (${d.n_agree} of ${d.n_sites} sites agree, ${d.n_listings} listings)` } : { m: LT.state[t], conf: "Low", basis: `state median of ${LT.state[t + "_n"]} fitted districts (no cross-checked ${t} data for ${district})` }; };
+    if (v[0]) { const p = pick("farm"); out.farm = { guide: v[0], value: Math.round(v[0] * p.m), unit: "Rs/acre", mult: p.m, conf: p.conf, method: `Official farm guideline Rs${v[0].toLocaleString("en-IN")}/acre (village median of wet/dry classes) x farm market-to-guideline multiple ${p.m} (${p.basis}).`, ratio: (LT.districts.farm[district] || {}).farm_to_res }; }
+    if (v[1]) { const p = pick("comm"); out.comm = { guide: v[1], value: Math.round(v[1] * p.m), unit: "Rs/sq ft", mult: p.m, conf: p.conf, method: `Official commercial guideline Rs${v[1]}/sq ft (highest commercial class) x commercial multiple ${p.m} (${p.basis}).` }; }
+    out.rev = v[2]; return out;
+  }
+
   BL.Engine = {
-    expandTNVillages, expandEvidence,
+    landTypeFor, expandTNVillages, expandEvidence,
     hav, segDist, distToCatalyst, eff, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
     prepare, relink, evaluate, priceAt, sigmaAt, series, contributions, riskOf, momentum, analogueFor,
     pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,

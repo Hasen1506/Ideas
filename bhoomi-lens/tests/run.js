@@ -4,9 +4,12 @@ const fs = require("fs"), path = require("path");
 const ROOT = path.join(__dirname, "..");
 const load = (f) => eval(fs.readFileSync(path.join(ROOT, f), "utf8").replace(/window\./g, "globalThis."));
 global.window = undefined;
-["data/districts.js", "data/projects.js", "data/verified.js", "data/tn_villages.js", "data/evidence.js", "data/backtest.js"].forEach(load);
+["data/districts.js", "data/projects.js", "data/verified.js", "data/tn_villages.js", "data/evidence.js", "data/landtype.js", "data/backtest.js"].forEach(load);
 require(path.join(ROOT, "js/data.js")); require(path.join(ROOT, "js/engine.js"));
 const BL = globalThis.BL, E = BL.Engine;
+globalThis.document = globalThis.document || { addEventListener() {} };
+require(path.join(ROOT, "js/charts.js")); require(path.join(ROOT, "js/insights.js"));
+const INS = BL.Insights, LT = globalThis.BL_LANDTYPE;
 BL.CATALYSTS = globalThis.BL_PROJECTS;
 const GEO = globalThis.BL_DISTRICTS;
 globalThis.BL_VERIFIED = (globalThis.BL_VERIFIED || []).filter((p) => !/SRO villages \(/.test(p.loc || "")).concat(E.expandTNVillages(globalThis.BL_TN_VILLAGES, ((globalThis.BL_EVIDENCE || {}).multiples || {}).state || 2.3)).concat(E.expandEvidence(globalThis.BL_EVIDENCE));
@@ -86,6 +89,17 @@ const G = [
   ["Every evidence source has url + retrieved timestamp", (globalThis.BL_EVIDENCE.localities || []).reduce((a, o) => a + o.sources.filter((x) => !x.url || !x.retrieved).length, 0), 0, 0],
   ["Non-asserted evidence never priced in model", (globalThis.BL_VERIFIED || []).filter((p) => p.status && p.status !== "asserted" && p.price > 0).length, 0, 0],
   ["States covered by asserted evidence >= 20", new Set((globalThis.BL_EVIDENCE.localities || []).filter((o) => o.status === "asserted").map((o) => o.state)).size, 20, 99],
+  ["Land-type villages with official class rates >= 1500", Object.keys(LT.villages).length, 1500, 1e9],
+  ["Farm multiples asserted in >= 8 districts", Object.values(LT.districts.farm).filter((d) => d.asserted).length, 8, 99],
+  ["Commercial multiples asserted in >= 6 districts", Object.values(LT.districts.comm).filter((d) => d.asserted).length, 6, 99],
+  ["Every asserted land-type fit meets the cross-check rule", [...Object.values(LT.districts.farm), ...Object.values(LT.districts.comm)].filter((d) => d.asserted && !(d.n_sites >= 3 && d.n_agree >= 2 && d.n_agree * 2 >= d.n_sites)).length, 0, 0],
+  ["Every land-type source has url + retrieved", [...Object.values(LT.districts.farm), ...Object.values(LT.districts.comm)].reduce((a, d) => a + d.sources.filter((x) => !x.url || !x.retrieved).length, 0), 0, 0],
+  ["Farm sells below residential per sq ft (ratio < 1) in every fitted district", Object.values(LT.districts.farm).filter((d) => d.farm_to_res != null && !(d.farm_to_res > 0 && d.farm_to_res < 1)).length, 0, 0],
+  ["Fair Price Check: ask at mid -> green", INS.verdict(1000, { lo: 800, hi: 1200 }).k === "green" ? 1 : 0, 1, 1],
+  ["Fair Price Check: ask 10% over top -> amber", INS.verdict(1320, { lo: 800, hi: 1200 }).k === "amber" ? 1 : 0, 1, 1],
+  ["Fair Price Check: ask 40% over top -> red", INS.verdict(1680, { lo: 800, hi: 1200 }).k === "red" ? 1 : 0, 1, 1],
+  ["Fair Price Check: suspiciously cheap -> amber", INS.verdict(400, { lo: 800, hi: 1200 }).k === "amber" ? 1 : 0, 1, 1],
+  ["Fair range brackets the estimate", (() => { const fr = INS.fairRange({ pm: { basePrice: 2000 }, conf: "Medium", nearAll: [] }); return fr.lo < 2000 && fr.hi > 2000 ? 1 : 0; })(), 1, 1],
   ["Every displayed price point has a method or source", (globalThis.BL_VERIFIED || []).filter((p) => p.price > 0 && !p.src && !p.method).length, 0, 0],
   ["No SRO-group placeholders remain", (globalThis.BL_VERIFIED || []).filter((p) => /SRO villages \(/.test(p.loc || "")).length, 0, 0],
   ["Every TN village inside Tamil Nadu bounds", (globalThis.BL_TN_VILLAGES || []).filter((r) => r[3] < 8 || r[3] > 13.6 || r[4] < 76.2 || r[4] > 80.4).length, 0, 0],

@@ -20,7 +20,7 @@ window.performance=window.performance||{now:()=>Date.now()};
 window.open=()=>({document:{write(){},close(){}}});
 URL.createObjectURL=()=>'blob:x';URL.revokeObjectURL=()=>{};
 `);
-for(const f of ['data/districts.js','data/states.js','data/overrides.js','js/data.js','data/projects.js','data/verified.js','data/tn_villages.js','data/evidence.js','data/backtest.js','js/engine.js','js/charts.js','js/app.js']){
+for(const f of ['data/districts.js','data/states.js','data/overrides.js','js/data.js','data/projects.js','data/verified.js','data/tn_villages.js','data/evidence.js','data/landtype.js','data/backtest.js','js/engine.js','js/charts.js','js/insights.js','js/app.js']){
  try{w.eval(fs.readFileSync(require('path').join('/home/user/app',f),'utf8'))}catch(e){console.log('LOAD ERR',f,e.stack);process.exit(1)}}
 const step=(name,fn)=>{try{fn();console.log('ok',name)}catch(e){console.log('FAIL',name,e.stack.split('\n').slice(0,4).join(' | '))}};
 setTimeout(()=>{

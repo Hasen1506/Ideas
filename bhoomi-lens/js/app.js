@@ -36,6 +36,8 @@
     { id: "simulate", label: "Ripple simulator", icon: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".7"/><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".4"/>' },
     { id: "catalysts", label: "Catalyst tracker", icon: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>' },
     { id: "screener", label: "Screener", icon: '<path d="M4 5h16l-6 7.5V19l-4-2v-4.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
+    { id: "shortlist", label: "Infra-led shortlist", icon: '<path d="M4 6h16M4 12h10M4 18h6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M17 15l2 2 3-4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>' },
+    { id: "alerts", label: "Spot alerts", icon: '<path d="M6 16V11a6 6 0 1112 0v5l1.5 2h-15z M10 20a2 2 0 004 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' },
     "sep",
     { id: "watchlist", label: "Watchlist and signals", icon: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' },
     { id: "compare", label: "Compare districts", icon: '<path d="M4 6h7v13H4zM13 10h7v9h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
@@ -185,6 +187,7 @@
     map.addSource("grid", { type: "geojson", data: emptyFC() });
     map.addSource("verified", { type: "geojson", data: verifiedFC() });
     map.addSource("states", { type: "geojson", data: STATES_GEO });
+    map.addSource("farm", { type: "geojson", data: { type: "FeatureCollection", features: VERIFIED.map((p, i) => ({ p, i })).filter((x) => x.p.village).map((x) => { const lt = E.landTypeFor(x.p.path, x.p.district); return lt && lt.farm ? { type: "Feature", properties: { i: x.i, v: lt.farm.value / 1e5, c: lt.farm.conf }, geometry: { type: "Point", coordinates: [x.p.lon, x.p.lat] } } : null; }).filter(Boolean) } });
     map.addSource("catLines", { type: "geojson", data: catLineFC() });
     map.addSource("catPts", { type: "geojson", data: catPtFC() });
     map.addSource("heat", { type: "geojson", data: emptyFC() });
@@ -232,6 +235,11 @@
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 9, 6.5, 13, 10],
       "circle-color": ["match", ["get", "type"], "govt_auction", "#ffd166", "govt_allotment", "#ffb547", "registered", "#2ee6c5", "reported_deal", "#2ee6c5", "listing", "#c9d3e6", "derived_gv", "#7f8aa3", "#b98cff"],
       "circle-stroke-color": "#0a0f1a", "circle-stroke-width": 2, "circle-opacity": 0.95 } });
+    map.addLayer({ id: "farm", type: "circle", source: "farm", layout: { visibility: "none" }, paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 3, 10, 6, 13, 9],
+      "circle-color": ["interpolate", ["linear"], ["get", "v"], 10, "#3b6e3b", 40, "#7bc96f", 80, "#e7d36a", 150, "#f39c4a", 300, "#e0484f"],
+      "circle-stroke-color": ["match", ["get", "c"], "High", "#ffffff", "Medium", "#bbbbbb", "#555555"], "circle-stroke-width": 1.2, "circle-opacity": 0.9 } });
+    map.on("click", "farm", (ev) => { const f = ev.features[0]; if (f) verifiedPopup(f.properties.i); });
     map.addLayer({ id: "d-sel-glow", type: "line", source: "districts", filter: ["==", ["get", "id"], -1], paint: { "line-color": "#ffb547", "line-width": 9, "line-opacity": 0.35, "line-blur": 6 } });
 
     // Clean first view: projects, zones and evidence dots start hidden; chips turn them on.
@@ -707,6 +715,11 @@
     renderOverlayLegend();
     if (S.real) toast(`${VERIFIED.length} verified points across India (auctions, allotments, deals, listings, official rates). Click one for sources.`);
   });
+  $("#btnFarm").addEventListener("click", (e) => {
+    S.farm = !S.farm; e.currentTarget.classList.toggle("on", S.farm);
+    map.setLayoutProperty("farm", "visibility", S.farm ? "visible" : "none");
+    if (S.farm) toast("Farm land Rs lakh/acre by Tamil Nadu village: official farm rate x fitted district multiple. White ring = high confidence, grey = medium, dark = low (state median). Click a dot for the method.");
+  });
   $("#btnHeat").addEventListener("click", (e) => {
     S.heat = !S.heat; e.currentTarget.classList.toggle("on", S.heat);
     if (S.heat) { map.getSource("heat").setData(heatFC()); toast("Hotspots show where unrealised infrastructure upside is concentrated."); }
@@ -795,6 +808,8 @@
           <div class="kpi"><div class="k">${S.horizon}-yr outlook</div><div class="v up">${pm.mult.toFixed(2)}x</div><div class="s">${pct(pm.cagr)} per year, ${esc(BL.SCENARIOS[S.scenario].label.toLowerCase())}</div></div>
           ${gov ? `<div class="kpi wide"><div class="k">Official govt market value nearby (${esc(gov.p.loc)}, ${gov.d.toFixed(1)} km)</div><div class="v">${fmtINR(gov.p.govt_sqyd)}<span class="small muted"> /sq yd</span></div><div class="s">${esc(gov.p.govt_date || "")} | <a href="${esc(gov.p.govt_src)}" target="_blank" rel="noopener">source</a> | market is ${Math.round((1 - gov.p.govt_sqyd / 9 / pm.basePrice) * 100)}% above it</div></div>` : ""}
         </div>
+        ${(() => { const v = nearVerified(lat, lon, 5).find((x) => x.p.village && E.landTypeFor(x.p.path, x.p.district)); return v ? `<h3>By land type (Tamil Nadu, nearest guideline village ${esc(v.p.loc)}, ${v.d.toFixed(1)} km)</h3><div class="card">${landTypeHTML(E.landTypeFor(v.p.path, v.p.district))}</div>` : ""; })()}
+        ${BL.Insights ? BL.Insights.block({ pm, lat, lon, nearAll: nearVerified(lat, lon, 12), gov, conf: conf[0], place: near.length && near[0].d < 6 ? "Near " + near[0].p.loc : (pm.district || "Selected spot"), ser, con, horizon: S.horizon }) : ""}
         <h3>How this price was arrived at</h3>
         <div class="card small" style="line-height:1.6">${(() => {
           const cc = E.calibContrib(lat, lon);
@@ -816,6 +831,11 @@
         <p class="small muted" style="margin-top:12px">Confidence reflects how much verified price evidence sits within about 10 km. "Model only" means no real transactions nearby yet.</p>
       </div>`;
   }
+  function landTypeHTML(lt) {
+    if (!lt) return "";
+    const row = (k, x) => x ? `<div class="row sb small" style="margin-top:4px"><span class="muted">${k} <span class="tag" style="padding:0 5px;color:${x.conf === "High" ? "#5bd18b" : x.conf === "Medium" ? "#ffd166" : "#ff8a5c"}">${x.conf}</span></span><b>${fmtINR(x.value)} ${x.unit === "Rs/acre" ? "/acre" : "/sq ft"}</b></div><div class="small muted">${esc(x.method)}${x.ratio ? ` Farm land here sells at about ${Math.round(x.ratio * 1000) / 10}% of residential plot prices per sq ft.` : ""}</div>` : "";
+    return `<div style="margin-top:6px"><b class="small">By land type</b>${row("Farm land", lt.farm)}${row("Commercial land", lt.comm)}${lt.rev ? `<div class="small muted">Guideline revision on record: ${esc(lt.rev)}</div>` : ""}</div>`;
+  }
   // Every displayed rate carries its source, method and retrieval timestamp.
   function provenanceHTML(p) {
     if (!p) return "";
@@ -835,6 +855,7 @@
       ${p.price ? `<div class="row sb small" style="margin-top:8px"><span class="muted">${esc(TYPE_LABEL[p.type] || p.type)}</span><b>${fmtINR(p.txn_sqyd)}/sq yd</b></div><div class="small muted">${esc(p.date || "")} | ${fmtINR(p.price)}/sq ft used in model</div>${p.note ? `<p class="small" style="margin:6px 0 0;line-height:1.45">${esc(p.note)}</p>` : ""}<div class="small"><a href="${esc(p.src)}" target="_blank" rel="noopener">Price source</a></div>` : ""}
       ${p.govt_sqyd || p.govt_sqyd_agri ? `<div class="row sb small" style="margin-top:8px"><span class="muted">Official market value${p.govt_sqyd ? "" : " (agri)"}</span><b>${fmtINR(p.govt_sqyd || p.govt_sqyd_agri)}/sq yd</b></div><div class="small"><span class="muted">${esc(p.govt_date || "")}</span> | <a href="${esc(p.govt_src)}" target="_blank" rel="noopener">Rate source</a></div>` : ""}
       ${provenanceHTML(p)}
+      ${p.village ? landTypeHTML(E.landTypeFor(p.path, p.district)) : ""}
       <button class="btn sm" style="margin-top:8px" data-act="open-loc" data-lon="${p.lon}" data-lat="${p.lat}">Plot-level read here</button></div>`).addTo(map);
   }
 
@@ -919,7 +940,7 @@
   /* ------------------------------------------------------------------ */
   /* Tool panels                                                          */
   /* ------------------------------------------------------------------ */
-  const PANEL_TITLES = { explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
+  const PANEL_TITLES = { shortlist: "Infra-led shortlist", alerts: "Spot alerts", explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
   function openTool(id, force) {
     if (S.tool === id && !force) { closeTool(); return; }
     if (id !== "draw") cancelDraw();
@@ -936,11 +957,13 @@
     S.tool = null; $("#panel").classList.add("hidden"); renderRail();
   }
   $("#panelClose").addEventListener("click", closeTool);
+  if (BL.Insights) BL.Insights.onChange = () => refreshPanel();
+  (function ptHash() { const m = /[#&]pt=(-?[\d.]+),(-?[\d.]+)/.exec(location.hash); if (m) setTimeout(() => openLocation(+m[2], +m[1]), 800); })();
 
   function refreshPanel() {
     if (!S.tool) return;
     const body = $("#panelBody");
-    const fn = { explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
+    const fn = { shortlist: () => BL.Insights.shortlistPanel(models), alerts: () => BL.Insights.alertsPanel((la, lo) => { const q = E.pointModel(la, lo, allCats(), models, opts()); return q; }), explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
     body.innerHTML = fn();
     renderRail();
   }
