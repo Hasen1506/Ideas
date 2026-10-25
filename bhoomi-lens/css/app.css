@@ -329,3 +329,12 @@ body.detail-open .ov-legend { right: 428px; }
 details.more { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
 details.more > summary { cursor: pointer; color: var(--tx-2); font-weight: 600; }
 .buyer-sum .warn { color: #ffd166; }
+
+/* Never clip the toolbar: wrap to a second row when the window is not wide enough */
+@media (max-width: 1680px) {
+  .topbar { height: auto; min-height: 58px; flex-wrap: wrap; padding: 8px 12px; row-gap: 6px; }
+  .top-right { flex: 1 1 100%; overflow: visible; flex-wrap: wrap; justify-content: flex-start; row-gap: 6px; }
+  .rail, .panel, .detail { top: 120px; }
+  .maplibregl-ctrl-top-right { top: 116px; }
+  .year-banner, .draw-hint { top: 122px; }
+}

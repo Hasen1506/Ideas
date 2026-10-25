@@ -186,7 +186,10 @@
     add({ id: "sat", type: "raster", source: "sat", layout: { visibility: "none" }, paint: { "raster-opacity": 0.95 } });
     map.addSource("districts", { type: "geojson", data: GEO });
     map.addSource("grid", { type: "geojson", data: emptyFC() });
-    map.addSource("verified", { type: "geojson", data: verifiedFC(), cluster: true, clusterMaxZoom: 10, clusterRadius: 42 });
+    map.addSource("verified", { type: "geojson", data: verifiedFC() });
+    map.addSource("verified-agg", { type: "geojson", data: (() => { // evidence counted per ~0.4 degree cell, shown until zoom 9
+      const g = new Map(); (window.BL_VERIFIED || []).forEach((p) => { if (!p.lat) return; const k = Math.floor(p.lat / 0.4) + "," + Math.floor(p.lon / 0.4); const c = g.get(k) || { n: 0, la: 0, lo: 0 }; c.n++; c.la += p.lat; c.lo += p.lon; g.set(k, c); });
+      return { type: "FeatureCollection", features: [...g.values()].map((c) => ({ type: "Feature", properties: { n: c.n, t: c.n >= 1000 ? Math.round(c.n / 100) / 10 + "k" : String(c.n) }, geometry: { type: "Point", coordinates: [c.lo / c.n, c.la / c.n] } })) }; })() });
     map.addSource("states", { type: "geojson", data: STATES_GEO });
     map.addSource("farm", { type: "geojson", data: { type: "FeatureCollection", features: VERIFIED.map((p, i) => ({ p, i })).filter((x) => x.p.village).map((x) => { const lt = E.landTypeFor(x.p.path, x.p.district); return lt && lt.farm ? { type: "Feature", properties: { i: x.i, v: lt.farm.value / 1e5, c: lt.farm.conf }, geometry: { type: "Point", coordinates: [x.p.lon, x.p.lat] } } : null; }).filter(Boolean) } });
     map.addSource("catLines", { type: "geojson", data: catLineFC() });
@@ -234,10 +237,11 @@
     map.addLayer({ id: "cat-hl-buf", type: "line", source: "catFocus", filter: ["all", ["==", ["get", "k"], "geom"], ["==", ["geometry-type"], "LineString"]], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffd166", "line-width": kmPx("rkm", 2), "line-opacity": 0.1 } });
     map.addLayer({ id: "cat-hl-line", type: "line", source: "catFocus", filter: ["==", ["geometry-type"], "LineString"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffd166", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 9], "line-opacity": 0.95, "line-blur": 0.5 } });
     // Dense evidence dots are grouped into counted bubbles until zoom 11; click a bubble to zoom in.
-    map.addLayer({ id: "verified-cl", type: "circle", source: "verified", filter: ["has", "point_count"], layout: { visibility: "none" }, paint: { "circle-color": "#2ee6c5", "circle-opacity": 0.22, "circle-stroke-color": "#2ee6c5", "circle-stroke-width": 1.5, "circle-radius": ["step", ["get", "point_count"], 12, 10, 16, 50, 22, 200, 28] } });
-    map.addLayer({ id: "verified-cl-n", type: "symbol", source: "verified", filter: ["has", "point_count"], layout: { visibility: "none", "text-field": ["get", "point_count_abbreviated"], "text-size": 11, "text-allow-overlap": true }, paint: { "text-color": "#e8eefc" } });
-    map.on("click", "verified-cl", (ev) => { const f = ev.features[0]; map.getSource("verified").getClusterExpansionZoom(f.properties.cluster_id).then((z) => map.easeTo({ center: f.geometry.coordinates, zoom: z + 0.3 })).catch(() => map.easeTo({ center: f.geometry.coordinates, zoom: map.getZoom() + 2 })); });
-    map.addLayer({ id: "verified", type: "circle", source: "verified", filter: ["!", ["has", "point_count"]], layout: { visibility: "none" }, paint: {
+    map.addLayer({ id: "verified-cl", type: "circle", source: "verified-agg", maxzoom: 9, layout: { visibility: "none" }, paint: { "circle-color": "#2ee6c5", "circle-opacity": 0.25, "circle-stroke-color": "#2ee6c5", "circle-stroke-width": 1.5, "circle-radius": ["step", ["get", "n"], 9, 10, 13, 50, 18, 200, 24] } });
+    try { map.addLayer({ id: "verified-cl-n", type: "symbol", source: "verified-agg", maxzoom: 9, layout: { visibility: "none", "text-field": ["get", "t"], "text-size": 11, "text-allow-overlap": true, "text-font": ["Noto Sans Regular"] }, paint: { "text-color": "#e8eefc" } }); } catch (e) { console.warn("cluster labels unavailable", e); }
+    map.on("click", "verified-cl", (ev) => { const f = ev.features[0]; map.easeTo({ center: f.geometry.coordinates, zoom: Math.max(9.2, map.getZoom() + 2.5) }); });
+    map.on("mouseenter", "verified-cl", () => { map.getCanvas().style.cursor = "pointer"; }); map.on("mouseleave", "verified-cl", () => { map.getCanvas().style.cursor = ""; });
+    map.addLayer({ id: "verified", type: "circle", source: "verified", minzoom: 9, layout: { visibility: "none" }, paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 9, 6.5, 13, 10],
       "circle-color": ["match", ["get", "type"], "govt_auction", "#ffd166", "govt_allotment", "#ffb547", "registered", "#2ee6c5", "reported_deal", "#2ee6c5", "listing", "#c9d3e6", "derived_gv", "#7f8aa3", "#b98cff"],
       "circle-stroke-color": "#0a0f1a", "circle-stroke-width": 2, "circle-opacity": 0.95 } });
@@ -401,7 +405,7 @@
       <div class="row"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><b>${esc(c.n)}</b><div class="small muted">${esc(T.label)} | ${esc(c.ag || "")}</div></div></div>
       <div class="row sb" style="margin:10px 0 6px">${c.cancelled ? '<span class="tag down">Cancelled / dropped</span>' : C.stage(c.stage) + `<span class="small muted">${esc(BL.STAGES[c.stage])}</span>`}</div>
       ${c.path ? '<div class="small muted" style="margin:4px 0">Line drawn from published alignment maps: approximate, not the surveyed route. Turn on Infra layers > Expressway routes (live) for mapped geometry.</div>' : ""}${c.cancelled ? "" : `<div class="row sb small"><span class="muted">Completion probability</span><b>${Math.round(p * 100)}%</b></div>`}
-      <div class="row sb small"><span class="muted">${c.stage >= 4 ? "Opened" : "Expected"} (${esc(BL.SCENARIOS[S.scenario].label)})</span><b>${eta}</b></div>
+      ${c.cancelled ? "" : `<div class="row sb small"><span class="muted">${c.stage >= 4 ? "Opened" : "Expected"} (${esc(BL.SCENARIOS[S.scenario].label)})</span><b>${eta}</b></div>`}
       <div class="row sb small"><span class="muted">Agency credibility</span><b>${Math.round(c.cred * 100)} / 100</b></div>
       ${c.cancelled ? '<div class="small down" style="margin-top:6px"><b>Cancelled / dropped.</b> Any price premium should unwind.</div>' : ""}
       ${c.status ? `<p class="small" style="margin:8px 0 0;line-height:1.5">${esc(c.status)}</p>` : ""}
@@ -744,7 +748,7 @@
   }
   $("#btnReal").addEventListener("click", (e) => {
     S.real = !S.real; e.currentTarget.classList.toggle("on", S.real);
-    ["verified", "verified-cl", "verified-cl-n"].forEach((l) => map.setLayoutProperty(l, "visibility", S.real ? "visible" : "none"));
+    ["verified", "verified-cl", "verified-cl-n"].forEach((l) => { if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", S.real ? "visible" : "none"); });
     renderOverlayLegend();
     if (S.real) toast(`${VERIFIED.length} verified points across India (auctions, allotments, deals, listings, official rates). Click one for sources.`);
   });
@@ -1191,10 +1195,10 @@
     ];
     const table = `<table class="cmp"><tr><th></th>${ms.map((m, i) => `<th style="color:${CMP_COLORS[i]}">${esc(m.name)}</th>`).join("")}</tr>${rows.map(([l, f, fmt, best]) => {
       const vals = ms.map(f); const b = best === "max" ? Math.max(...vals) : best === "min" ? Math.min(...vals) : null;
-      return addBox + `<tr><td>${l}</td>${vals.map((v) => `<td class="${ms.length > 1 && v === b ? "best" : ""}">${fmt(v)}</td>`).join("")}</tr>`;
+      return `<tr><td>${l}</td>${vals.map((v) => `<td class="${ms.length > 1 && v === b ? "best" : ""}">${fmt(v)}</td>`).join("")}</tr>`;
     }).join("")}</table>`;
     const chart = C.lines(ms.map((m, i) => ({ color: CMP_COLORS[i], series: E.series(m, S.scenario).map((s) => ({ y: s.y, v: (s.p / m.priceNow) * 100 })) })), { fmt: (v) => Math.round(v) });
-    return `${table}<h3>Price index (today = 100)</h3><div class="card">${chart}</div>
+    return `${addBox}${table}<h3>Price index (today = 100)</h3><div class="card">${chart}</div>
       <div class="btn-row">${ms.map((m) => `<button class="btn sm" data-act="cmp" data-id="${m.id}">Remove ${esc(m.name)}</button>`).join("")}</div>`;
   }
 
