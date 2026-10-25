@@ -493,6 +493,7 @@
       const ll = [e.lngLat.lng, e.lngLat.lat];
       if (S.draw) return drawClick(ll);
       if (S.placing) return placeClick(ll);
+      if (map.getLayer("verified-cl") && map.queryRenderedFeatures(e.point, { layers: ["verified-cl"] }).some((f) => f.layer && f.layer.id === "verified-cl")) return; // bubble click only zooms
       const vf = map.getLayer("verified") ? map.queryRenderedFeatures(e.point, { layers: ["verified"] })[0] : null;
       if (vf) return verifiedPopup(vf.properties.i);
       const f = map.queryRenderedFeatures(e.point, { layers: ["d-fill"] })[0];
