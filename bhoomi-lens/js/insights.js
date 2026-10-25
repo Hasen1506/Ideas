@@ -21,6 +21,7 @@
       const cl = med(cons.map((x) => x.p.low)) * 0.9, ch = med(cons.map((x) => x.p.high)) * 0.9;
       lo = (lo + cl) / 2; hi = (hi + ch) / 2;
     }
+    lo = Math.min(lo, mid * 0.95); hi = Math.max(hi, mid * 1.05);
     const nSrc = near5.reduce((a, x) => a + (x.p.sources ? x.p.sources.length : 1), 0);
     return { mid, lo: Math.round(lo), hi: Math.round(hi), band: b, nPts: near5.length, nSrc, nCons: cons.length };
   }
