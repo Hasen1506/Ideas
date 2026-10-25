@@ -56,7 +56,7 @@
     tool: null, sel: null, three: false, sat: false, heat: false, zones: false,
     userCats: [], watch: store.get("bl_watch", []), compare: store.get("bl_compare", []),
     playing: false, draw: null, placing: null, area: null, catFilter: "all", catStage: "all",
-    simType: "airport", simStage: 2, simCred: 0.65, hoverId: null, radiusKm: 10, loc: null, real: false, proj: false, tint: true,
+    simType: "airport", simStage: 2, simCred: 0.65, hoverId: null, radiusKm: 10, loc: null, real: false, proj: false, tint: true, labels: false,
     scr: { state: "all", sort: "opp", maxRisk: 100, maxPrice: 0 }
   };
   const opts = () => ({ year: S.year, horizon: S.horizon, scenario: S.scenario });
@@ -204,7 +204,7 @@
       "fill-extrusion-height": ["*", ["coalesce", ["feature-state", "h"], 0], 140000],
       "fill-extrusion-opacity": 0.88
     } });
-    add({ id: "grid-fill", type: "fill", source: "grid", paint: { "fill-color": gridRamp("price"), "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7.2, 0, 8.2, 0.5, 11, 0.4, 13.5, 0.3, 16, 0.24], "fill-outline-color": "rgba(0,0,0,0)" } });
+    add({ id: "grid-fill", type: "fill", source: "grid", paint: { "fill-color": gridRamp("price"), "fill-opacity": ["interpolate", ["linear"], ["zoom"], 7.2, 0, 8.2, 0.5, 11, 0.4, 13, 0.28, 14.5, 0.14, 16, 0.06], "fill-outline-color": "rgba(0,0,0,0)" } });
     add({ id: "d-line", type: "line", source: "districts", paint: { "line-color": "rgba(255,255,255,0.07)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.3, 8, 1] } });
     add({ id: "s-line", type: "line", source: "states", paint: { "line-color": "rgba(220,230,255,0.28)", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 8, 1.8] } });
     add({ id: "heat", type: "heatmap", source: "heat", layout: { visibility: "none" }, paint: {
@@ -248,6 +248,11 @@
     for (const l of (map.getStyle().layers || [])) if (l.type === "symbol") {
       try { map.setPaintProperty(l.id, "text-color", "#eef2fb"); map.setPaintProperty(l.id, "text-halo-color", "rgba(7,11,20,0.92)"); map.setPaintProperty(l.id, "text-halo-width", 1.6); } catch (e) {}
     }
+    // Basemap place names and their dots start hidden for a clean map; the "Labels" chip turns them on.
+    S.baseSyms = (map.getStyle().layers || []).filter((l) => l.type === "symbol" && !/^(cat|d-|grid|verified|farm|draw)/.test(l.id)).map((l) => l.id);
+    const setLabels = () => S.baseSyms.forEach((id) => { try { map.setLayoutProperty(id, "visibility", S.labels ? "visible" : "none"); } catch (e) {} });
+    setLabels();
+    $("#btnLabels").addEventListener("click", (e) => { S.labels = !S.labels; e.currentTarget.classList.toggle("on", S.labels); setLabels(); });
     recompute();
     paint();
     buildMarkers();
