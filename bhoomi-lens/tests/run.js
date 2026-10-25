@@ -4,12 +4,12 @@ const fs = require("fs"), path = require("path");
 const ROOT = path.join(__dirname, "..");
 const load = (f) => eval(fs.readFileSync(path.join(ROOT, f), "utf8").replace(/window\./g, "globalThis."));
 global.window = undefined;
-["data/districts.js", "data/projects.js", "data/verified.js", "data/tn_villages.js", "data/backtest.js"].forEach(load);
+["data/districts.js", "data/projects.js", "data/verified.js", "data/tn_villages.js", "data/evidence.js", "data/backtest.js"].forEach(load);
 require(path.join(ROOT, "js/data.js")); require(path.join(ROOT, "js/engine.js"));
 const BL = globalThis.BL, E = BL.Engine;
 BL.CATALYSTS = globalThis.BL_PROJECTS;
 const GEO = globalThis.BL_DISTRICTS;
-globalThis.BL_VERIFIED = (globalThis.BL_VERIFIED || []).filter((p) => !/SRO villages \(/.test(p.loc || "")).concat(E.expandTNVillages(globalThis.BL_TN_VILLAGES, (globalThis.BL_VERIFIED_SUMMARY || {}).tnMult || 2.03));
+globalThis.BL_VERIFIED = (globalThis.BL_VERIFIED || []).filter((p) => !/SRO villages \(/.test(p.loc || "")).concat(E.expandTNVillages(globalThis.BL_TN_VILLAGES, ((globalThis.BL_EVIDENCE || {}).multiples || {}).state || 2.3)).concat(E.expandEvidence(globalThis.BL_EVIDENCE));
 const pts = (globalThis.BL_VERIFIED || []).filter((p) => p.price > 0);
 E.setCalibration(pts, BL.CATALYSTS);
 const models = E.prepare(GEO.features, BL.CATALYSTS);
@@ -77,8 +77,16 @@ ok(E.eff(delayed, 2028, "base") <= E.eff(prr, 2028, "base") + 1e-9, "Delay lower
 const at = (lat, lon) => E.pointModel(lat, lon, BL.CATALYSTS, models, { horizon: 5 });
 const G = [
   ["Minjur (TN) within 0.5x-2.5x of verified ~Rs1,000/sq ft", at(13.28, 80.26).basePrice, 500, 2500],
-  ["Ponneri SRO: >= 20 geocoded villages", (globalThis.BL_VERIFIED || []).filter((p) => p.village && /Ponneri/.test(p.taluk)).length, 20, 1e9],
-  ["TN villages loaded >= 3000", (globalThis.BL_TN_VILLAGES || []).length, 3000, 1e9],
+  ["Ponneri SRO: >= 8 villages after geocode checks", (globalThis.BL_VERIFIED || []).filter((p) => p.village && /Ponneri/.test(p.taluk)).length, 8, 1e9],
+  ["TN villages loaded >= 2000 (after geocode checks)", (globalThis.BL_TN_VILLAGES || []).length, 2000, 1e9],
+  ["No two TN villages share a point", (() => { const s = new Set(); let d = 0; for (const r of globalThis.BL_TN_VILLAGES || []) { const k = r[3].toFixed(4) + "," + r[4].toFixed(4); if (s.has(k)) d++; s.add(k); } return d; })(), 0, 0],
+  ["Every TN village has a fitted multiple 1-8", (globalThis.BL_TN_VILLAGES || []).filter((r) => !(r[11] >= 1 && r[11] <= 8)).length, 0, 0],
+  ["Asserted evidence localities >= 150", (globalThis.BL_EVIDENCE.localities || []).filter((o) => o.status === "asserted").length, 150, 1e9],
+  ["Every asserted locality meets the cross-check rule", (globalThis.BL_EVIDENCE.localities || []).filter((o) => o.status === "asserted" && !(o.n_sites >= 3 && o.n_agree >= 2 && o.n_agree * 2 >= o.n_sites)).length, 0, 0],
+  ["Every evidence source has url + retrieved timestamp", (globalThis.BL_EVIDENCE.localities || []).reduce((a, o) => a + o.sources.filter((x) => !x.url || !x.retrieved).length, 0), 0, 0],
+  ["Non-asserted evidence never priced in model", (globalThis.BL_VERIFIED || []).filter((p) => p.status && p.status !== "asserted" && p.price > 0).length, 0, 0],
+  ["States covered by asserted evidence >= 20", new Set((globalThis.BL_EVIDENCE.localities || []).filter((o) => o.status === "asserted").map((o) => o.state)).size, 20, 99],
+  ["Every displayed price point has a method or source", (globalThis.BL_VERIFIED || []).filter((p) => p.price > 0 && !p.src && !p.method).length, 0, 0],
   ["No SRO-group placeholders remain", (globalThis.BL_VERIFIED || []).filter((p) => /SRO villages \(/.test(p.loc || "")).length, 0, 0],
   ["Every TN village inside Tamil Nadu bounds", (globalThis.BL_TN_VILLAGES || []).filter((r) => r[3] < 8 || r[3] > 13.6 || r[4] < 76.2 || r[4] > 80.4).length, 0, 0],
   ["Every verified row has a source", (globalThis.BL_VERIFIED || []).filter((p) => !(p.src || p.govt_src)).length, 0, 0],

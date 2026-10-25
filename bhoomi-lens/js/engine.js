@@ -536,21 +536,47 @@
   /* Tamil Nadu village guideline values -> low-weight derived evidence rows. */
   function expandTNVillages(rows, mult) {
     return (rows || []).map((r) => {
-      const [v, sro, dist, lat, lon, gmin, gmax, gmed, streets, fuzzy, path] = r;
+      const [v, sro, dist, lat, lon, gmin, gmax, gmed, streets, fuzzy, path, rm, rbasis] = r;
       const gv = gmed || Math.round(Math.sqrt(gmin * gmax));
+      const m = rm || mult;
       const src = "https://proquiro.com/tools/tamil-nadu-guideline-value/" + path;
       return {
         loc: v, district: dist, taluk: sro + " SRO", state: "Tamil Nadu", lat, lon, land: "plot",
         govt_sqyd: gv * 9, govt_date: "2026-10", govt_src: src,
         govt_note: `TNREGINET guideline values, ${streets} streets, Rs${gmin}-${gmax}/sq ft` + (gmed ? `, median Rs${gmed}` : `, value used = midpoint Rs${gv}`) + (fuzzy ? ". Location matched approximately by name." : "."),
-        derived: true, type: "derived_gv", price: Math.round(gv * mult), txn_sqyd: Math.round(gv * mult) * 9, w: gmed ? 0.06 : 0.04,
-        date: "2026-10", src, note: `Derived: guideline Rs${gv}/sq ft x Tamil Nadu market-to-guideline multiple ${mult}`, village: true
+        derived: true, type: "derived_gv", price: Math.round(gv * m), txn_sqyd: Math.round(gv * m) * 9, w: gmed ? 0.06 : 0.04,
+        low: Math.round(gmin * m), high: Math.round(gmax * m), mult: m, multBasis: rbasis || "state default",
+        date: "2026-10", retrieved: "2026-10-25", src,
+        method: `Official street guideline Rs${gmin}-${gmax}/sq ft (${gmed ? "median Rs" + gmed : "midpoint Rs" + gv}) x ${dist} market-to-guideline multiple ${m} (${rbasis || "state default"}).`,
+        note: `Derived: guideline Rs${gv}/sq ft x ${dist} multiple ${m}`, village: true
+      };
+    });
+  }
+
+  // Cross-checked evidence localities -> verified points. Only 'asserted' ones carry a price into the model.
+  function expandEvidence(ev) {
+    if (!ev || !ev.localities) return [];
+    const disc = 0.9;
+    return ev.localities.map((o) => {
+      const ok = o.status === "asserted";
+      const sale = Math.round(o.typ * disc);
+      const g = o.guideline ? ` Official guideline nearby Rs${o.guideline.rs_sqft}/sq ft; implied multiple ${o.multiple}.` : "";
+      return {
+        loc: o.loc, district: (o.guideline && o.guideline.district) || "", state: o.state, lat: o.lat, lon: o.lon, land: "plot",
+        type: ok ? "consensus" : "unverified", price: ok ? sale : 0, txn_sqyd: (ok ? sale : o.typ) * 9, w: ok ? 1.0 : 0,
+        low: o.low, high: o.high, typ: o.typ, status: o.status, nSites: o.n_sites, nAgree: o.n_agree, nPoints: o.n_points,
+        sources: o.sources, official: o.official, siteMedians: o.site_medians, evidenceId: o.id,
+        date: ev.method.asof, retrieved: ev.method.asof, src: (o.sources[0] || {}).url || "",
+        method: ok
+          ? `Cross-checked: ${o.n_agree} of ${o.n_sites} sites agree (${o.n_points} listings). Typical asking Rs${o.typ}/sq ft (median of agreeing sites), range Rs${o.low}-${o.high} (20th-80th percentile); x0.9 asking-to-sale = Rs${sale}/sq ft used in model.${g}`
+          : `Not asserted: ${o.status === "single-source" ? "only one site reports prices here" : `only ${o.n_agree} of ${o.n_sites} sites agree`}. Shown for reference; not used in the model.`,
+        note: `${o.status}; geocode: ${o.geo}`
       };
     });
   }
 
   BL.Engine = {
-    expandTNVillages,
+    expandTNVillages, expandEvidence,
     hav, segDist, distToCatalyst, eff, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
     prepare, relink, evaluate, priceAt, sigmaAt, series, contributions, riskOf, momentum, analogueFor,
     pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,

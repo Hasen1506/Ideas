@@ -66,7 +66,15 @@
   const OVR = window.BL_OVERRIDES || {};
   if (window.BL_PROJECTS && window.BL_PROJECTS.length) BL.CATALYSTS = window.BL_PROJECTS;
   window.BL_VERIFIED = (window.BL_VERIFIED || []).filter((p) => !/SRO villages \(/.test(p.loc || ""))
-    .concat(E.expandTNVillages(window.BL_TN_VILLAGES, (window.BL_VERIFIED_SUMMARY || {}).tnMult || 2.03));
+    .concat(E.expandTNVillages(window.BL_TN_VILLAGES, ((window.BL_EVIDENCE || {}).multiples || {}).state || 2.3))
+    .concat(E.expandEvidence(window.BL_EVIDENCE));
+  (function downweightOldListings() {
+    const cons = window.BL_VERIFIED.filter((p) => p.type === "consensus");
+    for (const p of window.BL_VERIFIED) {
+      if (p.type !== "listing" || !p.price) continue;
+      if (cons.some((c) => E.hav(c.lat, c.lon, p.lat, p.lon) < 3)) { p.w = Math.min(p.w || 0.5, 0.2); p.superseded = true; }
+    }
+  })();
   const VERIFIED = window.BL_VERIFIED;
   E.setCalibration(VERIFIED.filter((p) => p.price > 0), BL.CATALYSTS);
   let models = E.prepare(GEO.features, BL.CATALYSTS);
@@ -808,6 +816,17 @@
         <p class="small muted" style="margin-top:12px">Confidence reflects how much verified price evidence sits within about 10 km. "Model only" means no real transactions nearby yet.</p>
       </div>`;
   }
+  // Every displayed rate carries its source, method and retrieval timestamp.
+  function provenanceHTML(p) {
+    if (!p) return "";
+    const rng = p.low && p.high ? `<div class="row sb small" style="margin-top:6px"><span class="muted">Range</span><b>${fmtINR(p.low)}-${fmtINR(p.high)}/sq ft</b></div>` : "";
+    const st = p.status ? `<span class="tag" style="border-color:${p.status === "asserted" ? "#5bd18b" : "#ffd166"};color:${p.status === "asserted" ? "#5bd18b" : "#ffd166"}">${p.status === "asserted" ? "Cross-checked" : p.status === "single-source" ? "Single source, not asserted" : "Sources disagree, not asserted"}</span>` : "";
+    const how = p.method ? `<p class="small" style="margin:6px 0 0;line-height:1.45"><b>How this was arrived at:</b> ${esc(p.method)}</p>` : "";
+    const srcs = (p.sources || []).slice(0, 12).map((x) => `<div class="small" style="padding:1px 0"><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.site)}</a> ${fmtINR(x.rs_sqft)}/sq ft | ${esc(x.kind || "")} ${esc(x.date || "")}${x.sub_area ? " | " + esc(x.sub_area) : ""}</div>`).join("");
+    const more = p.sources && p.sources.length > 12 ? `<div class="small muted">+${p.sources.length - 12} more sources</div>` : "";
+    const ts = `<div class="small muted" style="margin-top:4px">Retrieved ${esc(p.retrieved || p.date || "")}${p.src && !(p.sources || []).length ? ` | <a href="${esc(p.src)}" target="_blank" rel="noopener">source</a>` : ""}</div>`;
+    return `${st}${rng}${how}${srcs ? `<div style="margin-top:6px"><b class="small">Sources</b>${srcs}${more}</div>` : ""}${ts}`;
+  }
   function verifiedPopup(i) {
     const p = (window.BL_VERIFIED || [])[i]; if (!p) return;
     if (popup) popup.remove();
@@ -815,6 +834,7 @@
       <b>${esc(p.loc)}</b><div class="small muted">${esc(p.district)}${p.taluk ? ", " + esc(p.taluk) : ""}, ${esc(p.state || "")} | verified data point</div>
       ${p.price ? `<div class="row sb small" style="margin-top:8px"><span class="muted">${esc(TYPE_LABEL[p.type] || p.type)}</span><b>${fmtINR(p.txn_sqyd)}/sq yd</b></div><div class="small muted">${esc(p.date || "")} | ${fmtINR(p.price)}/sq ft used in model</div>${p.note ? `<p class="small" style="margin:6px 0 0;line-height:1.45">${esc(p.note)}</p>` : ""}<div class="small"><a href="${esc(p.src)}" target="_blank" rel="noopener">Price source</a></div>` : ""}
       ${p.govt_sqyd || p.govt_sqyd_agri ? `<div class="row sb small" style="margin-top:8px"><span class="muted">Official market value${p.govt_sqyd ? "" : " (agri)"}</span><b>${fmtINR(p.govt_sqyd || p.govt_sqyd_agri)}/sq yd</b></div><div class="small"><span class="muted">${esc(p.govt_date || "")}</span> | <a href="${esc(p.govt_src)}" target="_blank" rel="noopener">Rate source</a></div>` : ""}
+      ${provenanceHTML(p)}
       <button class="btn sm" style="margin-top:8px" data-act="open-loc" data-lon="${p.lon}" data-lat="${p.lat}">Plot-level read here</button></div>`).addTo(map);
   }
 
