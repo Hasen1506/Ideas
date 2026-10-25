@@ -560,7 +560,7 @@
     return ev.localities.map((o) => {
       const ok = o.status === "asserted";
       const sale = Math.round(o.typ * disc);
-      const g = o.guideline ? ` Official guideline nearby Rs${o.guideline.rs_sqft}/sq ft; implied multiple ${o.multiple}.` : "";
+      const g = o.guideline && !o.guideline.unreliable ? ` Official guideline nearby Rs${o.guideline.rs_sqft}/sq ft; implied multiple ${o.multiple}.` : "";
       return {
         loc: o.loc, district: (o.guideline && o.guideline.district) || "", state: o.state, lat: o.lat, lon: o.lon, land: "plot",
         type: ok ? "consensus" : "unverified", price: ok ? sale : 0, txn_sqyd: (ok ? sale : o.typ) * 9, w: ok ? 1.0 : 0,
