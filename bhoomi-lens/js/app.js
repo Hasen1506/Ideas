@@ -27,7 +27,7 @@
     opp: { label: "Opportunity", title: "Opportunity score", norm: (m) => m.opp / 100, val: (m) => m.opp + " / 100", ll: ["0", "50", "100"] },
     risk: { label: "Risk", title: "Composite risk", norm: (m) => (m.risk.total - 22) / 36, val: (m) => Math.round(m.risk.total) + " / 100", ll: ["Low", "Medium", "High"] },
     liq: { label: "Liquidity", title: "Liquidity (ease of exit)", norm: (m) => m.liq / 100, val: (m) => Math.round(m.liq) + " / 100", ll: ["Illiquid", "", "Liquid"] },
-    gap: { label: "Circle gap", title: "Market price above circle rate", norm: (m) => (m.gap - 0.3) / 0.3, val: (m) => Math.round(m.gap * 100) + "% above circle", ll: ["30%", "45%", "60%"] },
+    gap: { label: "Circle gap", title: "Circle rate below market price (share of market)", norm: (m) => (m.gap - 0.3) / 0.3, val: (m) => "circle rate " + Math.round(m.gap * 100) + "% below market", ll: ["30%", "45%", "60%"] },
     impact: { label: "Sim impact", title: "Uplift from your simulated projects", norm: (m) => Math.pow(clamp(m.delta / 0.35), 0.6), val: (m) => pct(m.delta), ll: ["0%", "+8%", "+35%"] }
   };
   const TOOLS = [
@@ -216,6 +216,7 @@
       "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(0,0,0,0)", 0.15, "rgba(46,230,197,0.35)", 0.4, "#2ee6c5", 0.65, "#ffd166", 0.85, "#ff7a59", 1, "#ff3d6e"]
     } });
     add({ id: "cat-glow", type: "line", source: "catLines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": kmPx("rkm", 2), "line-opacity": 0.09, "line-blur": 6 } });
+    add({ id: "cat-case", type: "line", source: "catLines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#05070f", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 3.6, 10, 7.5], "line-opacity": 0.85 } });
     add({ id: "cat-line-op", type: "line", source: "catLines", filter: ["==", ["get", "op"], 1], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.6, 10, 4] } });
     add({ id: "cat-line-uc", type: "line", source: "catLines", filter: ["==", ["get", "op"], 0], layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.6, 10, 4], "line-dasharray": [2, 1.5] } });
     add({ id: "cat-infl", type: "circle", source: "catPts", paint: { "circle-radius": kmPx("rkm"), "circle-color": ["get", "color"], "circle-opacity": 0.07, "circle-stroke-color": ["get", "color"], "circle-stroke-opacity": 0.45, "circle-stroke-width": 1, "circle-pitch-alignment": "map" } });
@@ -328,7 +329,7 @@
     }
     map.setPaintProperty("d-fill", "fill-color", ramp(S.layer));
     map.setPaintProperty("d-ext", "fill-extrusion-color", ramp(S.layer));
-    const base = S.sat ? 0.42 : 0.74;
+    const base = S.sat ? 0.42 : S.proj ? 0.5 : 0.74; // dimmer when project lines are on so they stay readable
     const hov = (on, off) => ["case", ["boolean", ["feature-state", "hover"], false], on, off];
     // Hover highlight fades with zoom too, so the street-level map never gets a solid colour wash.
     const op = GRID_LENSES.includes(S.layer) ? ["interpolate", ["linear"], ["zoom"], 7.2, hov(0.94, base), 8.2, hov(0.12, 0.06), 12, hov(0.04, 0.03), 16, 0] : hov(0.94, base);
@@ -655,6 +656,10 @@
   function setLayer(k) {
     if (!LAYERS[k] || (k === "impact" && !S.userCats.length)) return;
     S.layer = k; renderLayerSeg(); paint();
+    // Say what the colours now mean, so a lens switch is never "just new colours".
+    const EXPL = { price: "Colours = estimated market price today. Darker/warmer = costlier land.", growth: "Colours = forecast yearly price growth for the chosen scenario and horizon. Brighter = faster growth.", opp: "Colours = opportunity score (growth vs price vs risk). Brighter = better value for growth.", risk: "Colours = risk score (delay-prone projects, thin evidence, price swings). Brighter = riskier.", liq: "Colours = ease of resale (deal volume and evidence). Brighter = easier to exit.", gap: "Colours = how far the circle rate sits below market. Wider gap = higher chance of a rate revision." };
+    if (EXPL[k] && S.tint) toast(EXPL[k] + " Click any district for its numbers.");
+    if (EXPL[k] && !S.tint) toast("Colours are off (Satellite or the Colours chip). Turn Colours on to see this lens.");
   }
 
   function renderRail() {
@@ -695,7 +700,7 @@
     } else clearInterval(playT);
   });
 
-  $("#scenario").addEventListener("change", (e) => { S.scenario = e.target.value; recompute(); if (S.heat) map.getSource("heat").setData(heatFC()); paint(); if (S.area) reanalyse(); });
+  $("#scenario").addEventListener("change", (e) => { S.scenario = e.target.value; recompute(); setYear(S.year); if (S.heat) map.getSource("heat").setData(heatFC()); paint(); if (S.area) reanalyse(); });
   $("#horizon").addEventListener("change", (e) => { S.horizon = +e.target.value; recompute(); paint(); if (S.area) reanalyse(); });
   function reanalyse() { const ring = S.area.ring; S.area = E.analyseArea(ring, allCats(), models, opts()); S.area.ring = ring; refreshPanel(); }
 
@@ -708,6 +713,9 @@
   $("#btnSat").addEventListener("click", (e) => {
     S.sat = !S.sat; e.currentTarget.classList.toggle("on", S.sat);
     map.setLayoutProperty("sat", "visibility", S.sat ? "visible" : "none");
+    // Satellite is for seeing the ground: hide the colour overlay while it is on, restore it after.
+    if (S.sat) { S.tintBeforeSat = S.tint; if (S.tint) $("#btnTint").click(); toast("Satellite on: colour overlay hidden so you see the ground. Turn Colours back on to overlay the analysis."); }
+    else if (S.tintBeforeSat && !S.tint) $("#btnTint").click();
     paint();
   });
   $("#btnProj").addEventListener("click", (e) => {
@@ -919,7 +927,7 @@
         <h3>Value today</h3>
         <div class="kpis">
           <div class="kpi"><div class="k">Market price</div><div class="v">${fmtINR(m.priceNow)}<span class="small muted"> /sq ft</span></div><div class="s">${fmtINR(m.priceNow * E.SQFT_PER_ACRE)} per acre</div></div>
-          <div class="kpi"><div class="k">Circle rate</div><div class="v">${fmtINR(m.circle)}<span class="small muted"> /sq ft</span></div><div class="s warn">Market is ${Math.round(m.gap * 100)}% above it</div></div>
+          <div class="kpi"><div class="k">Circle rate</div><div class="v">${fmtINR(m.circle)}<span class="small muted"> /sq ft</span></div><div class="s warn">Circle rate is ${Math.round(m.gap * 100)}% below market (market is ${Math.round((1 / Math.max(0.01, 1 - m.gap) - 1) * 100)}% above it)</div></div>
           <div class="kpi"><div class="k">${S.horizon}-yr value multiple</div><div class="v">${m.mult.toFixed(2)}x</div><div class="s">Range ${m.lo.toFixed(2)}x to ${m.hi.toFixed(2)}x</div></div>
           <div class="kpi"><div class="k">Growth per year</div><div class="v ${m.cagr > 0.09 ? "up" : ""}">${pct(m.cagr)}</div><div class="s">${esc(BL.SCENARIOS[S.scenario].label)} case</div></div>
           ${yrPrice}
@@ -1117,8 +1125,8 @@
     const out = [];
     for (const L of m.links.slice(0, 5)) {
       const eta = E.effEta(L.c, S.scenario);
-      if (L.c.stage < 4 && eta <= MY + 3) out.push({ k: "up", t: `${L.c.n} expected by ${eta} (${Math.round(E.completionP(L.c, S.scenario) * 100)}% likely)` });
-      if (L.c.stage <= 1 && L.c.cred < 0.55) out.push({ k: "warn", t: `${L.c.n} is early-stage with low delivery credibility` });
+      if (!L.c.cancelled && L.c.stage < 4 && eta <= MY + 3) out.push({ k: "up", t: `${L.c.n} expected by ${eta} (${Math.round(E.completionP(L.c, S.scenario) * 100)}% likely)` });
+      if (!L.c.cancelled && L.c.stage <= 1 && L.c.cred < 0.55) out.push({ k: "warn", t: `${L.c.n} is early-stage with low delivery credibility` });
     }
     if (m.opp >= 75) out.push({ k: "up", t: "Strong opportunity score" });
     if (m.risk.total >= 55) out.push({ k: "down", t: "Elevated composite risk. Check title and flood exposure." });
