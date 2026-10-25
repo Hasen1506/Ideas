@@ -182,7 +182,7 @@
     const firstSym = (sty.layers || []).find((l) => l.type === "symbol");
     BEFORE = firstSym ? firstSym.id : undefined;
     const add = (l) => map.addLayer(l, BEFORE);
-    map.addSource("sat", { type: "raster", tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg"], tileSize: 256, maxzoom: 15, attribution: "Sentinel-2 cloudless by EOX (Copernicus Sentinel data 2020)" });
+    map.addSource("sat", { type: "raster", tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg"], tileSize: 256, maxzoom: 15, attribution: "Sentinel-2 cloudless by EOX (Copernicus Sentinel data 2024)" });
     add({ id: "sat", type: "raster", source: "sat", layout: { visibility: "none" }, paint: { "raster-opacity": 0.95 } });
     map.addSource("districts", { type: "geojson", data: GEO });
     map.addSource("grid", { type: "geojson", data: emptyFC() });

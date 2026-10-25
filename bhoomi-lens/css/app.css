@@ -344,3 +344,4 @@ details.more > summary { cursor: pointer; color: var(--tx-2); font-weight: 600; 
 .focus-bar.hidden { display: none; }
 .focus-bar .icon-btn { width: 24px; height: 24px; }
 @media (min-width: 1681px) { .focus-bar { top: 80px; } }
+#acctPop[hidden]{display:none!important}#acctPop{position:absolute;right:8px;top:100%;z-index:60}
