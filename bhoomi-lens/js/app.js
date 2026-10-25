@@ -1403,6 +1403,8 @@
     ...models.map((m) => ({ k: "District", t: m.name, s: m.state, go: () => openDetail(m.id) })),
     ...BL.CATALYSTS.map((c) => ({ k: "Project", t: c.n, s: BL.TYPES[c.t].label, go: () => focusCatalyst(c.id) })),
     ...BL.ANCHORS.map((a) => ({ k: "City", t: a.n, s: "City", go: () => map.flyTo({ center: [a.lon, a.lat], zoom: 9, duration: 1400 }) })),
+    // Survey-number search: every notified village with survey numbers (official notices). Type a survey number or village name.
+    ...((BL.Infra && BL.Infra.data && BL.Infra.data.acq) || []).filter((x) => x.sv && x.ll).map((x) => ({ k: "Notice", t: `${x.v} (notified, ${x.nt || "notice"} ${x.dt || ""})`, s: "Survey nos " + (Array.isArray(x.sv) ? x.sv.join(", ") : x.sv), go: () => { map.flyTo({ center: x.ll, zoom: 13, duration: 1400 }); BL.Infra.setLayer && BL.Infra.setLayer("acq", true); } })),
     ...[...new Set(models.map((m) => m.state))].map((s) => ({ k: "State", t: s, s: "State or UT", go: () => fitState(s) })),
     // Suburbs and localities with real price evidence, then Tamil Nadu villages, so "Tambaram" works offline.
     ...(() => { const seen = new Set(); return (window.BL_VERIFIED || []).filter((p) => p.loc && p.lat).map((p) => ({ p, t: String(p.loc).split(/[,(]/)[0].trim() })).filter((x) => x.t.length > 2 && !seen.has(x.t.toLowerCase()) && seen.add(x.t.toLowerCase())).map((x) => ({ k: "Locality", t: x.t, s: [x.p.district, x.p.state].filter(Boolean).join(", "), go: () => { map.flyTo({ center: [x.p.lon, x.p.lat], zoom: 12.5, duration: 1400 }); openLocation(x.p.lon, x.p.lat); } })); })(),

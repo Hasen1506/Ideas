@@ -128,7 +128,7 @@ console.log(`LOO median error (1/3 sample): ${(medErr * 100).toFixed(0)}%`);
   require("../data/infra.js"); require("../js/infra.js");
   const I = W.BL.Infra, D = W.BL_INFRA;
   ok(D.exits.length > 2000, "exits loaded");
-  ok(D.acq.length + D.acqUnplaced.length === 143, "all 143 notices kept (placed + unplaced)");
+  ok(D.acq.filter((a) => !a.g).length + D.acqUnplaced.length === 143, "all 143 notices kept (placed + unplaced)");
   ok(D.acq.every((a) => a.u && a.ll && a.ll[1] > 6 && a.ll[1] < 37 && a.ll[0] > 68 && a.ll[0] < 98), "placed villages have source and India coords");
   ok(D.acq.every((a) => /approximate/i.test(a.geo) || /village centre/i.test(a.geo)), "village placement labelled approximate");
   ok(Object.keys(D.airportBounds).length >= 15, "airport boundaries matched");
