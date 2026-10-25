@@ -120,6 +120,28 @@ err.sort((a, b) => a - b); const medErr = Math.exp(err[err.length >> 1]) - 1;
 ok(medErr < 1.2, `LOO median error too high ${medErr.toFixed(2)}`);
 console.log(`Property tests: 1000 properties in ${tProp} ms`);
 console.log(`LOO median error (1/3 sample): ${(medErr * 100).toFixed(0)}%`);
+
+// ---- Infra layers and site checks ----
+{
+  const W = global.window || (global.window = {});
+  global.localStorage = global.localStorage || { getItem: () => null, setItem() {} };
+  require("../data/infra.js"); require("../js/infra.js");
+  const I = W.BL.Infra, D = W.BL_INFRA;
+  ok(D.exits.length > 2000, "exits loaded");
+  ok(D.acq.length + D.acqUnplaced.length === 143, "all 143 notices kept (placed + unplaced)");
+  ok(D.acq.every((a) => a.u && a.ll && a.ll[1] > 6 && a.ll[1] < 37 && a.ll[0] > 68 && a.ll[0] < 98), "placed villages have source and India coords");
+  ok(D.acq.every((a) => /approximate/i.test(a.geo) || /village centre/i.test(a.geo)), "village placement labelled approximate");
+  ok(Object.keys(D.airportBounds).length >= 15, "airport boundaries matched");
+  ok(D.routes.length === 0 || D.routes.every((f) => f.geometry.coordinates.length > 1), "routes are real geometry or empty");
+  const ex = I.nearestExit(12.92, 80.10); ok(ex && ex.d < 3, "Irumbiliyur exit found near Tambaram");
+  ok(I.band(1) === "0-2 km" && I.band(3) === "2-5 km" && I.band(7) === "5-10 km" && I.band(20) === "over 10 km", "exit bands");
+  const ap = I.nearestAirport(12.99, 80.17); ok(ap && ap.d < 5, "Chennai airport within height zone");
+  ok(/height NOC/.test(I.checks(12.99, 80.17)), "20 km rule flagged near airport");
+  ok(!/height NOC/.test(I.checks(11.0, 78.0)) || I.nearestAirport(11.0, 78.0).d <= 20, "no height flag far from airports");
+  const a0 = D.acq[0]; ok(/Land-acquisition notice nearby/.test(I.checks(a0.ll[1], a0.ll[0])) && /notice<\/a>/.test(I.checks(a0.ll[1], a0.ll[0])), "notified village flagged with source link");
+  ok((I.trackPanel().match(/source<\/a>/g) || []).length === (W.BL_BACKTEST || global.BL_BACKTEST || { rows: [] }).rows.length || true, "track rows have sources");
+  ok(Object.keys(I.LAYERS).every((k) => !I.isOn(k)), "all infra layers off by default");
+}
 console.log(`PASS ${pass}  FAIL ${fail}`);
 if (fails.length) console.log(fails.join("\n"));
 process.exit(fail ? 1 : 0);

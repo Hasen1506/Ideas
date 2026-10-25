@@ -38,6 +38,7 @@
     { id: "screener", label: "Screener", icon: '<path d="M4 5h16l-6 7.5V19l-4-2v-4.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
     { id: "shortlist", label: "Infra-led shortlist", icon: '<path d="M4 6h16M4 12h10M4 18h6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M17 15l2 2 3-4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>' },
     { id: "alerts", label: "Spot alerts", icon: '<path d="M6 16V11a6 6 0 1112 0v5l1.5 2h-15z M10 20a2 2 0 004 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' },
+    { id: "track", label: "Track record", icon: '<path d="M4 19h16M6 16l4-5 3 3 5-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
     "sep",
     { id: "watchlist", label: "Watchlist and signals", icon: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' },
     { id: "compare", label: "Compare districts", icon: '<path d="M4 6h7v13H4zM13 10h7v9h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
@@ -253,6 +254,19 @@
     const setLabels = () => S.baseSyms.forEach((id) => { try { map.setLayoutProperty(id, "visibility", S.labels ? "visible" : "none"); } catch (e) {} });
     setLabels();
     $("#btnLabels").addEventListener("click", (e) => { S.labels = !S.labels; e.currentTarget.classList.toggle("on", S.labels); setLabels(); });
+    // Infra layers: all off by default; one chip opens a menu of opt-in layers so the base map stays clean.
+    if (BL.Infra) {
+      BL.Infra.addLayers(map, BEFORE);
+      const menu = $("#infraMenu"), btn = $("#btnInfra");
+      const paint = () => { menu.innerHTML = BL.Infra.menuHtml(); btn.classList.toggle("on", Object.keys(BL.Infra.LAYERS).some((k) => BL.Infra.isOn(k))); };
+      btn.addEventListener("click", (e) => { e.stopPropagation(); const open = menu.classList.toggle("hidden") === false; btn.setAttribute("aria-expanded", open); if (open) paint(); });
+      menu.addEventListener("click", (e) => e.stopPropagation());
+      menu.addEventListener("change", (e) => { const k = e.target.dataset.ixToggle; if (k) { BL.Infra.setLayer(map, k, e.target.checked); paint(); } });
+      document.addEventListener("click", () => menu.classList.add("hidden"));
+      document.addEventListener("click", (e) => { const l = e.target.closest && e.target.closest("[data-ix]"); if (l) { e.preventDefault(); BL.Infra.setLayer(map, l.dataset.ix, true); paint(); toast(BL.Infra.LAYERS[l.dataset.ix].desc); } });
+      BL.Infra.onStatus = (t) => { const st = menu.querySelector(".ix-status"); if (st) st.textContent = t; toast(t); };
+      BL.Infra.onPick = (html, ll) => { if (ll) new maplibregl.Popup({ maxWidth: "320px" }).setLngLat(ll).setHTML(html).addTo(map); };
+    }
     recompute();
     paint();
     buildMarkers();
@@ -830,6 +844,7 @@
         ${near.length ? `<h3>Real prices nearby (${near.length})</h3><div class="card" style="padding:4px 12px">${near.map((x) => `<div class="cat-row" data-act="verified" data-i="${x.i}"><span class="cat-ico" style="background:${x.p.type === "govt_auction" ? "#ffd166" : x.p.price ? "#c9d3e6" : "#b98cff"}">${x.p.price ? "Rs" : "G"}</span><div class="grow"><div class="cn">${esc(x.p.loc)}</div><div class="small muted">${x.p.price ? fmtINR(x.p.txn_sqyd) + "/sq yd | " + esc(TYPE_LABEL[x.p.type] || x.p.type) + " | " + esc(x.p.date || "") : "Govt rate " + fmtINR(x.p.govt_sqyd || x.p.govt_sqyd_agri) + "/sq yd"} | ${x.d.toFixed(1)} km</div></div></div>`).join("")}</div>` : ""}
         <h3>Price path</h3><div class="card">${C.fan(ser, { cursor: S.year !== MY ? S.year : null })}</div>
         <h3>What drives the next ${S.horizon} years</h3><div class="card">${C.bars(con.parts)}</div>
+        ${BL.Infra ? BL.Infra.checks(lat, lon) : ""}
         <h3>Projects within 60 km</h3>
         <div class="card" style="padding:4px 12px">${projs.length ? projs.map((x) => catRow(x.c, `${x.d.toFixed(1)} km away`)).join("") : '<div class="empty">No tracked project within 60 km.</div>'}</div>
         ${dm ? `<div class="btn-row" style="margin-top:12px"><button class="btn sm" data-act="open-d" data-id="${dm.id}">Open ${esc(dm.name)} district card</button></div>` : ""}
@@ -945,7 +960,7 @@
   /* ------------------------------------------------------------------ */
   /* Tool panels                                                          */
   /* ------------------------------------------------------------------ */
-  const PANEL_TITLES = { shortlist: "Infra-led shortlist", alerts: "Spot alerts", explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
+  const PANEL_TITLES = { track: "Track record: past projects", shortlist: "Infra-led shortlist", alerts: "Spot alerts", explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
   function openTool(id, force) {
     if (S.tool === id && !force) { closeTool(); return; }
     if (id !== "draw") cancelDraw();
@@ -968,7 +983,7 @@
   function refreshPanel() {
     if (!S.tool) return;
     const body = $("#panelBody");
-    const fn = { shortlist: () => BL.Insights.shortlistPanel(models), alerts: () => BL.Insights.alertsPanel((la, lo) => { const q = E.pointModel(la, lo, allCats(), models, opts()); return q; }), explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
+    const fn = { track: () => BL.Infra.trackPanel(), shortlist: () => BL.Insights.shortlistPanel(models), alerts: () => BL.Insights.alertsPanel((la, lo) => { const q = E.pointModel(la, lo, allCats(), models, opts()); return q; }), explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
     body.innerHTML = fn();
     renderRail();
   }

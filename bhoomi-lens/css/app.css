@@ -304,3 +304,14 @@ body.detail-open .ov-legend { right: 428px; }
 .ov-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #0a0f1a; }
 .year-banner { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 25; background: rgba(255,181,71,.16); border: 1px solid rgba(255,181,71,.55); color: var(--tx); padding: 6px 8px 6px 14px; border-radius: 30px; display: flex; gap: 10px; align-items: center; font-size: 12.5px; backdrop-filter: blur(10px); }
 .top-right { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+
+.ix-wrap { position: relative; display: inline-block; }
+.ix-menu { position: absolute; top: 38px; left: 0; z-index: 30; width: 300px; max-height: 70vh; overflow: auto; background: #0f1528; border: 1px solid var(--line-2); border-radius: 12px; padding: 8px; box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+.ix-menu.hidden { display: none; }
+.ix-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border-radius: 8px; cursor: pointer; }
+.ix-item:hover { background: rgba(255,255,255,.04); }
+.ix-item input { margin-top: 3px; accent-color: #2ee6c5; }
+.ix-item b { display: block; color: var(--tx); font-weight: 600; font-size: 13px; }
+.ix-item small { display: block; color: var(--tx-2); font-size: 11.5px; line-height: 1.35; margin-top: 2px; }
+.ix-status { font-size: 11.5px; padding: 4px 8px; }
+.ix-status:empty { display: none; }
