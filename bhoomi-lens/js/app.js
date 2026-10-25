@@ -186,7 +186,7 @@
     add({ id: "sat", type: "raster", source: "sat", layout: { visibility: "none" }, paint: { "raster-opacity": 0.95 } });
     map.addSource("districts", { type: "geojson", data: GEO });
     map.addSource("grid", { type: "geojson", data: emptyFC() });
-    map.addSource("verified", { type: "geojson", data: verifiedFC() });
+    map.addSource("verified", { type: "geojson", data: verifiedFC(), cluster: true, clusterMaxZoom: 10, clusterRadius: 42 });
     map.addSource("states", { type: "geojson", data: STATES_GEO });
     map.addSource("farm", { type: "geojson", data: { type: "FeatureCollection", features: VERIFIED.map((p, i) => ({ p, i })).filter((x) => x.p.village).map((x) => { const lt = E.landTypeFor(x.p.path, x.p.district); return lt && lt.farm ? { type: "Feature", properties: { i: x.i, v: lt.farm.value / 1e5, c: lt.farm.conf }, geometry: { type: "Point", coordinates: [x.p.lon, x.p.lat] } } : null; }).filter(Boolean) } });
     map.addSource("catLines", { type: "geojson", data: catLineFC() });
@@ -219,7 +219,7 @@
     add({ id: "cat-case", type: "line", source: "catLines", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#05070f", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 3.6, 10, 7.5], "line-opacity": 0.85 } });
     add({ id: "cat-line-op", type: "line", source: "catLines", filter: ["==", ["get", "op"], 1], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.6, 10, 4] } });
     add({ id: "cat-line-uc", type: "line", source: "catLines", filter: ["==", ["get", "op"], 0], layout: { "line-join": "round" }, paint: { "line-color": ["get", "color"], "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.6, 10, 4], "line-dasharray": [2, 1.5] } });
-    add({ id: "cat-infl", type: "circle", source: "catPts", paint: { "circle-radius": kmPx("rkm"), "circle-color": ["get", "color"], "circle-opacity": 0.07, "circle-stroke-color": ["get", "color"], "circle-stroke-opacity": 0.45, "circle-stroke-width": 1, "circle-pitch-alignment": "map" } });
+    add({ id: "cat-infl", type: "circle", source: "catPts", minzoom: 8, paint: { "circle-radius": kmPx("rkm"), "circle-color": ["get", "color"], "circle-opacity": 0.07, "circle-stroke-color": ["get", "color"], "circle-stroke-opacity": 0.45, "circle-stroke-width": 1, "circle-pitch-alignment": "map" } });
     add({ id: "cells", type: "circle", source: "cells", paint: {
       "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 5, 1.5, 9, 4, 12, 12],
       "circle-color": ["interpolate", ["linear"], ["get", "g"], 0.03, "#33307f", 0.07, "#d045c0", 0.11, "#ffa27a", 0.15, "#fff3c4"],
@@ -233,11 +233,15 @@
     map.addLayer({ id: "cat-hl-zone", type: "fill", source: "catFocus", filter: ["==", ["get", "k"], "zone"], paint: { "fill-color": "#ffd166", "fill-opacity": 0.08 } });
     map.addLayer({ id: "cat-hl-buf", type: "line", source: "catFocus", filter: ["all", ["==", ["get", "k"], "geom"], ["==", ["geometry-type"], "LineString"]], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffd166", "line-width": kmPx("rkm", 2), "line-opacity": 0.1 } });
     map.addLayer({ id: "cat-hl-line", type: "line", source: "catFocus", filter: ["==", ["geometry-type"], "LineString"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffd166", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 9], "line-opacity": 0.95, "line-blur": 0.5 } });
-    map.addLayer({ id: "verified", type: "circle", source: "verified", layout: { visibility: "none" }, paint: {
+    // Dense evidence dots are grouped into counted bubbles until zoom 11; click a bubble to zoom in.
+    map.addLayer({ id: "verified-cl", type: "circle", source: "verified", filter: ["has", "point_count"], layout: { visibility: "none" }, paint: { "circle-color": "#2ee6c5", "circle-opacity": 0.22, "circle-stroke-color": "#2ee6c5", "circle-stroke-width": 1.5, "circle-radius": ["step", ["get", "point_count"], 12, 10, 16, 50, 22, 200, 28] } });
+    map.addLayer({ id: "verified-cl-n", type: "symbol", source: "verified", filter: ["has", "point_count"], layout: { visibility: "none", "text-field": ["get", "point_count_abbreviated"], "text-size": 11, "text-allow-overlap": true }, paint: { "text-color": "#e8eefc" } });
+    map.on("click", "verified-cl", (ev) => { const f = ev.features[0]; map.getSource("verified").getClusterExpansionZoom(f.properties.cluster_id).then((z) => map.easeTo({ center: f.geometry.coordinates, zoom: z + 0.3 })).catch(() => map.easeTo({ center: f.geometry.coordinates, zoom: map.getZoom() + 2 })); });
+    map.addLayer({ id: "verified", type: "circle", source: "verified", filter: ["!", ["has", "point_count"]], layout: { visibility: "none" }, paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3, 9, 6.5, 13, 10],
       "circle-color": ["match", ["get", "type"], "govt_auction", "#ffd166", "govt_allotment", "#ffb547", "registered", "#2ee6c5", "reported_deal", "#2ee6c5", "listing", "#c9d3e6", "derived_gv", "#7f8aa3", "#b98cff"],
       "circle-stroke-color": "#0a0f1a", "circle-stroke-width": 2, "circle-opacity": 0.95 } });
-    map.addLayer({ id: "farm", type: "circle", source: "farm", layout: { visibility: "none" }, paint: {
+    map.addLayer({ id: "farm", type: "circle", source: "farm", minzoom: 8, layout: { visibility: "none" }, paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 3, 10, 6, 13, 9],
       "circle-color": ["interpolate", ["linear"], ["get", "v"], 10, "#3b6e3b", 40, "#7bc96f", 80, "#e7d36a", 150, "#f39c4a", 300, "#e0484f"],
       "circle-stroke-color": ["match", ["get", "c"], "High", "#ffffff", "Medium", "#bbbbbb", "#555555"], "circle-stroke-width": 1.2, "circle-opacity": 0.9 } });
@@ -395,8 +399,8 @@
     const p = E.completionP(c, S.scenario), eta = E.effEta(c, S.scenario);
     return `<div style="min-width:240px;max-width:290px">
       <div class="row"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><b>${esc(c.n)}</b><div class="small muted">${esc(T.label)} | ${esc(c.ag || "")}</div></div></div>
-      <div class="row sb" style="margin:10px 0 6px">${C.stage(c.stage)}<span class="small muted">${esc(BL.STAGES[c.stage])}</span></div>
-      <div class="row sb small"><span class="muted">Completion probability</span><b>${Math.round(p * 100)}%</b></div>
+      <div class="row sb" style="margin:10px 0 6px">${c.cancelled ? '<span class="tag down">Cancelled / dropped</span>' : C.stage(c.stage) + `<span class="small muted">${esc(BL.STAGES[c.stage])}</span>`}</div>
+      ${c.path ? '<div class="small muted" style="margin:4px 0">Line drawn from published alignment maps: approximate, not the surveyed route. Turn on Infra layers > Expressway routes (live) for mapped geometry.</div>' : ""}${c.cancelled ? "" : `<div class="row sb small"><span class="muted">Completion probability</span><b>${Math.round(p * 100)}%</b></div>`}
       <div class="row sb small"><span class="muted">${c.stage >= 4 ? "Opened" : "Expected"} (${esc(BL.SCENARIOS[S.scenario].label)})</span><b>${eta}</b></div>
       <div class="row sb small"><span class="muted">Agency credibility</span><b>${Math.round(c.cred * 100)} / 100</b></div>
       ${c.cancelled ? '<div class="small down" style="margin-top:6px"><b>Cancelled / dropped.</b> Any price premium should unwind.</div>' : ""}
@@ -445,7 +449,7 @@
     S.sel = null; S.loc = null;
     document.body.classList.add("detail-open"); $("#detail").classList.remove("hidden");
     $("#detailBody").innerHTML = `<div class="d-hero"><div class="kicker">${esc(T.label)} | ${esc(c.ag || "")}</div><h1 style="font-size:20px">${esc(c.n)}</h1>
-      <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px"><span class="tag">${esc(BL.STAGES[c.stage])}</span>${c.cancelled ? '<span class="tag down">Cancelled</span>' : `<span class="tag">${Math.round(E.completionP(c, S.scenario) * 100)}% likely by ${E.effEta(c, S.scenario)}</span>`}${c.delays ? `<span class="tag warn">Delayed ${c.delays}x</span>` : ""}<span class="tag">as of ${esc(c.asof || BL.DATA_ASOF)}</span></div>
+      <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">${c.cancelled ? "" : `<span class="tag">${esc(BL.STAGES[c.stage])}</span>`}${c.cancelled ? `<span class="tag down">Cancelled${c.scrapYear ? " " + c.scrapYear : ""}</span>` : `<span class="tag">${Math.round(E.completionP(c, S.scenario) * 100)}% likely by ${E.effEta(c, S.scenario)}</span>`}${c.delays ? `<span class="tag warn">Delayed ${c.delays}x</span>` : ""}<span class="tag">as of ${esc(c.asof || BL.DATA_ASOF)}</span></div>
       <div class="acts"><button class="icon-btn" data-act="clear-focus" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div></div>
       <div class="d-body">${catPopupHTML(c)}
       <h3>Districts it moves most (next ${S.horizon} yrs)</h3>${hit.length ? hit.map((h, i) => listItem(h.m, i, `<span class="pill ${h.up < 0 ? "r" : ""}">${pct(h.up)}</span>`)).join("") : '<div class="empty">Effect too small at district level. Zoom in on the corridor.</div>'}
@@ -740,7 +744,7 @@
   }
   $("#btnReal").addEventListener("click", (e) => {
     S.real = !S.real; e.currentTarget.classList.toggle("on", S.real);
-    map.setLayoutProperty("verified", "visibility", S.real ? "visible" : "none");
+    ["verified", "verified-cl", "verified-cl-n"].forEach((l) => map.setLayoutProperty(l, "visibility", S.real ? "visible" : "none"));
     renderOverlayLegend();
     if (S.real) toast(`${VERIFIED.length} verified points across India (auctions, allotments, deals, listings, official rates). Click one for sources.`);
   });
@@ -748,6 +752,12 @@
     S.farm = !S.farm; e.currentTarget.classList.toggle("on", S.farm);
     map.setLayoutProperty("farm", "visibility", S.farm ? "visible" : "none");
     if (S.farm) toast("Farm land Rs lakh/acre by Tamil Nadu village: official farm rate x fitted district multiple. White ring = high confidence, grey = medium, dark = low (state median). Click a dot for the method.");
+  });
+  $("#btnHideAll").addEventListener("click", () => {
+    ["btnProj", "btnReal", "btnFarm", "btnHeat", "btnTint", "btnLabels", "btn3d"].forEach((id) => { const b = $("#" + id); if (b && b.classList.contains("on")) b.click(); });
+    if (BL.Infra) Object.keys(BL.Infra.LAYERS).forEach((k) => { if (BL.Infra.isOn(k)) BL.Infra.setLayer(map, k, false); });
+    const ib = $("#btnInfra"); if (ib) ib.classList.remove("on");
+    toast("All overlays hidden. Turn on only what you need: Colours for the lens, Projects for infrastructure.");
   });
   $("#btnHeat").addEventListener("click", (e) => {
     S.heat = !S.heat; e.currentTarget.classList.toggle("on", S.heat);
@@ -831,6 +841,22 @@
         <div class="acts"><button class="icon-btn" data-act="close-detail" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
       </div>
       <div class="d-body">
+        ${(() => { // Buyer summary first: the 4 things a buyer needs, everything else below or collapsed.
+          const fr = BL.Insights && BL.Insights.fairRange ? BL.Insights.fairRange({ pm, lat, lon, nearAll: nearVerified(lat, lon, 12), conf: conf[0] }) : null;
+          const n5 = nearVerified(lat, lon, 5).filter((x) => x.p.price > 0).length;
+          const ex = BL.Infra ? BL.Infra.nearestExit(lat, lon) : null, ap = BL.Infra ? BL.Infra.nearestAirport(lat, lon) : null, aq = BL.Infra ? BL.Infra.nearAcq(lat, lon, 3) : [];
+          const warn = [];
+          if (aq.length) warn.push(`Land-acquisition notice: ${esc(aq[0].a.v)} village (${aq[0].d.toFixed(1)} km)`);
+          if (ap && ap.d <= 20) warn.push(`Within 20 km of ${esc(ap.n)}: height clearance may apply`);
+          if (!n5) warn.push("No verified price within 5 km: estimate is model-led");
+          if (pm.risk != null && pm.risk > 0.6) warn.push("High district risk score");
+          return `<div class="card buyer-sum" style="margin-top:4px">
+            <div class="small muted">Buyer summary</div>
+            <div class="row sb" style="margin-top:4px"><span>Fair range</span><b>${fr ? fmtINR(fr.lo) + "-" + fmtINR(fr.hi) : fmtINR(pm.basePrice)} <span class="small muted">/sq ft</span></b></div>
+            <div class="row sb small"><span class="muted">Evidence</span><span>${n5} verified price${n5 === 1 ? "" : "s"} within 5 km | ${esc(conf[0])}</span></div>
+            <div class="row sb small"><span class="muted">Road access</span><span>${ex ? ex.d.toFixed(1) + " km to " + esc(ex.n || "an expressway exit") : "No expressway exit nearby"}</span></div>
+            <div class="small" style="margin-top:6px">${warn.length ? warn.slice(0, 3).map((w) => `<div class="warn">! ${w}</div>`).join("") : '<div class="up">No flags from the public checks below (not legal clearance)</div>'}</div>
+            <div class="small muted" style="margin-top:6px">Test an asking price in Fair Price Check below. Model detail is collapsed further down.</div></div>`; })()}
         <h3>Value at this spot</h3>
         <div class="kpis">
           <div class="kpi"><div class="k">Est. land price</div><div class="v">${fmtINR(pm.basePrice)}<span class="small muted"> /sq ft</span></div><div class="s">${fmtINR(pm.basePrice * 9)} /sq yd | ${fmtINR(pm.basePrice * E.SQFT_PER_ACRE)} /acre</div></div>
@@ -839,6 +865,7 @@
         </div>
         ${(() => { const v = nearVerified(lat, lon, 5).find((x) => x.p.village && E.landTypeFor(x.p.path, x.p.district)); return v ? `<h3>By land type (Tamil Nadu, nearest guideline village ${esc(v.p.loc)}, ${v.d.toFixed(1)} km)</h3><div class="card">${landTypeHTML(E.landTypeFor(v.p.path, v.p.district))}</div>` : ""; })()}
         ${BL.Insights ? BL.Insights.block({ pm, lat, lon, nearAll: nearVerified(lat, lon, 12), gov, conf: conf[0], place: near.length && near[0].d < 6 ? "Near " + near[0].p.loc : (pm.district || "Selected spot"), ser, con, horizon: S.horizon, scenario: S.scenario }) : ""}
+        <details class="more"><summary>Model detail: how the price was built, price path and drivers</summary>
         <h3>How this price was arrived at</h3>
         <div class="card small" style="line-height:1.6">${(() => {
           const cc = E.calibContrib(lat, lon);
@@ -854,6 +881,7 @@
         ${near.length ? `<h3>Real prices nearby (${near.length})</h3><div class="card" style="padding:4px 12px">${near.map((x) => `<div class="cat-row" data-act="verified" data-i="${x.i}"><span class="cat-ico" style="background:${x.p.type === "govt_auction" ? "#ffd166" : x.p.price ? "#c9d3e6" : "#b98cff"}">${x.p.price ? "Rs" : "G"}</span><div class="grow"><div class="cn">${esc(x.p.loc)}</div><div class="small muted">${x.p.price ? fmtINR(x.p.txn_sqyd) + "/sq yd | " + esc(TYPE_LABEL[x.p.type] || x.p.type) + " | " + esc(x.p.date || "") : "Govt rate " + fmtINR(x.p.govt_sqyd || x.p.govt_sqyd_agri) + "/sq yd"} | ${x.d.toFixed(1)} km</div></div></div>`).join("")}</div>` : ""}
         <h3>Price path</h3><div class="card">${C.fan(ser, { cursor: S.year !== MY ? S.year : null })}</div>
         <h3>What drives the next ${S.horizon} years</h3><div class="card">${C.bars(con.parts)}</div>
+        </details>
         ${BL.Infra ? BL.Infra.checks(lat, lon) : ""}
         <h3>Projects within 60 km</h3>
         <div class="card" style="padding:4px 12px">${projs.length ? projs.map((x) => catRow(x.c, `${x.d.toFixed(1)} km away`)).join("") : '<div class="empty">No tracked project within 60 km.</div>'}</div>
@@ -882,6 +910,8 @@
     if (popup) popup.remove();
     popup = new maplibregl.Popup({ offset: 10, maxWidth: "320px" }).setLngLat([p.lon, p.lat]).setHTML(`<div style="min-width:230px">
       <b>${esc(p.loc)}</b><div class="small muted">${esc(p.district)}${p.taluk ? ", " + esc(p.taluk) : ""}, ${esc(p.state || "")} | verified data point</div>
+      ${(() => { const lt = S.farm && p.village ? E.landTypeFor(p.path, p.district) : null; const f = lt && lt.farm; if (!f) return ""; const cc = f.conf === "High" ? "#5bd18b" : f.conf === "Medium" ? "#ffd166" : "#ff8a5c";
+        return `<div class="card" style="margin:8px 0;padding:8px 10px"><div class="small muted">Farm land value</div><div style="font-size:20px;font-weight:700">${fmtINR(f.value)}<span class="small muted"> /acre</span></div><div class="small">Confidence <b style="color:${cc}">${esc(f.conf)}</b>${f.method ? ` | ${esc(f.method)}` : ""}</div><div class="small muted" style="margin-top:4px">Residential plot figures below are for comparison only.</div></div>`; })()}
       ${p.price ? `<div class="row sb small" style="margin-top:8px"><span class="muted">${esc(TYPE_LABEL[p.type] || p.type)}</span><b>${fmtINR(p.txn_sqyd)}/sq yd</b></div><div class="small muted">${esc(p.date || "")} | ${fmtINR(p.price)}/sq ft used in model</div>${p.note ? `<p class="small" style="margin:6px 0 0;line-height:1.45">${esc(p.note)}</p>` : ""}<div class="small"><a href="${esc(p.src)}" target="_blank" rel="noopener">Price source</a></div>` : ""}
       ${p.govt_sqyd || p.govt_sqyd_agri ? `<div class="row sb small" style="margin-top:8px"><span class="muted">Official market value${p.govt_sqyd ? "" : " (agri)"}</span><b>${fmtINR(p.govt_sqyd || p.govt_sqyd_agri)}/sq yd</b></div><div class="small"><span class="muted">${esc(p.govt_date || "")}</span> | <a href="${esc(p.govt_src)}" target="_blank" rel="noopener">Rate source</a></div>` : ""}
       ${provenanceHTML(p)}
@@ -964,7 +994,7 @@
   }
   function catRow(c, sub) {
     const T = BL.TYPES[c.t];
-    return `<div class="cat-row" data-act="fly-cat" data-id="${esc(c.id)}"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><div class="cn ellipsis">${esc(c.n)}</div><div class="row small muted" style="gap:8px;margin-top:3px">${C.stage(c.stage)}<span>${esc(BL.STAGES[c.stage])}</span><span>| ${c.stage >= 4 ? "open" : "ETA " + E.effEta(c, S.scenario)}</span></div>${sub ? `<div class="small muted" style="margin-top:2px">${esc(sub)}</div>` : ""}${c.cancelled ? '<div class="small down">Cancelled: premium unwinding</div>' : c.delays ? `<div class="small warn">Delayed ${c.delays}x | as of ${esc(c.asof || "")}</div>` : c.asof ? `<div class="small muted">as of ${esc(c.asof)}</div>` : ""}</div><span class="pill ${E.completionP(c, S.scenario) < 0.5 ? "r" : ""}">${Math.round(E.completionP(c, S.scenario) * 100)}%</span></div>`;
+    return `<div class="cat-row" data-act="fly-cat" data-id="${esc(c.id)}"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><div class="cn ellipsis">${esc(c.n)}</div><div class="row small muted" style="gap:8px;margin-top:3px">${c.cancelled ? '<span class="down">Cancelled / dropped</span>' : `${C.stage(c.stage)}<span>${esc(BL.STAGES[c.stage])}</span><span>| ${c.stage >= 4 ? "open" : "ETA " + E.effEta(c, S.scenario)}</span>`}</div>${sub ? `<div class="small muted" style="margin-top:2px">${esc(sub)}</div>` : ""}${c.cancelled ? '<div class="small down">Cancelled: premium unwinding</div>' : c.delays ? `<div class="small warn">Delayed ${c.delays}x | as of ${esc(c.asof || "")}</div>` : c.asof ? `<div class="small muted">as of ${esc(c.asof)}</div>` : ""}</div><span class="pill ${E.completionP(c, S.scenario) < 0.5 ? "r" : ""}">${Math.round(E.completionP(c, S.scenario) * 100)}%</span></div>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -1146,7 +1176,8 @@
   const CMP_COLORS = ["#ffb547", "#2ee6c5", "#b98cff"];
   function pCompare() {
     const ms = S.compare.map((id) => byId.get(id)).filter(Boolean);
-    if (!ms.length) return `<div class="empty">Add up to three districts from their detail card to compare them side by side.</div>`;
+    const addBox = ms.length < 3 ? `<div class="field"><label><span>Add a district (${ms.length}/3)</span></label><input id="cmpAdd" list="cmpList" placeholder="Type a district name, e.g. Krishnagiri" autocomplete="off"/><datalist id="cmpList">${models.filter((m) => !S.compare.includes(m.id)).map((m) => `<option value="${esc(m.name)} (${esc(m.state)})"></option>`).join("")}</datalist></div>` : "";
+    if (!ms.length) return addBox + `<div class="empty">Pick up to three districts above (or from a district card) to compare them side by side.</div>`;
     const rows = [
       ["Price / sq ft", (m) => m.priceNow, fmtINR, "min"],
       ["Per acre", (m) => m.priceNow * E.SQFT_PER_ACRE, fmtINR, null],
@@ -1160,7 +1191,7 @@
     ];
     const table = `<table class="cmp"><tr><th></th>${ms.map((m, i) => `<th style="color:${CMP_COLORS[i]}">${esc(m.name)}</th>`).join("")}</tr>${rows.map(([l, f, fmt, best]) => {
       const vals = ms.map(f); const b = best === "max" ? Math.max(...vals) : best === "min" ? Math.min(...vals) : null;
-      return `<tr><td>${l}</td>${vals.map((v) => `<td class="${ms.length > 1 && v === b ? "best" : ""}">${fmt(v)}</td>`).join("")}</tr>`;
+      return addBox + `<tr><td>${l}</td>${vals.map((v) => `<td class="${ms.length > 1 && v === b ? "best" : ""}">${fmt(v)}</td>`).join("")}</tr>`;
     }).join("")}</table>`;
     const chart = C.lines(ms.map((m, i) => ({ color: CMP_COLORS[i], series: E.series(m, S.scenario).map((s) => ({ y: s.y, v: (s.p / m.priceNow) * 100 })) })), { fmt: (v) => Math.round(v) });
     return `${table}<h3>Price index (today = 100)</h3><div class="card">${chart}</div>
@@ -1215,7 +1246,8 @@
   });
   $("#panelBody").addEventListener("change", (e) => {
     const t = e.target;
-    if (t.id === "catType") { S.catFilter = t.value; setMarkerVisibility(); refreshPanel(); }
+    if (t.id === "cmpAdd") { const v = t.value.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase(); const st = (/\(([^)]*)\)\s*$/.exec(t.value) || [])[1]; const m = models.find((x) => x.name.toLowerCase() === v && (!st || x.state === st)); if (m && !S.compare.includes(m.id) && S.compare.length < 3) { toggleList("compare", m.id); toast("Added " + m.name + " to compare"); refreshPanel(); } else if (!m) toast("No district called " + t.value); }
+    else if (t.id === "catType") { S.catFilter = t.value; setMarkerVisibility(); refreshPanel(); }
     else if (t.id === "catStage") { S.catStage = t.value; setMarkerVisibility(); refreshPanel(); }
     else if (t.id === "inView") { S.inView = t.checked; refreshPanel(); }
     else if (t.id === "zones") {
@@ -1334,7 +1366,10 @@
     ...models.map((m) => ({ k: "District", t: m.name, s: m.state, go: () => openDetail(m.id) })),
     ...BL.CATALYSTS.map((c) => ({ k: "Project", t: c.n, s: BL.TYPES[c.t].label, go: () => focusCatalyst(c.id) })),
     ...BL.ANCHORS.map((a) => ({ k: "City", t: a.n, s: "City", go: () => map.flyTo({ center: [a.lon, a.lat], zoom: 9, duration: 1400 }) })),
-    ...[...new Set(models.map((m) => m.state))].map((s) => ({ k: "State", t: s, s: "State or UT", go: () => fitState(s) }))
+    ...[...new Set(models.map((m) => m.state))].map((s) => ({ k: "State", t: s, s: "State or UT", go: () => fitState(s) })),
+    // Suburbs and localities with real price evidence, then Tamil Nadu villages, so "Tambaram" works offline.
+    ...(() => { const seen = new Set(); return (window.BL_VERIFIED || []).filter((p) => p.loc && p.lat).map((p) => ({ p, t: String(p.loc).split(/[,(]/)[0].trim() })).filter((x) => x.t.length > 2 && !seen.has(x.t.toLowerCase()) && seen.add(x.t.toLowerCase())).map((x) => ({ k: "Locality", t: x.t, s: [x.p.district, x.p.state].filter(Boolean).join(", "), go: () => { map.flyTo({ center: [x.p.lon, x.p.lat], zoom: 12.5, duration: 1400 }); openLocation(x.p.lon, x.p.lat); } })); })(),
+    ...(() => { const seen = new Set(); return (window.BL_TN_VILLAGES || window.TN_VILLAGES || []).filter((r) => Array.isArray(r) && r[3]).filter((r) => !seen.has(String(r[0]).toLowerCase()) && seen.add(String(r[0]).toLowerCase())).map((r) => ({ k: "Village", t: r[0], s: r[2] + ", Tamil Nadu", go: () => { map.flyTo({ center: [r[4], r[3]], zoom: 13, duration: 1400 }); openLocation(r[4], r[3]); } })); })()
   ];
   function fitState(s) {
     const b = new maplibregl.LngLatBounds();

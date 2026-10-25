@@ -98,6 +98,7 @@
     g.fillText(`Asking: Rs ${Math.round(ask).toLocaleString("en-IN")} / sq ft`, 540, 790);
     g.fillText(`Fair range: Rs ${fr.lo.toLocaleString("en-IN")} - ${fr.hi.toLocaleString("en-IN")} / sq ft`, 540, 860);
     g.fillText(`${fr.nPts} verified price points, ${fr.nSrc} sources within 5 km`, 540, 930);
+    if (!fr.nPts) { g.fillStyle = "#ffd166"; g.fillText("Model-led: no verified price within 5 km", 540, 970); }
     g.font = "30px sans-serif"; g.fillStyle = "#8fa3c7";
     g.fillText(`Checked ${today()}  |  Data as of ${BL.DATA_ASOF || "Oct 2026"}`, 540, 1180);
     g.fillText("Estimate from public listings and official rates. Not advice.", 540, 1230);
@@ -105,7 +106,7 @@
   }
   function shareText() {
     const { ask, v } = ctx.last, fr = ctx.fr;
-    return `Bhoomi Lens Fair Price Check: ${ctx.place} (${ctx.pm.district || ""}). Asking Rs ${Math.round(ask)}/sq ft. Fair range Rs ${fr.lo}-${fr.hi}/sq ft. Verdict: ${v.t}. ${fr.nPts} verified points within 5 km. ${location.href.split("#")[0]}#pt=${ctx.lat.toFixed(4)},${ctx.lon.toFixed(4)}`;
+    return `Bhoomi Lens Fair Price Check: ${ctx.place} (${ctx.pm.district || ""}). Asking Rs ${Math.round(ask)}/sq ft. Fair range Rs ${fr.lo}-${fr.hi}/sq ft. Verdict: ${v.t}. ${fr.nPts} verified points within 5 km.${fr.nPts ? "" : " Model-led: no verified price within 5 km, treat as indicative."} ${location.href.split("#")[0]}#pt=${ctx.lat.toFixed(4)},${ctx.lon.toFixed(4)}`;
   }
   function png() { const a = document.createElement("a"); a.download = "bhoomi-fair-price.png"; a.href = cardCanvas().toDataURL("image/png"); a.click(); }
   async function share() {

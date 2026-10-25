@@ -24,7 +24,7 @@
     </div>
     <button id="searchBtn" class="search" title="Search (Ctrl K)">
       <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <span>Search districts, projects, cities</span><kbd>Ctrl K</kbd>
+      <span>Search a locality, village, district or project</span><kbd>Ctrl K</kbd>
     </button>
     <div id="layerSeg" class="seg" role="tablist" aria-label="Map layer"></div>
     <div class="top-right">
@@ -34,15 +34,10 @@
       <label class="sel"><span>Horizon</span>
         <select id="horizon"><option value="3">3 yrs</option><option value="5" selected>5 yrs</option><option value="10">10 yrs</option></select>
       </label>
-      <button id="btnProj" class="chip" title="Show infrastructure projects">Projects</button>
-      <button id="btnReal" class="chip" title="Verified real prices and govt rates">Real data</button>
-      <button id="btnTint" class="chip on" title="Colour the map by the selected lens (price, growth, opportunity, risk...)">Colours</button>
-      <button id="btnLabels" class="chip" title="Place names and town dots on the map">Labels</button>
-      <button id="btnFarm" class="chip" title="Farm land value by village (Tamil Nadu)">Farm land</button>
-      <span class="ix-wrap"><button id="btnInfra" class="chip" title="Airport boundaries, expressway exits, notified villages, water history, routes" aria-expanded="false">Infra layers</button><div id="infraMenu" class="ix-menu hidden" role="menu"></div></span>
-      <button id="btnHeat" class="chip" title="Pipeline hotspots heat layer">Hotspots</button>
-      <button id="btnSat" class="chip" title="Satellite imagery">Satellite</button>
-      <button id="btn3d" class="chip" title="3D price terrain">3D</button>
+      <div class="chip-group" data-g="Base map"><button id="btnSat" class="chip" title="Satellite imagery">Satellite</button><button id="btnLabels" class="chip" title="Place names and town dots on the map">Labels</button><button id="btn3d" class="chip" title="3D price terrain">3D</button></div>
+      <div class="chip-group" data-g="Analysis"><button id="btnTint" class="chip on" title="Colour the map by the selected lens (price, growth, opportunity, risk...)">Colours</button><button id="btnHeat" class="chip" title="Pipeline hotspots heat layer">Hotspots</button></div>
+      <div class="chip-group" data-g="Evidence"><button id="btnProj" class="chip" title="Show infrastructure projects">Projects</button><button id="btnReal" class="chip" title="Verified real prices and govt rates">Real data</button><button id="btnFarm" class="chip" title="Farm land value by village (Tamil Nadu)">Farm land</button><span class="ix-wrap"><button id="btnInfra" class="chip" title="Airport boundaries, expressway exits, notified villages, water history, routes" aria-expanded="false">Infra layers</button><div id="infraMenu" class="ix-menu hidden" role="menu"></div></span></div>
+      <button id="btnHideAll" class="chip ghost" title="Turn off every overlay and keep only the base map">Hide all</button>
     </div>
   </header>
 

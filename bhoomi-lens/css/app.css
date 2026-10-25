@@ -315,3 +315,17 @@ body.detail-open .ov-legend { right: 428px; }
 .ix-item small { display: block; color: var(--tx-2); font-size: 11.5px; line-height: 1.35; margin-top: 2px; }
 .ix-status { font-size: 11.5px; padding: 4px 8px; }
 .ix-status:empty { display: none; }
+
+/* Grouped chips: Base map / Analysis / Evidence, and no clipping at desktop widths */
+.top-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; justify-content: flex-end; overflow-x: auto; scrollbar-width: none; }
+.top-right::-webkit-scrollbar { display: none; }
+.topbar .seg { flex: 0 1 auto; min-width: 0; }
+.chip-group { display: flex; gap: 4px; align-items: center; padding: 2px 4px 2px 6px; border: 1px solid var(--line); border-radius: 11px; position: relative; flex: 0 0 auto; }
+.chip-group::before { content: attr(data-g); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--tx-3, #7f8aa3); margin-right: 2px; white-space: nowrap; }
+.chip-group .chip { height: 28px; padding: 0 9px; }
+.chip.ghost { border-style: dashed; flex: 0 0 auto; }
+.top-right .sel, .top-right .chip { flex: 0 0 auto; }
+@media (max-width: 1500px) { .search span { display: none; } .chip-group::before { display: none; } }
+details.more { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+details.more > summary { cursor: pointer; color: var(--tx-2); font-weight: 600; }
+.buyer-sum .warn { color: #ffd166; }
