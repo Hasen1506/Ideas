@@ -338,3 +338,9 @@ details.more > summary { cursor: pointer; color: var(--tx-2); font-weight: 600; 
   .maplibregl-ctrl-top-right { top: 116px; }
   .year-banner, .draw-hint { top: 122px; }
 }
+
+.chip-sel { height: 28px; border-radius: 9px; border: 1px solid var(--line); background: #0f1528; color: var(--tx-2); padding: 0 6px; font: inherit; font-size: 12px; max-width: 150px; }
+.focus-bar { position: fixed; top: 128px; left: 50%; transform: translateX(-50%); z-index: 26; display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; border-radius: 999px; border: 1px solid rgba(255,209,102,.5); color: #ffd166; font-weight: 600; font-size: 13px; }
+.focus-bar.hidden { display: none; }
+.focus-bar .icon-btn { width: 24px; height: 24px; }
+@media (min-width: 1681px) { .focus-bar { top: 80px; } }

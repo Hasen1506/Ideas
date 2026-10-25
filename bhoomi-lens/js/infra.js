@@ -28,6 +28,8 @@
     bounds: { label: "Airport boundaries", desc: "Mapped airport land from OpenStreetMap, plus the 20 km height-rule ring around operational airports.", ids: ["ix-air-fill", "ix-air-line", "ix-aai"] },
     exits: { label: "Expressway exits", desc: "Existing interchanges from OpenStreetMap. Proposed exits are only shown where officially mapped.", ids: ["ix-exits"] },
     acq: { label: "Notified villages", desc: "Villages named in official land-acquisition notices. Dot = village centre (approximate), not the acquired parcel.", ids: ["ix-acq", "ix-acq-ring"] },
+    rera: { label: "New real-estate projects (TN RERA)", desc: "Building projects registered with TNRERA 2024-2026, at the coordinates the builder filed. A cluster of new registrations is an early sign of demand.", ids: ["ix-rera"] },
+    inv: { label: "Big company investments", desc: "71 sourced factories, data centres and parks (Rs crore, jobs, status) in 5 southern states. Pin = park or town centre, not the exact plot.", ids: ["ix-inv", "ix-inv-ring"] },
     routes: { label: "Expressway routes (live)", desc: "Motorways under construction or proposed, loaded from OpenStreetMap for the area on screen (zoom in to 8+).", ids: ["ix-routes"] },
   };
   const on = {};
@@ -49,6 +51,15 @@
     map.addSource("ix-acq", { type: "geojson", data: acqFC() });
     map.addLayer({ id: "ix-acq-ring", type: "circle", source: "ix-acq", layout: none, paint: { "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 8, 3, 14, 140], "circle-color": "#ff6b6b", "circle-opacity": 0.06, "circle-stroke-color": "#ff6b6b", "circle-stroke-opacity": 0.35, "circle-stroke-width": 1 } });
     map.addLayer({ id: "ix-acq", type: "circle", source: "ix-acq", layout: none, paint: { "circle-radius": 5, "circle-color": ["case", ["==", ["get", "dropped"], 1], "#7f8aa3", "#ff6b6b"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.2 } });
+    const PV = window.BL_PRIVATE || { rera: [], inv: [] };
+    map.addSource("ix-rera", { type: "geojson", data: { type: "FeatureCollection", features: PV.rera.map((r, i) => ({ type: "Feature", properties: { i }, geometry: { type: "Point", coordinates: [r[0], r[1]] } })) } });
+    map.addLayer({ id: "ix-rera", type: "circle", source: "ix-rera", minzoom: 8, layout: none, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 2.5, 13, 6], "circle-color": "#ff9de2", "circle-stroke-color": "#0b1020", "circle-stroke-width": 1 } });
+    map.addSource("ix-inv", { type: "geojson", data: { type: "FeatureCollection", features: PV.inv.map((x, i) => ({ type: "Feature", properties: { i, cr: x.cr || 0, bad: /cancel|stall/i.test(x.s || "") ? 1 : 0 }, geometry: { type: "Point", coordinates: x.ll } })) } });
+    map.addLayer({ id: "ix-inv-ring", type: "circle", source: "ix-inv", layout: none, paint: { "circle-radius": ["interpolate", ["linear"], ["get", "cr"], 0, 8, 5000, 16, 30000, 26], "circle-color": "#ffd166", "circle-opacity": 0.12, "circle-stroke-color": "#ffd166", "circle-stroke-opacity": 0.5, "circle-stroke-width": 1 } });
+    map.addLayer({ id: "ix-inv", type: "circle", source: "ix-inv", layout: none, paint: { "circle-radius": 5, "circle-color": ["case", ["==", ["get", "bad"], 1], "#7f8aa3", "#ffd166"], "circle-stroke-color": "#0b1020", "circle-stroke-width": 1.5 } });
+    map.on("click", "ix-rera", (e) => { const r = PV.rera[e.features[0].properties.i]; BL.Infra.onPick && BL.Infra.onPick(`<b>${esc(r[2])}</b><div class="muted">${esc(r[3])}</div><div class="small">${esc(r[5])}${r[5] ? ", " : ""}${esc(r[4])} | ${esc(r[8])}</div><div class="small muted">RERA ${esc(r[6])}, registered ${esc(r[7])}${r[9] ? ", completion due " + esc(r[9]) : ""}. Location as filed by the builder (${esc(r[10])}).</div><a href="${esc(r[11])}" target="_blank" rel="noopener">TNRERA register</a>`, e.lngLat); });
+    map.on("click", "ix-inv", (e) => { const x = PV.inv[e.features[0].properties.i]; BL.Infra.onPick && BL.Infra.onPick(`<b>${esc(x.co)}</b><div>${esc(x.p)}</div><div class="small">${esc(x.loc || "")}, ${esc(x.d || "")}, ${esc(x.st || "")}</div><div class="small">${x.cr ? "Rs " + Number(x.cr).toLocaleString("en-IN") + " crore" : ""}${x.jobs ? " | " + Number(x.jobs).toLocaleString("en-IN") + " jobs" : ""} | <b>${esc(x.s || "")}</b> ${esc(x.sd || "")}</div><div class="small muted">Pin at ${esc(x.cb || "town centre")}, not the plot.</div>${(x.src || []).map((z) => `<a href="${esc(z.u)}" target="_blank" rel="noopener">${esc(z.p || "source")} ${esc(z.d || "")}</a>`).join(" | ")}`, e.lngLat); });
+    ["ix-rera", "ix-inv"].forEach((id) => { map.on("mouseenter", id, () => (map.getCanvas().style.cursor = "pointer")); map.on("mouseleave", id, () => (map.getCanvas().style.cursor = "")); });
     map.addSource("ix-routes", { type: "geojson", data: { type: "FeatureCollection", features: routeFeatures() } });
     map.addLayer({ id: "ix-routes", type: "line", source: "ix-routes", layout: { visibility: "none", "line-cap": "round" }, paint: { "line-color": ["match", ["get", "st"], "construction", "#ffb547", "proposed", "#b98cff", "#2ee6c5"], "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1.5, 12, 4], "line-dasharray": [2, 1.2] } });
     map.on("click", "ix-acq", (e) => { const i = e.features[0].properties.i; BL.Infra.onPick && BL.Infra.onPick(acqHtml(D.acq[i]), e.lngLat); });
@@ -100,11 +111,40 @@
     if (aq.length) { const a = aq[0].a, dropped = a.pid && P[a.pid] && P[a.pid].cancelled; out.push(row("Land-acquisition notice nearby", `${esc(a.v)} village centre is ${aq[0].d.toFixed(1)} km away: ${esc(a.p)}${a.dt ? ", notified " + esc(a.dt) : ""}${dropped ? " (project since dropped)" : ""}. Village centre is approximate; check the survey numbers in the <a href="${esc(a.u)}" target="_blank" rel="noopener">notice</a>.`, "r")); }
     else out.push(row("Land-acquisition notice nearby", `None of the ${D.acq.length} mapped notified villages is within 3 km. ${D.acqUnplaced.length} notified villages could not be placed on the map, so this is not a clearance.`, ""));
     out.push(row("Airport height rule", ap && ap.d <= 20 ? `${ap.d.toFixed(1)} km from ${esc(ap.n)} (${esc(ap.iata)}). Inside the 20 km zone, so a height NOC from AAI may be needed. Check the actual limit on <a href="https://nocas2.aai.aero/nocas/" target="_blank" rel="noopener">AAI NOCAS</a>.` : ap ? `Nearest operational airport ${esc(ap.n)} is ${ap.d.toFixed(0)} km away, outside the 20 km height-rule zone.` : "No airport data.", ap && ap.d <= 20 ? "r" : "s"));
+    const cd = coastKm(lat, lon);
+    if (cd != null && cd <= 3) out.push(row("Coastal zone (CRZ)", `About ${cd < 0.5 ? "under 0.5" : cd.toFixed(1)} km from the coastline (approximate map, 200-500 m error). Coastal Regulation Zone rules may restrict building up to 500 m from the high-tide line, and along tidal creeks. The legal map is per survey number: <a href="${lat < 13.6 && lat > 8 && lon > 76.2 ? "https://tnsczma.tn.gov.in/approvedczmpmaps.php" : "https://czmp.ncscm.res.in/"}" target="_blank" rel="noopener">official CZMP maps</a>.`, "r"));
+    const pr = premiumFor(lat, lon); if (pr) out.push(row("What past projects did at this distance", pr, ""));
     out.push(row("Water history", on.water ? `Water history is on: blue shading at this spot means satellites saw surface water here at some point since 1984 (darker = more often). No shading means no water was seen at 30 m resolution; small tanks can still be missed. Confirm with the revenue record (A-register / adangal).` : `Turn on <a href="#" data-ix="water">Water history</a> to see whether this spot has held water at any time since 1984 (satellite record). A filled-in tank or lake bed is a legal and flood risk; confirm with the revenue record (A-register / adangal).`, ""));
     return `<h3>Site checks</h3><div class="card" style="padding:4px 12px">${out.join("")}<div class="muted" style="font-size:11px;padding:6px 0">Checks use public data only and are not legal clearance. Coastal (CRZ) and master-plan zoning are not shown because the official maps exist only as PDFs.</div></div>`;
   }
   function acqHtml(a) { return `<b>${esc(a.v)}</b> <span class="muted">${esc(a.tk || "")}${a.tk ? ", " : ""}${esc(a.d || "")}, ${esc(a.s)}</span><div style="margin-top:4px">${esc(a.p)}</div><div class="muted" style="font-size:12px">${esc(a.nt || "Notice")}${a.dt ? ", " + esc(a.dt) : ""}${a.au ? " - " + esc(a.au) : ""}${a.sv ? "<br>Survey nos: " + esc(Array.isArray(a.sv) ? a.sv.join(", ") : a.sv) : ""}${a.c ? "<br>" + esc(a.c) : ""}<br>Dot = village centre from ${esc(a.geo || "OpenStreetMap")}, approximate.</div>${a.u ? `<a href="${esc(a.u)}" target="_blank" rel="noopener">Open the notice</a>` : ""}`; }
 
+
+  /* ---------- Coast distance (Natural Earth 10m; prompt only) ---------- */
+  function coastKm(lat, lon) {
+    const L = window.BL_COAST; if (!L) return null; let b = Infinity;
+    for (const ln of L) for (let i = 1; i < ln.length; i++) {
+      const a = ln[i - 1], c = ln[i]; if (Math.abs(a[1] - lat) > 0.3 && Math.abs(c[1] - lat) > 0.3) continue; if (Math.abs(a[0] - lon) > 0.3 && Math.abs(c[0] - lon) > 0.3) continue;
+      const kx = 111.32 * Math.cos((lat * Math.PI) / 180), ky = 110.57, ax = (a[0] - lon) * kx, ay = (a[1] - lat) * ky, cx = (c[0] - lon) * kx, cy = (c[1] - lat) * ky;
+      const dx = cx - ax, dy = cy - ay, t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy || 1)));
+      b = Math.min(b, Math.hypot(ax + t * dx, ay + t * dy));
+    }
+    return b === Infinity ? null : b;
+  }
+  /* ---------- Historical premium by project type and distance band (Track record cases) ---------- */
+  const kindOf = (name) => /airport|KIA|aerodrome/i.test(name) ? "airport" : /metro/i.test(name) ? "metro" : /ORR|ring road|expressway|highway|NH/i.test(name) ? "road" : "other";
+  function premiumTable() {
+    const B = (window.BL_BACKTEST || { rows: [] }).rows, T = {};
+    B.forEach((r) => { const k = kindOf(r.project) + "|" + band(r.dist); (T[k] = T[k] || []).push(r); });
+    return T;
+  }
+  function premiumFor(lat, lon) {
+    const ex = nearestExit(lat, lon), ap = nearestAirport(lat, lon), T = premiumTable(), parts = [];
+    const say = (kind, d, label) => { const rows = T[kind + "|" + band(d)] || []; if (rows.length >= 5) { const v = rows.map((r) => r.obs).sort((a, b) => a - b), med = v[Math.floor(v.length / 2)]; parts.push(`${label} ${band(d)}: past cases rose a median ${med.toFixed(2)}x more than their city (n=${rows.length}).`); } else parts.push(`${label} ${band(d)}: not enough history yet (${rows.length} case${rows.length === 1 ? "" : "s"}), so no premium is claimed.`); };
+    if (ex && ex.d <= 10) say("road", ex.d, "Road corridor,");
+    if (ap && ap.d <= 10) say("airport", ap.d, "Airport,");
+    return parts.length ? parts.join("<br>") + ` <span class="muted">Source: Track record panel.</span>` : "";
+  }
   /* ---------- Track record panel ---------- */
   function trackPanel() {
     const B = window.BL_BACKTEST || { rows: [] };
@@ -117,5 +157,5 @@
   function unplacedHtml() { return D.acqUnplaced.length ? `<details style="margin-top:8px"><summary class="muted">${D.acqUnplaced.length} notified villages not on the map (name not found)</summary><div class="muted" style="font-size:12px">${D.acqUnplaced.map((a) => `${esc(a.v)} (${esc(a.p.split("(")[0].trim())})${a.u ? ` <a href="${esc(a.u)}" target="_blank" rel="noopener">notice</a>` : ""}`).join("; ")}</div></details>` : ""; }
   function menuHtml() { return Object.entries(LAYERS).map(([k, L]) => `<label class="ix-item"><input type="checkbox" data-ix-toggle="${k}" ${on[k] ? "checked" : ""}><span><b>${L.label}</b><small>${L.desc}</small></span></label>`).join("") + `<div class="ix-status muted">${esc(BL.Infra_routeStatus)}</div>${unplacedHtml()}`; }
 
-  BL.Infra = { data: D, addLayers, setLayer, checks, trackPanel, menuHtml, nearestExit, nearestAirport, nearAcq, band, isOn: (k) => !!on[k], LAYERS, onPick: null, onStatus: null };
+  BL.Infra = { coastKm, premiumFor, data: D, addLayers, setLayer, checks, trackPanel, menuHtml, nearestExit, nearestAirport, nearAcq, band, isOn: (k) => !!on[k], LAYERS, onPick: null, onStatus: null };
 })();

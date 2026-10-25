@@ -162,12 +162,12 @@
       if (c.path) coords = c.path;
       else if (c.ring) coords = E.circleRing(c.ring.lon, c.ring.lat, c.ring.rdeg * 111, 96);
       if (!coords) continue;
-      fs.push({ type: "Feature", properties: { id: c.id, color: T.color, rkm: T.r, op: c.stage >= 4 ? 1 : 0, user: c.user ? 1 : 0 }, geometry: { type: "LineString", coordinates: coords } });
+      fs.push({ type: "Feature", properties: { id: c.id, t: c.t, color: T.color, rkm: T.r, op: c.stage >= 4 ? 1 : 0, user: c.user ? 1 : 0 }, geometry: { type: "LineString", coordinates: coords } });
     }
     return { type: "FeatureCollection", features: fs };
   }
   function catPtFC() {
-    return { type: "FeatureCollection", features: allCats().filter((c) => c.pt).map((c) => ({ type: "Feature", properties: { id: c.id, color: BL.TYPES[c.t].color, rkm: BL.TYPES[c.t].r }, geometry: { type: "Point", coordinates: c.pt } })) };
+    return { type: "FeatureCollection", features: allCats().filter((c) => c.pt).map((c) => ({ type: "Feature", properties: { id: c.id, t: c.t, color: BL.TYPES[c.t].color, rkm: BL.TYPES[c.t].r }, geometry: { type: "Point", coordinates: c.pt } })) };
   }
   function heatFC() {
     const pts = E.hotspotGrid(allCats(), models, { scenario: S.scenario });
@@ -384,10 +384,14 @@
     for (const c of allCats()) {
       const mk = markers.get(c.id); if (!mk) continue;
       if (!S.proj && !c.user) { mk.getElement().style.display = "none"; continue; }
-      const okT = S.catFilter === "all" || S.catFilter === c.t;
+      const okT = S.catFilter === "all" || S.catFilter === c.t || (S.catFilter === "roads" && (c.t === "expressway" || c.t === "ring"));
       const okS = S.catStage === "all" || String(c.stage) === S.catStage;
       mk.getElement().style.display = okT && okS ? "" : "none";
     }
+  }
+  function applyTypeFilter() { // Projects chip picker + Catalyst tracker share S.catFilter; lines and rings follow it too
+    const tf = S.catFilter === "all" ? null : S.catFilter === "roads" ? ["in", ["get", "t"], ["literal", ["expressway", "ring"]]] : ["==", ["get", "t"], S.catFilter];
+    [["cat-glow", null], ["cat-case", null], ["cat-line-op", ["==", ["get", "op"], 1]], ["cat-line-uc", ["==", ["get", "op"], 0]], ["cat-infl", null]].forEach(([id, base]) => { if (!map.getLayer(id)) return; const f = [base, tf].filter(Boolean); map.setFilter(id, f.length ? (f.length === 1 ? f[0] : ["all", ...f]) : null); });
   }
   function refreshCatalystSources() {
     if (!map.getSource("catLines")) return;
@@ -456,6 +460,7 @@
       <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">${c.cancelled ? "" : `<span class="tag">${esc(BL.STAGES[c.stage])}</span>`}${c.cancelled ? `<span class="tag down">Cancelled${c.scrapYear ? " " + c.scrapYear : ""}</span>` : `<span class="tag">${Math.round(E.completionP(c, S.scenario) * 100)}% likely by ${E.effEta(c, S.scenario)}</span>`}${c.delays ? `<span class="tag warn">Delayed ${c.delays}x</span>` : ""}<span class="tag">as of ${esc(c.asof || BL.DATA_ASOF)}</span></div>
       <div class="acts"><button class="icon-btn" data-act="clear-focus" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div></div>
       <div class="d-body">${catPopupHTML(c)}
+      ${(() => { const U = ((window.BL_UPDATES || {}).items || []).filter((u) => u.pid === c.id).slice(0, 6); return U.length ? `<h3>Latest leads from the weekly re-check</h3><div class="card small" style="padding:6px 12px">${U.map((u) => `<div style="padding:3px 0"><span class="muted">${esc(u.date || u.found)}</span> <a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a> ${(u.tags || []).map((t) => `<span class="tag" style="padding:0 5px">${esc(t)}</span>`).join("")}</div>`).join("")}<div class="muted" style="margin-top:4px">Automatic news matches, not yet confirmed. Project status only changes after a source is checked. Last run ${esc((window.BL_UPDATES || {}).gen || "")}.</div></div>` : ""; })()}
       <h3>Districts it moves most (next ${S.horizon} yrs)</h3>${hit.length ? hit.map((h, i) => listItem(h.m, i, `<span class="pill ${h.up < 0 ? "r" : ""}">${pct(h.up)}</span>`)).join("") : '<div class="empty">Effect too small at district level. Zoom in on the corridor.</div>'}
       ${pts.length ? `<h3>Verified prices inside its reach</h3>${pts.map((x) => `<div class="list-item" data-act="verified" data-i="${x.i}"><div class="grow"><b>${esc(x.p.loc)}</b> <span class="small muted">${x.d.toFixed(1)} km</span></div><span class="pill s">${x.p.txn_sqyd ? fmtINR(x.p.txn_sqyd / 9) + "/sq ft" : "govt " + fmtINR((x.p.govt_sqyd || x.p.govt_sqyd_agri) / 9)}</span></div>`).join("")}` : ""}
       <p class="small muted" style="margin-top:10px">The highlighted band on the map is the project's modelled reach (about ${Math.round(T.r * 1.5)} km).</p></div>`;
@@ -758,6 +763,31 @@
     map.setLayoutProperty("farm", "visibility", S.farm ? "visible" : "none");
     if (S.farm) toast("Farm land Rs lakh/acre by Tamil Nadu village: official farm rate x fitted district multiple. White ring = high confidence, grey = medium, dark = low (state median). Click a dot for the method.");
   });
+  $("#projType").addEventListener("change", (e) => {
+    S.catFilter = e.target.value; if (!S.proj) $("#btnProj").click();
+    setMarkerVisibility(); applyTypeFilter(); if (S.tool === "catalysts") refreshPanel();
+    const n = allCats().filter((c) => S.catFilter === "all" || c.t === S.catFilter || (S.catFilter === "roads" && (c.t === "expressway" || c.t === "ring"))).length;
+    toast(S.catFilter === "all" ? "Showing all project types." : `Showing only ${e.target.selectedOptions[0].text.toLowerCase()} (${n}).`);
+  });
+  // Focus mode: one district (or state) at a time; everything outside is dimmed and lists follow it.
+  function setFocus(f) {
+    S.focus = f || null;
+    const bar = $("#focusBar");
+    if (!map.getLayer("focus-mask")) map.addLayer({ id: "focus-mask", type: "fill", source: "districts", paint: { "fill-color": "#04060d", "fill-opacity": 0.72 } }, map.getLayer("cat-glow") ? "cat-glow" : undefined);
+    if (!f) { map.setLayoutProperty("focus-mask", "visibility", "none"); bar.classList.add("hidden"); S.scr.state = ""; if (S.tool) refreshPanel(); return; }
+    const inF = f.kind === "district" ? ["==", ["get", "id"], f.id] : ["==", ["get", "state"], f.state];
+    map.setFilter("focus-mask", ["!", inF]); map.setLayoutProperty("focus-mask", "visibility", "visible");
+    const b = new maplibregl.LngLatBounds();
+    const fm = models.filter((m) => f.kind === "district" ? m.id === f.id : m.state === f.state);
+    (GEO.features || []).filter((g) => fm.some((m) => m.id === g.properties.id)).forEach((g) => { const walk = (c) => typeof c[0] === "number" ? b.extend(c) : c.forEach(walk); walk(g.geometry.coordinates); });
+    if (!b.isEmpty()) map.fitBounds(b, { padding: 80, duration: 1200 });
+    S.scr.state = fm.length ? fm[0].state : "";
+    $("#focusText").textContent = "Focused: " + f.label; bar.classList.remove("hidden");
+    toast(`Focused on ${f.label}. Outside is dimmed; Screener and Shortlist follow it. Click x on the bar to leave.`);
+    if (S.tool) refreshPanel();
+  }
+  BL.setFocus = setFocus;
+  $("#focusClose").addEventListener("click", () => setFocus(null));
   $("#btnHideAll").addEventListener("click", () => {
     ["btnProj", "btnReal", "btnFarm", "btnHeat", "btnTint", "btnLabels", "btn3d"].forEach((id) => { const b = $("#" + id); if (b && b.classList.contains("on")) b.click(); });
     if (BL.Infra) Object.keys(BL.Infra.LAYERS).forEach((k) => { if (BL.Infra.isOn(k)) BL.Infra.setLayer(map, k, false); });
@@ -948,7 +978,7 @@
         </div>
         <div class="acts">
           <button class="icon-btn ${starred ? "on" : ""}" data-act="star" data-id="${m.id}" title="${starred ? "Remove from" : "Add to"} watchlist"><svg viewBox="0 0 24 24" width="17" height="17"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" fill="${starred ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
-          <button class="icon-btn ${cmp ? "on" : ""}" data-act="cmp" data-id="${m.id}" title="Compare"><svg viewBox="0 0 24 24" width="17" height="17"><path d="M4 6h7v13H4zM13 10h7v9h-7z" fill="${cmp ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+          <button class="btn sm" data-act="focus-d" data-id="${m.id}" title="Focus the map on this district">Focus</button><button class="icon-btn ${cmp ? "on" : ""}" data-act="cmp" data-id="${m.id}" title="Compare"><svg viewBox="0 0 24 24" width="17" height="17"><path d="M4 6h7v13H4zM13 10h7v9h-7z" fill="${cmp ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
           <button class="icon-btn" data-act="report" data-id="${m.id}" title="Download report"><svg viewBox="0 0 24 24" width="17" height="17"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <button class="icon-btn" data-act="close-detail" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
@@ -1252,7 +1282,7 @@
   $("#panelBody").addEventListener("change", (e) => {
     const t = e.target;
     if (t.id === "cmpAdd") { const v = t.value.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase(); const st = (/\(([^)]*)\)\s*$/.exec(t.value) || [])[1]; const m = models.find((x) => x.name.toLowerCase() === v && (!st || x.state === st)); if (m && !S.compare.includes(m.id) && S.compare.length < 3) { toggleList("compare", m.id); toast("Added " + m.name + " to compare"); refreshPanel(); } else if (!m) toast("No district called " + t.value); }
-    else if (t.id === "catType") { S.catFilter = t.value; setMarkerVisibility(); refreshPanel(); }
+    else if (t.id === "catType") { S.catFilter = t.value; setMarkerVisibility(); applyTypeFilter(); const pt = $("#projType"); if (pt) pt.value = [...pt.options].some((o) => o.value === S.catFilter) ? S.catFilter : "all"; refreshPanel(); }
     else if (t.id === "catStage") { S.catStage = t.value; setMarkerVisibility(); refreshPanel(); }
     else if (t.id === "inView") { S.inView = t.checked; refreshPanel(); }
     else if (t.id === "zones") {
@@ -1286,6 +1316,8 @@
       case "fly-cat": focusCatalyst(id); break;
       case "fly-pt": map.flyTo({ center: [+a.dataset.lon, +a.dataset.lat], zoom: 12, duration: 1000 }); new maplibregl.Popup({ offset: 8 }).setLngLat([+a.dataset.lon, +a.dataset.lat]).setHTML(`<b>Grid cell</b><div class="small muted">${(+a.dataset.lat).toFixed(4)}, ${(+a.dataset.lon).toFixed(4)}</div>`).addTo(map); break;
       case "star": toggleList("watch", num); toast(S.watch.includes(num) ? "Added to watchlist" : "Removed from watchlist"); break;
+      case "focus-d": { const m = byId.get(num); if (m) setFocus({ kind: "district", id: m.id, state: m.state, label: m.name + ", " + m.state }); break; }
+      case "focus-s": { const m = byId.get(num); if (m) setFocus({ kind: "state", state: m.state, label: m.state }); break; }
       case "cmp":
         if (!S.compare.includes(num) && S.compare.length >= 3) { toast("You can compare up to three districts"); break; }
         toggleList("compare", num); if (S.compare.includes(num)) toast("Added to compare"); break;

@@ -36,11 +36,12 @@
       </label>
       <div class="chip-group" data-g="Base map"><button id="btnSat" class="chip" title="Satellite imagery">Satellite</button><button id="btnLabels" class="chip" title="Place names and town dots on the map">Labels</button><button id="btn3d" class="chip" title="3D price terrain">3D</button></div>
       <div class="chip-group" data-g="Analysis"><button id="btnTint" class="chip on" title="Colour the map by the selected lens (price, growth, opportunity, risk...)">Colours</button><button id="btnHeat" class="chip" title="Pipeline hotspots heat layer">Hotspots</button></div>
-      <div class="chip-group" data-g="Evidence"><button id="btnProj" class="chip" title="Show infrastructure projects">Projects</button><button id="btnReal" class="chip" title="Verified real prices and govt rates">Real data</button><button id="btnFarm" class="chip" title="Farm land value by village (Tamil Nadu)">Farm land</button><span class="ix-wrap"><button id="btnInfra" class="chip" title="Airport boundaries, expressway exits, notified villages, water history, routes" aria-expanded="false">Infra layers</button><div id="infraMenu" class="ix-menu hidden" role="menu"></div></span></div>
+      <div class="chip-group" data-g="Evidence"><button id="btnProj" class="chip" title="Show infrastructure projects">Projects</button><select id="projType" class="chip-sel" title="Which project types to show"><option value="all">All types</option><option value="roads">Expressways and ring roads</option><option value="airport">Airports</option><option value="metro">Metro</option><option value="industrial">Industrial</option><option value="port">Ports</option><option value="city">New cities</option><option value="freight">Freight corridors</option></select><button id="btnReal" class="chip" title="Verified real prices and govt rates">Real data</button><button id="btnFarm" class="chip" title="Farm land value by village (Tamil Nadu)">Farm land</button><span class="ix-wrap"><button id="btnInfra" class="chip" title="Airport boundaries, expressway exits, notified villages, water history, routes" aria-expanded="false">Infra layers</button><div id="infraMenu" class="ix-menu hidden" role="menu"></div></span></div>
       <button id="btnHideAll" class="chip ghost" title="Turn off every overlay and keep only the base map">Hide all</button>
     </div>
   </header>
 
+  <div id="focusBar" class="focus-bar glass hidden"><span id="focusText">Focused</span><button id="focusClose" class="icon-btn" title="Leave focus mode" aria-label="Leave focus mode">x</button></div>
   <nav class="rail glass" id="rail" aria-label="Tools"></nav>
 
   <aside id="panel" class="panel glass hidden" aria-live="polite">
@@ -107,6 +108,9 @@
   <script src="data/landtype.js"></script>
   <script src="data/backtest.js"></script>
   <script src="data/infra.js"></script>
+  <script src="data/coast.js"></script>
+  <script src="data/updates.js"></script>
+  <script src="data/private.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/insights.js"></script>

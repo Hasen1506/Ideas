@@ -160,6 +160,8 @@
         <div class="small">Estimate ${fmtINR(Math.round(s.price))} -> ${now ? fmtINR(Math.round(now.basePrice)) : "?"}/sq ft (<span class="${chg < 0 ? "down" : "up"}">${(chg * 100).toFixed(1)}%</span>)</div>
         ${diffs.length ? `<div style="margin-top:4px"><b class="small">Changes since saved</b>${diffs.join("")}</div>` : '<div class="small muted">No project status changes since saved.</div>'}
         ${rec.length ? `<div style="margin-top:4px"><b class="small">Recent delay/cancellation news within 60 km</b>${rec.join("")}</div>` : ""}
+        ${(() => { const U = ((window.BL_UPDATES || {}).items || []).filter((u) => (u.found || "") >= (s.saved || "") || (u.date || "") >= (s.saved || "")).map((u) => ({ u, c: byId.get(u.pid) })).filter((x) => x.c && BL.Engine.distToCatalyst(x.c, s.lat, s.lon) < 60).slice(0, 5);
+          return U.length ? `<div style="margin-top:4px"><b class="small">Weekly re-check: new leads within 60 km since you saved</b>${U.map(({ u, c }) => `<div class="small"><span class="muted">${esc(u.date || u.found)}</span> ${esc(c.n)}: <a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title.slice(0, 110))}</a> <span class="muted">(unconfirmed)</span></div>`).join("")}</div>` : ""; })()}
         <button class="btn sm" style="margin-top:6px" data-act="open-loc" data-lon="${s.lon}" data-lat="${s.lat}">Open spot</button></div>`;
     }).join("");
   }
