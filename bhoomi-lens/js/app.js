@@ -329,8 +329,10 @@
     map.setPaintProperty("d-fill", "fill-color", ramp(S.layer));
     map.setPaintProperty("d-ext", "fill-extrusion-color", ramp(S.layer));
     const base = S.sat ? 0.42 : 0.74;
-    const fade = GRID_LENSES.includes(S.layer) ? ["interpolate", ["linear"], ["zoom"], 7.2, base, 8.2, 0.06] : base;
-    map.setPaintProperty("d-fill", "fill-opacity", ["case", ["boolean", ["feature-state", "hover"], false], 0.94, fade]);
+    const hov = (on, off) => ["case", ["boolean", ["feature-state", "hover"], false], on, off];
+    // Hover highlight fades with zoom too, so the street-level map never gets a solid colour wash.
+    const op = GRID_LENSES.includes(S.layer) ? ["interpolate", ["linear"], ["zoom"], 7.2, hov(0.94, base), 8.2, hov(0.12, 0.06), 12, hov(0.04, 0.03), 16, 0] : hov(0.94, base);
+    map.setPaintProperty("d-fill", "fill-opacity", op);
     if (map.getLayer("grid-fill")) map.setPaintProperty("grid-fill", "fill-color", gridRamp(GRID_LENSES.includes(S.layer) ? S.layer : "price"));
     scheduleGrid();
     renderLegend();
