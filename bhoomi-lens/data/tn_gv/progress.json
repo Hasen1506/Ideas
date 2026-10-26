@@ -6,7 +6,7 @@
   "Ariyalur": {
    "2002": "0/10 sro, 0/0 vil, 0 rows",
    "2003": "0/10 sro, 0/0 vil, 0 rows",
-   "2007": "0/10 sro, 0/0 vil, 0 rows",
+   "2007": "10/10 sro, 198/198 vil, 205 rows",
    "2012": "10/10 sro, 197/197 vil, 228 rows",
    "2017": "10/10 sro, 202/202 vil, 300 rows",
    "2023": "10/10 sro, 201/201 vil, 323 rows",
@@ -36,7 +36,7 @@
   "Coimbatore": {
    "2002": "0/20 sro, 0/0 vil, 0 rows",
    "2003": "0/20 sro, 0/0 vil, 0 rows",
-   "2007": "0/20 sro, 0/0 vil, 0 rows",
+   "2007": "8/20 sro, 115/324 vil, 4679 rows",
    "2012": "20/20 sro, 322/322 vil, 11302 rows",
    "2017": "20/20 sro, 324/324 vil, 12126 rows",
    "2023": "20/20 sro, 331/331 vil, 13746 rows",
@@ -367,7 +367,7 @@
    "2002": "0/20 sro, 0/0 vil, 0 rows",
    "2003": "0/20 sro, 0/0 vil, 0 rows",
    "2007": "0/20 sro, 0/0 vil, 0 rows",
-   "2012": "1/20 sro, 114/905 vil, 1878 rows",
+   "2012": "20/20 sro, 905/905 vil, 14139 rows",
    "2017": "20/20 sro, 927/927 vil, 14460 rows",
    "2023": "20/20 sro, 927/927 vil, 14713 rows",
    "2024": "20/20 sro, 927/927 vil, 15574 rows",
@@ -420,21 +420,21 @@
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 1304,
+   "rows": 6188,
    "sros": 595,
-   "sros_done": 1,
-   "villages": 14,
-   "villages_done": 14,
+   "sros_done": 19,
+   "villages": 536,
+   "villages_done": 327,
    "villages_failed_attempts": 0
   },
   "2012": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 39205,
+   "rows": 51466,
    "sros": 595,
-   "sros_done": 170,
+   "sros_done": 189,
    "villages": 5969,
-   "villages_done": 5178,
+   "villages_done": 5969,
    "villages_failed_attempts": 0
   },
   "2017": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T09:57:58Z"
+ "updated": "2026-10-26T09:58:15Z"
 }
