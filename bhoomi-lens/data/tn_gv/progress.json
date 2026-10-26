@@ -364,7 +364,7 @@
    "sros": 8
   },
   "Viluppuram": {
-   "2002": "4/20 sro, 305/884 vil, 763 rows",
+   "2002": "20/20 sro, 884/884 vil, 2155 rows",
    "2003": "20/20 sro, 875/875 vil, 5144 rows",
    "2007": "20/20 sro, 905/905 vil, 8132 rows",
    "2012": "20/20 sro, 905/905 vil, 14139 rows",
@@ -400,11 +400,11 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 23753,
+   "rows": 25145,
    "sros": 595,
-   "sros_done": 173,
+   "sros_done": 189,
    "villages": 5838,
-   "villages_done": 5259,
+   "villages_done": 5838,
    "villages_failed_attempts": 0
   },
   "2003": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T16:32:47Z"
+ "updated": "2026-10-26T16:37:38Z"
 }
