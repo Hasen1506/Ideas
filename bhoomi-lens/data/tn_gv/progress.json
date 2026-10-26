@@ -246,7 +246,7 @@
   "Tenkasi": {
    "2002": "0/18 sro, 0/0 vil, 0 rows",
    "2003": "0/18 sro, 0/0 vil, 0 rows",
-   "2007": "0/18 sro, 44/256 vil, 0 rows",
+   "2007": "18/18 sro, 256/256 vil, 2855 rows",
    "2012": "18/18 sro, 231/231 vil, 2768 rows",
    "2017": "18/18 sro, 237/237 vil, 2848 rows",
    "2023": "18/18 sro, 237/237 vil, 2828 rows",
@@ -276,7 +276,7 @@
   "Thoothukkudi": {
    "2002": "0/24 sro, 0/0 vil, 0 rows",
    "2003": "0/24 sro, 0/0 vil, 0 rows",
-   "2007": "0/24 sro, 0/0 vil, 0 rows",
+   "2007": "24/24 sro, 517/517 vil, 1226 rows",
    "2012": "24/24 sro, 514/514 vil, 2262 rows",
    "2017": "24/24 sro, 524/524 vil, 2312 rows",
    "2023": "24/24 sro, 524/524 vil, 2372 rows",
@@ -306,7 +306,7 @@
   "Tirupathur": {
    "2002": "0/6 sro, 0/0 vil, 0 rows",
    "2003": "0/6 sro, 0/0 vil, 0 rows",
-   "2007": "0/6 sro, 0/0 vil, 0 rows",
+   "2007": "6/6 sro, 136/136 vil, 1336 rows",
    "2012": "6/6 sro, 398/398 vil, 1349 rows",
    "2017": "6/6 sro, 468/468 vil, 1676 rows",
    "2023": "6/6 sro, 484/484 vil, 1679 rows",
@@ -336,7 +336,7 @@
   "Tiruvannamalai": {
    "2002": "0/23 sro, 0/0 vil, 0 rows",
    "2003": "0/23 sro, 0/0 vil, 0 rows",
-   "2007": "0/23 sro, 0/0 vil, 0 rows",
+   "2007": "2/23 sro, 285/1056 vil, 273 rows",
    "2012": "23/23 sro, 1056/1056 vil, 2025 rows",
    "2017": "23/23 sro, 1122/1122 vil, 2432 rows",
    "2023": "23/23 sro, 1122/1122 vil, 2558 rows",
@@ -420,11 +420,11 @@
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 25411,
+   "rows": 31101,
    "sros": 595,
-   "sros_done": 98,
-   "villages": 3042,
-   "villages_done": 2830,
+   "sros_done": 148,
+   "villages": 4751,
+   "villages_done": 3980,
    "villages_failed_attempts": 0
   },
   "2012": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T10:49:14Z"
+ "updated": "2026-10-26T11:14:00Z"
 }
