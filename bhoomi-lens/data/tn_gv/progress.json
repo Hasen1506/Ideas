@@ -9,7 +9,7 @@
    "2007": "0/10 sro, 0/0 vil, 0 rows",
    "2012": "0/10 sro, 0/0 vil, 0 rows",
    "2017": "0/10 sro, 0/0 vil, 0 rows",
-   "2023": "0/10 sro, 0/0 vil, 0 rows",
+   "2023": "10/10 sro, 201/201 vil, 323 rows",
    "2024": "10/10 sro, 194/194 vil, 394 rows",
    "sros": 10
   },
@@ -39,7 +39,7 @@
    "2007": "0/20 sro, 0/0 vil, 0 rows",
    "2012": "0/20 sro, 0/0 vil, 0 rows",
    "2017": "0/20 sro, 0/0 vil, 0 rows",
-   "2023": "0/20 sro, 0/0 vil, 0 rows",
+   "2023": "5/20 sro, 89/331 vil, 4514 rows",
    "2024": "20/20 sro, 331/331 vil, 14724 rows",
    "sros": 20
   },
@@ -250,7 +250,7 @@
    "2012": "0/18 sro, 0/0 vil, 0 rows",
    "2017": "0/18 sro, 0/0 vil, 0 rows",
    "2023": "0/18 sro, 0/0 vil, 0 rows",
-   "2024": "11/18 sro, 200/237 vil, 2290 rows",
+   "2024": "18/18 sro, 237/237 vil, 3013 rows",
    "sros": 18
   },
   "Thanjavur": {
@@ -280,7 +280,7 @@
    "2012": "0/24 sro, 0/0 vil, 0 rows",
    "2017": "0/24 sro, 0/0 vil, 0 rows",
    "2023": "0/24 sro, 0/0 vil, 0 rows",
-   "2024": "0/24 sro, 65/518 vil, 67 rows",
+   "2024": "24/24 sro, 518/518 vil, 2397 rows",
    "sros": 24
   },
   "Tiruchirappalli": {
@@ -450,23 +450,23 @@
   "2023": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 1919,
+   "rows": 6756,
    "sros": 595,
-   "sros_done": 1,
-   "villages": 14,
-   "villages_done": 14,
+   "sros_done": 16,
+   "villages": 546,
+   "villages_done": 304,
    "villages_failed_attempts": 0
   },
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 214176,
+   "rows": 217229,
    "sros": 595,
-   "sros_done": 419,
+   "sros_done": 450,
    "villages": 15324,
-   "villages_done": 14326,
+   "villages_done": 14816,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:42:41Z"
+ "updated": "2026-10-26T03:42:46Z"
 }
