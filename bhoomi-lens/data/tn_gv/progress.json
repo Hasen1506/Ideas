@@ -1,6 +1,6 @@
 {
  "all_done": false,
- "current_revision": "2017",
+ "current_revision": "2012",
  "discovery_complete": true,
  "districts": {
   "Ariyalur": {
@@ -17,7 +17,7 @@
    "2002": "1/15 sro, 22/22 vil, 1163 rows",
    "2003": "1/15 sro, 17/17 vil, 1427 rows",
    "2007": "1/15 sro, 14/14 vil, 1304 rows",
-   "2012": "1/15 sro, 13/13 vil, 1882 rows",
+   "2012": "4/15 sro, 16/667 vil, 1902 rows",
    "2017": "15/15 sro, 789/789 vil, 16993 rows",
    "2023": "15/15 sro, 712/712 vil, 17970 rows",
    "2024": "15/15 sro, 703/703 vil, 19071 rows",
@@ -378,7 +378,7 @@
    "2003": "0/17 sro, 0/0 vil, 0 rows",
    "2007": "0/17 sro, 0/0 vil, 0 rows",
    "2012": "0/17 sro, 0/0 vil, 0 rows",
-   "2017": "13/17 sro, 479/621 vil, 2296 rows",
+   "2017": "17/17 sro, 621/621 vil, 2489 rows",
    "2023": "17/17 sro, 618/618 vil, 2749 rows",
    "2024": "17/17 sro, 619/619 vil, 3001 rows",
    "sros": 17
@@ -430,21 +430,21 @@
   "2012": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 134201,
+   "rows": 134221,
    "sros": 595,
-   "sros_done": 349,
-   "villages": 10488,
-   "villages_done": 10488,
+   "sros_done": 352,
+   "villages": 11142,
+   "villages_done": 10491,
    "villages_failed_attempts": 0
   },
   "2017": {
-   "complete": false,
+   "complete": true,
    "items_mismatch": 0,
-   "rows": 233185,
+   "rows": 233378,
    "sros": 595,
-   "sros_done": 591,
+   "sros_done": 595,
    "villages": 20397,
-   "villages_done": 20255,
+   "villages_done": 20397,
    "villages_failed_attempts": 0
   },
   "2023": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T18:12:51Z"
+ "updated": "2026-10-26T18:38:22Z"
 }
