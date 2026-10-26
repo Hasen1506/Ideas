@@ -96,7 +96,7 @@
   "Kancheepuram": {
    "2002": "0/11 sro, 0/0 vil, 0 rows",
    "2003": "0/11 sro, 0/0 vil, 0 rows",
-   "2007": "9/11 sro, 550/590 vil, 3617 rows",
+   "2007": "11/11 sro, 590/590 vil, 3941 rows",
    "2012": "11/11 sro, 524/524 vil, 7710 rows",
    "2017": "11/11 sro, 575/575 vil, 8733 rows",
    "2023": "11/11 sro, 557/557 vil, 9063 rows",
@@ -126,7 +126,7 @@
   "Krishnagiri": {
    "2002": "0/14 sro, 0/0 vil, 0 rows",
    "2003": "0/14 sro, 0/0 vil, 0 rows",
-   "2007": "0/14 sro, 0/0 vil, 0 rows",
+   "2007": "14/14 sro, 653/653 vil, 1325 rows",
    "2012": "14/14 sro, 653/653 vil, 756 rows",
    "2017": "14/14 sro, 680/680 vil, 849 rows",
    "2023": "14/14 sro, 680/680 vil, 1170 rows",
@@ -156,7 +156,7 @@
   "Nagapattinam": {
    "2002": "0/6 sro, 0/0 vil, 0 rows",
    "2003": "0/6 sro, 0/0 vil, 0 rows",
-   "2007": "0/6 sro, 0/0 vil, 0 rows",
+   "2007": "6/6 sro, 211/211 vil, 944 rows",
    "2012": "6/6 sro, 203/203 vil, 1278 rows",
    "2017": "6/6 sro, 264/264 vil, 1992 rows",
    "2023": "6/6 sro, 264/264 vil, 2019 rows",
@@ -186,7 +186,7 @@
   "Perambalur": {
    "2002": "0/6 sro, 0/0 vil, 0 rows",
    "2003": "0/6 sro, 0/0 vil, 0 rows",
-   "2007": "0/6 sro, 0/0 vil, 0 rows",
+   "2007": "6/6 sro, 146/146 vil, 127 rows",
    "2012": "6/6 sro, 147/147 vil, 277 rows",
    "2017": "6/6 sro, 154/154 vil, 297 rows",
    "2023": "6/6 sro, 153/153 vil, 333 rows",
@@ -216,7 +216,7 @@
   "Ranipet": {
    "2002": "0/8 sro, 0/0 vil, 0 rows",
    "2003": "0/8 sro, 0/0 vil, 0 rows",
-   "2007": "0/8 sro, 0/0 vil, 0 rows",
+   "2007": "8/8 sro, 277/277 vil, 1131 rows",
    "2012": "8/8 sro, 430/430 vil, 1238 rows",
    "2017": "8/8 sro, 464/464 vil, 1825 rows",
    "2023": "8/8 sro, 465/465 vil, 1830 rows",
@@ -246,7 +246,7 @@
   "Tenkasi": {
    "2002": "0/18 sro, 0/0 vil, 0 rows",
    "2003": "0/18 sro, 0/0 vil, 0 rows",
-   "2007": "0/18 sro, 0/0 vil, 0 rows",
+   "2007": "0/18 sro, 44/256 vil, 0 rows",
    "2012": "18/18 sro, 231/231 vil, 2768 rows",
    "2017": "18/18 sro, 237/237 vil, 2848 rows",
    "2023": "18/18 sro, 237/237 vil, 2828 rows",
@@ -420,11 +420,11 @@
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 21560,
+   "rows": 25411,
    "sros": 595,
-   "sros_done": 62,
-   "villages": 1499,
-   "villages_done": 1459,
+   "sros_done": 98,
+   "villages": 3042,
+   "villages_done": 2830,
    "villages_failed_attempts": 0
   },
   "2012": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T10:48:29Z"
+ "updated": "2026-10-26T10:48:50Z"
 }
