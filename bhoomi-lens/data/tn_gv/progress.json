@@ -275,7 +275,7 @@
   },
   "Thoothukkudi": {
    "2002": "0/24 sro, 0/0 vil, 0 rows",
-   "2003": "0/24 sro, 20/469 vil, 0 rows",
+   "2003": "24/24 sro, 469/469 vil, 3526 rows",
    "2007": "24/24 sro, 517/517 vil, 1226 rows",
    "2012": "24/24 sro, 514/514 vil, 2262 rows",
    "2017": "24/24 sro, 524/524 vil, 2312 rows",
@@ -410,11 +410,11 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 19101,
+   "rows": 22627,
    "sros": 595,
-   "sros_done": 116,
+   "sros_done": 140,
    "villages": 3500,
-   "villages_done": 3051,
+   "villages_done": 3500,
    "villages_failed_attempts": 0
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T12:30:13Z"
+ "updated": "2026-10-26T12:37:53Z"
 }
