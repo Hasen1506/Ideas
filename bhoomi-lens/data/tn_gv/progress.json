@@ -25,7 +25,7 @@
   },
   "Chennai": {
    "2002": "0/27 sro, 0/0 vil, 0 rows",
-   "2003": "0/27 sro, 0/0 vil, 0 rows",
+   "2003": "4/27 sro, 59/199 vil, 4865 rows",
    "2007": "27/27 sro, 194/194 vil, 31705 rows",
    "2012": "27/27 sro, 193/193 vil, 41075 rows",
    "2017": "27/27 sro, 206/206 vil, 41226 rows",
@@ -296,7 +296,7 @@
   "Tirunelveli": {
    "2002": "0/22 sro, 0/0 vil, 0 rows",
    "2003": "0/22 sro, 0/0 vil, 0 rows",
-   "2007": "0/22 sro, 41/412 vil, 526 rows",
+   "2007": "22/22 sro, 412/412 vil, 5897 rows",
    "2012": "22/22 sro, 383/383 vil, 4870 rows",
    "2017": "22/22 sro, 404/404 vil, 5743 rows",
    "2023": "22/22 sro, 404/404 vil, 5818 rows",
@@ -326,7 +326,7 @@
   "Tiruvallur": {
    "2002": "0/14 sro, 0/0 vil, 0 rows",
    "2003": "0/14 sro, 0/0 vil, 0 rows",
-   "2007": "0/14 sro, 0/0 vil, 0 rows",
+   "2007": "14/14 sro, 710/710 vil, 2751 rows",
    "2012": "14/14 sro, 710/710 vil, 4657 rows",
    "2017": "14/14 sro, 783/783 vil, 5599 rows",
    "2023": "14/14 sro, 703/703 vil, 5991 rows",
@@ -356,7 +356,7 @@
   "Vellore": {
    "2002": "0/8 sro, 0/0 vil, 0 rows",
    "2003": "0/8 sro, 0/0 vil, 0 rows",
-   "2007": "0/8 sro, 0/0 vil, 0 rows",
+   "2007": "8/8 sro, 306/306 vil, 4318 rows",
    "2012": "8/8 sro, 318/318 vil, 2887 rows",
    "2017": "8/8 sro, 328/328 vil, 2910 rows",
    "2023": "8/8 sro, 328/328 vil, 2918 rows",
@@ -410,21 +410,21 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 30855,
+   "rows": 35720,
    "sros": 595,
-   "sros_done": 189,
-   "villages": 6054,
-   "villages_done": 6054,
+   "sros_done": 193,
+   "villages": 6253,
+   "villages_done": 6113,
    "villages_failed_attempts": 0
   },
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 95962,
+   "rows": 108402,
    "sros": 595,
-   "sros_done": 305,
-   "villages": 9002,
-   "villages_done": 8631,
+   "sros_done": 349,
+   "villages": 10018,
+   "villages_done": 10018,
    "villages_failed_attempts": 0
   },
   "2012": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T16:37:38Z"
+ "updated": "2026-10-26T16:57:11Z"
 }
