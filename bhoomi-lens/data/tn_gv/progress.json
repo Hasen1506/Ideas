@@ -360,7 +360,7 @@
    "2012": "0/8 sro, 0/0 vil, 0 rows",
    "2017": "0/8 sro, 0/0 vil, 0 rows",
    "2023": "0/8 sro, 0/0 vil, 0 rows",
-   "2024": "0/8 sro, 0/0 vil, 0 rows",
+   "2024": "3/8 sro, 167/328 vil, 1262 rows",
    "sros": 8
   },
   "Viluppuram": {
@@ -370,7 +370,7 @@
    "2012": "0/20 sro, 0/0 vil, 0 rows",
    "2017": "0/20 sro, 0/0 vil, 0 rows",
    "2023": "0/20 sro, 0/0 vil, 0 rows",
-   "2024": "15/20 sro, 712/927 vil, 12844 rows",
+   "2024": "20/20 sro, 927/927 vil, 15574 rows",
    "sros": 20
   },
   "Virudhunagar": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 69844,
+   "rows": 73836,
    "sros": 595,
-   "sros_done": 89,
-   "villages": 3356,
-   "villages_done": 2838,
+   "sros_done": 97,
+   "villages": 3684,
+   "villages_done": 3220,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:35:10Z"
+ "updated": "2026-10-26T02:40:13Z"
 }
