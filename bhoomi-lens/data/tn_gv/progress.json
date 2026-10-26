@@ -354,7 +354,7 @@
    "sros": 11
   },
   "Vellore": {
-   "2002": "0/8 sro, 125/312 vil, 412 rows",
+   "2002": "8/8 sro, 312/312 vil, 1316 rows",
    "2003": "8/8 sro, 316/316 vil, 1832 rows",
    "2007": "8/8 sro, 306/306 vil, 4318 rows",
    "2012": "8/8 sro, 318/318 vil, 2887 rows",
@@ -400,11 +400,11 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 69672,
+   "rows": 70576,
    "sros": 595,
-   "sros_done": 341,
+   "sros_done": 349,
    "villages": 10807,
-   "villages_done": 10620,
+   "villages_done": 10807,
    "villages_failed_attempts": 0
   },
   "2003": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T19:04:04Z"
+ "updated": "2026-10-26T19:06:22Z"
 }
