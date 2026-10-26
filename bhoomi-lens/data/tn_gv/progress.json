@@ -115,7 +115,7 @@
   },
   "Karur": {
    "2002": "0/11 sro, 0/0 vil, 0 rows",
-   "2003": "10/11 sro, 288/289 vil, 1251 rows",
+   "2003": "11/11 sro, 289/289 vil, 1251 rows",
    "2007": "11/11 sro, 194/194 vil, 1503 rows",
    "2012": "11/11 sro, 193/193 vil, 2713 rows",
    "2017": "11/11 sro, 204/204 vil, 3066 rows",
@@ -145,7 +145,7 @@
   },
   "Mayiladuthurai": {
    "2002": "0/7 sro, 0/0 vil, 0 rows",
-   "2003": "0/7 sro, 0/0 vil, 0 rows",
+   "2003": "7/7 sro, 311/311 vil, 4630 rows",
    "2007": "7/7 sro, 319/319 vil, 7051 rows",
    "2012": "7/7 sro, 303/303 vil, 8824 rows",
    "2017": "7/7 sro, 334/334 vil, 8988 rows",
@@ -175,7 +175,7 @@
   },
   "Nilgiris": {
    "2002": "0/5 sro, 0/0 vil, 0 rows",
-   "2003": "0/5 sro, 0/0 vil, 0 rows",
+   "2003": "5/5 sro, 80/80 vil, 346 rows",
    "2007": "5/5 sro, 175/175 vil, 375 rows",
    "2012": "5/5 sro, 323/323 vil, 485 rows",
    "2017": "5/5 sro, 373/373 vil, 364 rows",
@@ -205,7 +205,7 @@
   },
   "Ramanathapuram": {
    "2002": "0/17 sro, 0/0 vil, 0 rows",
-   "2003": "0/17 sro, 0/0 vil, 0 rows",
+   "2003": "17/17 sro, 647/647 vil, 1425 rows",
    "2007": "17/17 sro, 380/380 vil, 1326 rows",
    "2012": "17/17 sro, 477/477 vil, 1118 rows",
    "2017": "17/17 sro, 606/606 vil, 1270 rows",
@@ -235,7 +235,7 @@
   },
   "Sivagangai": {
    "2002": "0/12 sro, 0/0 vil, 0 rows",
-   "2003": "0/12 sro, 0/0 vil, 0 rows",
+   "2003": "12/12 sro, 733/733 vil, 2183 rows",
    "2007": "12/12 sro, 557/557 vil, 2107 rows",
    "2012": "12/12 sro, 505/505 vil, 2628 rows",
    "2017": "12/12 sro, 775/775 vil, 2760 rows",
@@ -265,7 +265,7 @@
   },
   "Theni": {
    "2002": "0/10 sro, 0/0 vil, 0 rows",
-   "2003": "0/10 sro, 0/0 vil, 0 rows",
+   "2003": "10/10 sro, 134/134 vil, 4126 rows",
    "2007": "10/10 sro, 106/106 vil, 3264 rows",
    "2012": "10/10 sro, 105/105 vil, 4017 rows",
    "2017": "10/10 sro, 114/114 vil, 4545 rows",
@@ -295,7 +295,7 @@
   },
   "Tirunelveli": {
    "2002": "0/22 sro, 0/0 vil, 0 rows",
-   "2003": "0/22 sro, 0/0 vil, 0 rows",
+   "2003": "11/22 sro, 211/340 vil, 1966 rows",
    "2007": "22/22 sro, 412/412 vil, 5897 rows",
    "2012": "22/22 sro, 383/383 vil, 4870 rows",
    "2017": "22/22 sro, 404/404 vil, 5743 rows",
@@ -410,11 +410,11 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 62818,
+   "rows": 77494,
    "sros": 595,
-   "sros_done": 253,
-   "villages": 7825,
-   "villages_done": 7824,
+   "sros_done": 316,
+   "villages": 10070,
+   "villages_done": 9941,
    "villages_failed_attempts": 0
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T17:22:25Z"
+ "updated": "2026-10-26T17:47:36Z"
 }
