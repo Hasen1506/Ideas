@@ -20,7 +20,7 @@
    "2012": "1/15 sro, 13/13 vil, 1882 rows",
    "2017": "1/15 sro, 14/14 vil, 1902 rows",
    "2023": "1/15 sro, 14/14 vil, 1919 rows",
-   "2024": "14/15 sro, 702/703 vil, 17919 rows",
+   "2024": "15/15 sro, 703/703 vil, 19071 rows",
    "sros": 15
   },
   "Chennai": {
@@ -50,7 +50,7 @@
    "2012": "0/26 sro, 0/0 vil, 0 rows",
    "2017": "0/26 sro, 0/0 vil, 0 rows",
    "2023": "0/26 sro, 0/0 vil, 0 rows",
-   "2024": "0/26 sro, 0/0 vil, 0 rows",
+   "2024": "21/26 sro, 1140/1285 vil, 14708 rows",
    "sros": 26
   },
   "Dharmapuri": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 82037,
+   "rows": 97897,
    "sros": 595,
-   "sros_done": 113,
-   "villages": 5361,
-   "villages_done": 3938,
+   "sros_done": 135,
+   "villages": 6646,
+   "villages_done": 5079,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:50:27Z"
+ "updated": "2026-10-26T02:52:17Z"
 }
