@@ -4,7 +4,7 @@
  "discovery_complete": true,
  "districts": {
   "Ariyalur": {
-   "2002": "0/10 sro, 0/0 vil, 0 rows",
+   "2002": "10/10 sro, 386/386 vil, 187 rows",
    "2003": "10/10 sro, 185/185 vil, 411 rows",
    "2007": "10/10 sro, 198/198 vil, 205 rows",
    "2012": "10/10 sro, 197/197 vil, 228 rows",
@@ -34,7 +34,7 @@
    "sros": 27
   },
   "Coimbatore": {
-   "2002": "0/20 sro, 0/0 vil, 0 rows",
+   "2002": "5/20 sro, 81/366 vil, 913 rows",
    "2003": "20/20 sro, 360/360 vil, 7063 rows",
    "2007": "20/20 sro, 324/324 vil, 12712 rows",
    "2012": "20/20 sro, 322/322 vil, 11302 rows",
@@ -305,7 +305,7 @@
   },
   "Tirupathur": {
    "2002": "0/6 sro, 0/0 vil, 0 rows",
-   "2003": "0/6 sro, 0/0 vil, 0 rows",
+   "2003": "6/6 sro, 146/146 vil, 1137 rows",
    "2007": "6/6 sro, 136/136 vil, 1336 rows",
    "2012": "6/6 sro, 398/398 vil, 1349 rows",
    "2017": "6/6 sro, 468/468 vil, 1676 rows",
@@ -335,7 +335,7 @@
   },
   "Tiruvannamalai": {
    "2002": "0/23 sro, 0/0 vil, 0 rows",
-   "2003": "0/23 sro, 0/0 vil, 0 rows",
+   "2003": "23/23 sro, 1533/1533 vil, 1947 rows",
    "2007": "23/23 sro, 1056/1056 vil, 2144 rows",
    "2012": "23/23 sro, 1056/1056 vil, 2025 rows",
    "2017": "23/23 sro, 1122/1122 vil, 2432 rows",
@@ -365,7 +365,7 @@
   },
   "Viluppuram": {
    "2002": "0/20 sro, 0/0 vil, 0 rows",
-   "2003": "0/20 sro, 0/0 vil, 0 rows",
+   "2003": "20/20 sro, 875/875 vil, 5144 rows",
    "2007": "20/20 sro, 905/905 vil, 8132 rows",
    "2012": "20/20 sro, 905/905 vil, 14139 rows",
    "2017": "20/20 sro, 927/927 vil, 14460 rows",
@@ -400,21 +400,21 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 1163,
+   "rows": 2263,
    "sros": 595,
-   "sros_done": 1,
-   "villages": 22,
-   "villages_done": 22,
+   "sros_done": 16,
+   "villages": 774,
+   "villages_done": 489,
    "villages_failed_attempts": 0
   },
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 22627,
+   "rows": 30855,
    "sros": 595,
-   "sros_done": 140,
-   "villages": 3500,
-   "villages_done": 3500,
+   "sros_done": 189,
+   "villages": 6054,
+   "villages_done": 6054,
    "villages_failed_attempts": 0
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T15:41:17Z"
+ "updated": "2026-10-26T15:41:37Z"
 }
