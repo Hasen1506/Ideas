@@ -210,7 +210,7 @@
    "2012": "0/17 sro, 0/0 vil, 0 rows",
    "2017": "0/17 sro, 0/0 vil, 0 rows",
    "2023": "0/17 sro, 0/0 vil, 0 rows",
-   "2024": "0/17 sro, 48/554 vil, 0 rows",
+   "2024": "17/17 sro, 554/554 vil, 1615 rows",
    "sros": 17
   },
   "Ranipet": {
@@ -240,7 +240,7 @@
    "2012": "0/12 sro, 0/0 vil, 0 rows",
    "2017": "0/12 sro, 0/0 vil, 0 rows",
    "2023": "0/12 sro, 0/0 vil, 0 rows",
-   "2024": "0/12 sro, 0/0 vil, 0 rows",
+   "2024": "12/12 sro, 785/785 vil, 2850 rows",
    "sros": 12
   },
   "Tenkasi": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 245291,
+   "rows": 249756,
    "sros": 595,
-   "sros_done": 553,
-   "villages": 19110,
-   "villages_done": 18194,
+   "sros_done": 582,
+   "villages": 19895,
+   "villages_done": 19485,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T04:08:07Z"
+ "updated": "2026-10-26T04:08:44Z"
 }
