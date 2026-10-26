@@ -30,7 +30,7 @@
    "2012": "0/27 sro, 0/0 vil, 0 rows",
    "2017": "0/27 sro, 0/0 vil, 0 rows",
    "2023": "0/27 sro, 0/0 vil, 0 rows",
-   "2024": "0/27 sro, 0/0 vil, 0 rows",
+   "2024": "10/27 sro, 157/202 vil, 19490 rows",
    "sros": 27
   },
   "Coimbatore": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 46404,
+   "rows": 65894,
    "sros": 595,
-   "sros_done": 72,
-   "villages": 3154,
-   "villages_done": 2338,
+   "sros_done": 82,
+   "villages": 3356,
+   "villages_done": 2495,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:27:12Z"
+ "updated": "2026-10-26T02:27:27Z"
 }
