@@ -70,7 +70,7 @@
    "2012": "0/22 sro, 0/0 vil, 0 rows",
    "2017": "0/22 sro, 0/0 vil, 0 rows",
    "2023": "0/22 sro, 0/0 vil, 0 rows",
-   "2024": "3/22 sro, 123/380 vil, 1472 rows",
+   "2024": "22/22 sro, 380/380 vil, 4975 rows",
    "sros": 22
   },
   "Erode": {
@@ -100,7 +100,7 @@
    "2012": "0/11 sro, 0/0 vil, 0 rows",
    "2017": "0/11 sro, 0/0 vil, 0 rows",
    "2023": "0/11 sro, 0/0 vil, 0 rows",
-   "2024": "0/11 sro, 0/0 vil, 0 rows",
+   "2024": "11/11 sro, 554/554 vil, 9947 rows",
    "sros": 11
   },
   "Kanniyakumari": {
@@ -130,7 +130,7 @@
    "2012": "0/14 sro, 0/0 vil, 0 rows",
    "2017": "0/14 sro, 0/0 vil, 0 rows",
    "2023": "0/14 sro, 0/0 vil, 0 rows",
-   "2024": "0/14 sro, 0/0 vil, 0 rows",
+   "2024": "14/14 sro, 679/679 vil, 1953 rows",
    "sros": 14
   },
   "Madurai": {
@@ -160,7 +160,7 @@
    "2012": "0/6 sro, 0/0 vil, 0 rows",
    "2017": "0/6 sro, 0/0 vil, 0 rows",
    "2023": "0/6 sro, 0/0 vil, 0 rows",
-   "2024": "0/6 sro, 0/0 vil, 0 rows",
+   "2024": "0/6 sro, 5/263 vil, 18 rows",
    "sros": 6
   },
   "Namakkal": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 120503,
+   "rows": 135924,
    "sros": 595,
-   "sros_done": 152,
-   "villages": 7114,
-   "villages_done": 5215,
+   "sros_done": 196,
+   "villages": 8610,
+   "villages_done": 6710,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:52:31Z"
+ "updated": "2026-10-26T02:52:36Z"
 }
