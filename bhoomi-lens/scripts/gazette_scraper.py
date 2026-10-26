@@ -26,10 +26,15 @@ from bs4 import BeautifulSoup
 BASE = "https://gazettetracker.com"
 DELAY = float(os.environ.get("GZ_DELAY", "1.5"))          # polite gap between requests (s)
 TIMEOUT = (10, 30)                                         # connect, read (s)
+SKIP_VERSION = 2                                           # bump when classification changes; drops the old skip list
 MAX_TRIES = 3                                              # parse attempts before a notice is left as metadata_only
 UA = {"User-Agent": "Mozilla/5.0 (bhoomi-lens research scraper; weekly; contact owner)"}
 STATES = ["tamil-nadu","karnataka","kerala","andhra-pradesh","telangana","puducherry","maharashtra","arunachal-pradesh","assam","bihar","chhattisgarh","goa","gujarat","haryana","himachal-pradesh","jharkhand","madhya-pradesh","manipur","meghalaya","mizoram","nagaland","odisha","punjab","rajasthan","sikkim","tripura","uttar-pradesh","uttarakhand","west-bengal","andaman-and-nicobar-islands","chandigarh","dadra-and-nagar-haveli-and-daman-and-diu","delhi","jammu-and-kashmir","ladakh","lakshadweep"]
 LA_TITLE = re.compile(r"3a|3d|20a|20e|20\(a\)|20\(e\)")
+# Titles that are never NH 3A/3D notices. Without this the scraper fetched every railway (20A/20E/7A/37A),
+# PMP-Act pipeline, corrigendum and competent-authority notice just to reject it (~100+ per state).
+NOT_NH = re.compile(r"railway|\b20\s*\(?\s*[aef]\b|\b7a\b|37a|20f|pmp\s*act|petroleum|pipeline|right of user|corrigend|"
+                    r"competent\s*authorit|\b6\s*\(\s*1\s*\)|\b3\s*\(\s*1\s*\)|coal bearing|cba act", re.I)
 
 class OutOfTime(Exception): pass
 _S = requests.Session(); _S.headers.update(UA)
@@ -80,8 +85,14 @@ def parse_notice(gid, html):
         except ValueError: pass
     body = full[full.find("NOTIFICATION"):] if "NOTIFICATION" in full else full
     head = body[:1500]
-    if re.search(r"sub-?\s*section\s*\(1\)\s*of\s*section\s*3A", head, re.I): rec["type"] = "3A"
-    elif re.search(r"section\s*3D", head, re.I): rec["type"] = "3D"
+    # Classify by the operative clause. 3D declarations open with "Whereas by the notification ... under
+    # sub-section (1) of section 3 (A)..." and write the section as 3D / 3 D / 3(D); 3A notices "hereby
+    # declare its intention to acquire". "clause (a) of section 3" is a competent-authority order, not 3A.
+    b6 = body[:6000]
+    if re.search(r"clause\s*\(\s*a\s*\)\s*of\s*section\s*3(?![\dA-Za-z(])", b6[:900], re.I): pass
+    elif re.search(r"^\W*NOTIFICATION\b.{0,250}?\bWhereas\b", b6[:900], re.S | re.I) and re.search(r"section\s*3\s*\(?\s*D\s*\)?(?![a-z])", b6, re.I): rec["type"] = "3D"
+    elif re.search(r"intention\s+to\s+acquire", b6[:3000], re.I) and re.search(r"section\s*3\s*\(?\s*A\s*\)?(?![a-z])", b6[:3000], re.I): rec["type"] = "3A"
+    elif re.search(r"section\s*3\s*\(?\s*D\s*\)?(?![a-z])", head, re.I): rec["type"] = "3D"
     elif re.search(r"20\s*\(?E\)?", head) and "Railway" in head: rec["type"] = "20E"
     elif re.search(r"20\s*\(?A\)?", head) and "Railway" in head: rec["type"] = "20A"
     m = re.search(r"stretch of land\s*(?:in design chainage\s*)?from\s*(?:Km\.?\s*)?([\d./+]+)\s*to\s*(?:Km\.?\s*)?([\d./+]+)", head, re.I)
@@ -183,13 +194,16 @@ class Store:
         d = json.load(open(path)) if os.path.exists(path) else {}
         self.rec = {r["gid"]: r for r in d.get("records", [])}
         self.cursor = d.get("cursor", {}); self.skip = set(d.get("skip", []))
+        if d.get("skip_version") != SKIP_VERSION:          # skip list built by an older classifier (v1 rejected real 3D notices)
+            if self.skip: print(f"dropping {len(self.skip)} skip entries from an older classifier", flush=True)
+            self.skip = set()
         self.pending = {p["gid"]: p for p in d.get("pending", [])}
         self.stats = {}; self.failures = []; self.new = 0; self.upgraded = 0; self.n_since_save = 0
     def known(self, gid):
         return gid in self.rec or gid in self.skip or gid in self.pending
     def save(self):
         d = {"generated": dt.date.today().isoformat(), "records": list(self.rec.values()), "cursor": self.cursor,
-             "skip": sorted(self.skip), "pending": list(self.pending.values()), "stats": self.stats, "failures": self.failures[-200:]}
+             "skip_version": SKIP_VERSION, "skip": sorted(self.skip), "pending": list(self.pending.values()), "stats": self.stats, "failures": self.failures[-200:]}
         tmp = self.path + ".tmp"; json.dump(d, open(tmp, "w"), ensure_ascii=False, separators=(",", ":")); os.replace(tmp, self.path)
         self.n_since_save = 0
     def fetch(self, gid, slug):
@@ -217,17 +231,21 @@ class Store:
         if self.n_since_save >= 10: self.save()
         return True
 
-def take(store, slug, items, since, until):
-    """Fetch the unknown land-acquisition notices on one listing page. Returns (n_new, all_older_than_since)."""
-    n, older = 0, bool(items)
+def take(store, slug, items, since, until, railways=False):
+    """Fetch the unknown land-acquisition notices on one listing page.
+    Returns (n_fetched, all_older_than_since, reached_frontier) where reached_frontier means the page holds a
+    notice already in the store (listing is newest first, so everything below it was seen on an earlier run)."""
+    n, older, frontier = 0, bool(items), False
     for gid, title in items:
         d = gid_date(gid)
         if not (d and d < since): older = False
+        if gid in store.rec: frontier = True
         if (d and (d < since or d > until)) or store.known(gid): continue
         t = title.lower().replace(" ", "")
-        if not LA_TITLE.search(t) and "acqui" not in t: store.skip.add(gid); continue
+        if (not LA_TITLE.search(t) and "acqui" not in t) or (not railways and NOT_NH.search(title)):
+            store.skip.add(gid); continue
         n += 1; store.fetch(gid, slug)
-    return n, older
+    return n, older, frontier
 
 def run(a):
     since, until = dt.date.fromisoformat(a.since), dt.date.fromisoformat(a.until)
@@ -243,12 +261,12 @@ def run(a):
             for page in range(1, a.head_pages + 1):
                 items = list_page(slug, page)
                 if not items: break
-                n, older = take(st, slug, items, since, until); new += n
-                if older or n == 0: break
+                n, older, frontier = take(st, slug, items, since, until, a.railways); new += n
+                if older or n == 0 or frontier: break
             else:
                 if c.get("complete"): c.update(complete=False, resume_page=a.head_pages + 1)   # >head_pages of new items: let backfill close the gap
             c["head_at"] = dt.datetime.utcnow().isoformat(timespec="seconds"); st.stats[slug] = {"head_new": new}
-            print(f"head {slug}: {new} new", flush=True)
+            print(f"head {slug}: {new} fetched, {len(st.rec)} records", flush=True)
         st.save()
         # 2) retries: failed fetches and notices whose schedule did not parse (bounded attempts).
         phase = "retry"
@@ -271,7 +289,7 @@ def run(a):
                 items = list_page(slug, page)
                 if items is None: break                     # transient; resume here next run
                 if not items: c["complete"] = True; break
-                n, older = take(st, slug, items, since, until)
+                n, older, _ = take(st, slug, items, since, until, a.railways)
                 c["resume_page"] = page + 1
                 if older: c["complete"] = True; break
                 page += 1
