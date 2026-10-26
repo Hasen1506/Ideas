@@ -300,7 +300,7 @@
    "2012": "0/22 sro, 0/0 vil, 0 rows",
    "2017": "0/22 sro, 0/0 vil, 0 rows",
    "2023": "0/22 sro, 0/0 vil, 0 rows",
-   "2024": "2/22 sro, 84/404 vil, 1095 rows",
+   "2024": "20/22 sro, 402/404 vil, 5468 rows",
    "sros": 22
   },
   "Tirupathur": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 186803,
+   "rows": 191176,
    "sros": 595,
-   "sros_done": 356,
+   "sros_done": 374,
    "villages": 12787,
-   "villages_done": 12408,
+   "villages_done": 12726,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:26:02Z"
+ "updated": "2026-10-26T03:31:18Z"
 }
