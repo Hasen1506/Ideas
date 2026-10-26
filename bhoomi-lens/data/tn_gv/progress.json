@@ -34,7 +34,7 @@
    "sros": 27
   },
   "Coimbatore": {
-   "2002": "5/20 sro, 81/366 vil, 913 rows",
+   "2002": "20/20 sro, 366/366 vil, 6511 rows",
    "2003": "20/20 sro, 360/360 vil, 7063 rows",
    "2007": "20/20 sro, 324/324 vil, 12712 rows",
    "2012": "20/20 sro, 322/322 vil, 11302 rows",
@@ -64,7 +64,7 @@
    "sros": 12
   },
   "Dindigul": {
-   "2002": "0/22 sro, 0/0 vil, 0 rows",
+   "2002": "22/22 sro, 373/373 vil, 3229 rows",
    "2003": "22/22 sro, 284/284 vil, 4981 rows",
    "2007": "22/22 sro, 373/373 vil, 3722 rows",
    "2012": "22/22 sro, 376/376 vil, 4252 rows",
@@ -94,7 +94,7 @@
    "sros": 15
   },
   "Kancheepuram": {
-   "2002": "0/11 sro, 0/0 vil, 0 rows",
+   "2002": "11/11 sro, 546/546 vil, 1807 rows",
    "2003": "11/11 sro, 560/560 vil, 1993 rows",
    "2007": "11/11 sro, 590/590 vil, 3941 rows",
    "2012": "11/11 sro, 524/524 vil, 7710 rows",
@@ -124,7 +124,7 @@
    "sros": 11
   },
   "Krishnagiri": {
-   "2002": "0/14 sro, 0/0 vil, 0 rows",
+   "2002": "14/14 sro, 799/799 vil, 742 rows",
    "2003": "14/14 sro, 799/799 vil, 754 rows",
    "2007": "14/14 sro, 653/653 vil, 1325 rows",
    "2012": "14/14 sro, 653/653 vil, 756 rows",
@@ -154,7 +154,7 @@
    "sros": 7
   },
   "Nagapattinam": {
-   "2002": "0/6 sro, 0/0 vil, 0 rows",
+   "2002": "6/6 sro, 194/194 vil, 623 rows",
    "2003": "6/6 sro, 213/213 vil, 736 rows",
    "2007": "6/6 sro, 211/211 vil, 944 rows",
    "2012": "6/6 sro, 203/203 vil, 1278 rows",
@@ -184,7 +184,7 @@
    "sros": 5
   },
   "Perambalur": {
-   "2002": "0/6 sro, 0/0 vil, 0 rows",
+   "2002": "6/6 sro, 269/269 vil, 304 rows",
    "2003": "6/6 sro, 132/132 vil, 578 rows",
    "2007": "6/6 sro, 146/146 vil, 127 rows",
    "2012": "6/6 sro, 147/147 vil, 277 rows",
@@ -214,7 +214,7 @@
    "sros": 17
   },
   "Ranipet": {
-   "2002": "0/8 sro, 0/0 vil, 0 rows",
+   "2002": "2/8 sro, 5/241 vil, 0 rows",
    "2003": "8/8 sro, 285/285 vil, 896 rows",
    "2007": "8/8 sro, 277/277 vil, 1131 rows",
    "2012": "8/8 sro, 430/430 vil, 1238 rows",
@@ -400,11 +400,11 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 2263,
+   "rows": 14566,
    "sros": 595,
-   "sros_done": 16,
-   "villages": 774,
-   "villages_done": 489,
+   "sros_done": 92,
+   "villages": 3196,
+   "villages_done": 2960,
    "villages_failed_attempts": 0
   },
   "2003": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T16:06:30Z"
+ "updated": "2026-10-26T16:07:35Z"
 }
