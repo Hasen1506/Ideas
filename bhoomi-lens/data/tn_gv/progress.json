@@ -160,7 +160,7 @@
    "2012": "0/6 sro, 0/0 vil, 0 rows",
    "2017": "0/6 sro, 0/0 vil, 0 rows",
    "2023": "0/6 sro, 0/0 vil, 0 rows",
-   "2024": "0/6 sro, 5/263 vil, 18 rows",
+   "2024": "6/6 sro, 263/263 vil, 2187 rows",
    "sros": 6
   },
   "Namakkal": {
@@ -190,7 +190,7 @@
    "2012": "0/6 sro, 0/0 vil, 0 rows",
    "2017": "0/6 sro, 0/0 vil, 0 rows",
    "2023": "0/6 sro, 0/0 vil, 0 rows",
-   "2024": "0/6 sro, 0/0 vil, 0 rows",
+   "2024": "6/6 sro, 153/153 vil, 579 rows",
    "sros": 6
   },
   "Pudukkottai": {
@@ -220,7 +220,7 @@
    "2012": "0/8 sro, 0/0 vil, 0 rows",
    "2017": "0/8 sro, 0/0 vil, 0 rows",
    "2023": "0/8 sro, 0/0 vil, 0 rows",
-   "2024": "0/8 sro, 0/0 vil, 0 rows",
+   "2024": "8/8 sro, 465/465 vil, 2276 rows",
    "sros": 8
   },
   "Salem": {
@@ -250,7 +250,7 @@
    "2012": "0/18 sro, 0/0 vil, 0 rows",
    "2017": "0/18 sro, 0/0 vil, 0 rows",
    "2023": "0/18 sro, 0/0 vil, 0 rows",
-   "2024": "0/18 sro, 0/0 vil, 0 rows",
+   "2024": "11/18 sro, 200/237 vil, 2290 rows",
    "sros": 18
   },
   "Thanjavur": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 159139,
+   "rows": 166453,
    "sros": 595,
-   "sros_done": 261,
-   "villages": 10218,
-   "villages_done": 9541,
+   "sros_done": 292,
+   "villages": 11073,
+   "villages_done": 10617,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:17:36Z"
+ "updated": "2026-10-26T03:17:41Z"
 }
