@@ -20,7 +20,7 @@
    "2012": "1/15 sro, 13/13 vil, 1882 rows",
    "2017": "1/15 sro, 14/14 vil, 1902 rows",
    "2023": "1/15 sro, 14/14 vil, 1919 rows",
-   "2024": "1/15 sro, 14/14 vil, 1932 rows",
+   "2024": "14/15 sro, 702/703 vil, 17919 rows",
    "sros": 15
   },
   "Chennai": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 30417,
+   "rows": 46404,
    "sros": 595,
-   "sros_done": 59,
-   "villages": 2465,
-   "villages_done": 1650,
+   "sros_done": 72,
+   "villages": 3154,
+   "villages_done": 2338,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:26:58Z"
+ "updated": "2026-10-26T02:27:12Z"
 }
