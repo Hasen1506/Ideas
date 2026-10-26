@@ -29,7 +29,7 @@
    "2007": "0/27 sro, 0/0 vil, 0 rows",
    "2012": "0/27 sro, 0/0 vil, 0 rows",
    "2017": "0/27 sro, 0/0 vil, 0 rows",
-   "2023": "0/27 sro, 0/0 vil, 0 rows",
+   "2023": "6/27 sro, 107/204 vil, 14489 rows",
    "2024": "27/27 sro, 202/202 vil, 42096 rows",
    "sros": 27
   },
@@ -450,11 +450,11 @@
   "2023": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 47340,
+   "rows": 61829,
    "sros": 595,
-   "sros_done": 139,
-   "villages": 4504,
-   "villages_done": 3949,
+   "sros_done": 145,
+   "villages": 4708,
+   "villages_done": 4056,
    "villages_failed_attempts": 0
   },
   "2024": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T04:33:14Z"
+ "updated": "2026-10-26T04:33:50Z"
 }
