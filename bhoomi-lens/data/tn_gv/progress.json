@@ -280,7 +280,7 @@
    "2012": "0/24 sro, 0/0 vil, 0 rows",
    "2017": "0/24 sro, 0/0 vil, 0 rows",
    "2023": "0/24 sro, 0/0 vil, 0 rows",
-   "2024": "0/24 sro, 0/0 vil, 0 rows",
+   "2024": "0/24 sro, 65/518 vil, 67 rows",
    "sros": 24
   },
   "Tiruchirappalli": {
@@ -290,7 +290,7 @@
    "2012": "0/18 sro, 0/0 vil, 0 rows",
    "2017": "0/18 sro, 0/0 vil, 0 rows",
    "2023": "0/18 sro, 0/0 vil, 0 rows",
-   "2024": "7/18 sro, 312/555 vil, 2870 rows",
+   "2024": "18/18 sro, 555/555 vil, 7981 rows",
    "sros": 18
   },
   "Tirunelveli": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 194982,
+   "rows": 200160,
    "sros": 595,
-   "sros_done": 383,
-   "villages": 13342,
-   "villages_done": 13040,
+   "sros_done": 394,
+   "villages": 13860,
+   "villages_done": 13348,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:36:23Z"
+ "updated": "2026-10-26T03:41:28Z"
 }
