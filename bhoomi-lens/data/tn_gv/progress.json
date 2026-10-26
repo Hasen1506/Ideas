@@ -350,7 +350,7 @@
    "2012": "0/11 sro, 0/0 vil, 0 rows",
    "2017": "0/11 sro, 0/0 vil, 0 rows",
    "2023": "0/11 sro, 0/0 vil, 0 rows",
-   "2024": "0/11 sro, 0/0 vil, 0 rows",
+   "2024": "3/11 sro, 151/555 vil, 3237 rows",
    "sros": 11
   },
   "Vellore": {
@@ -360,7 +360,7 @@
    "2012": "0/8 sro, 0/0 vil, 0 rows",
    "2017": "0/8 sro, 0/0 vil, 0 rows",
    "2023": "0/8 sro, 0/0 vil, 0 rows",
-   "2024": "3/8 sro, 167/328 vil, 1262 rows",
+   "2024": "8/8 sro, 328/328 vil, 3045 rows",
    "sros": 8
   },
   "Viluppuram": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 73836,
+   "rows": 78856,
    "sros": 595,
-   "sros_done": 97,
-   "villages": 3684,
-   "villages_done": 3220,
+   "sros_done": 105,
+   "villages": 4239,
+   "villages_done": 3532,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:40:13Z"
+ "updated": "2026-10-26T02:45:16Z"
 }
