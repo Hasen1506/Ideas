@@ -26,7 +26,7 @@
   "Chennai": {
    "2002": "0/27 sro, 0/0 vil, 0 rows",
    "2003": "0/27 sro, 0/0 vil, 0 rows",
-   "2007": "0/27 sro, 0/0 vil, 0 rows",
+   "2007": "4/27 sro, 52/194 vil, 4992 rows",
    "2012": "27/27 sro, 193/193 vil, 41075 rows",
    "2017": "27/27 sro, 206/206 vil, 41226 rows",
    "2023": "27/27 sro, 204/204 vil, 42028 rows",
@@ -267,7 +267,7 @@
    "2002": "0/10 sro, 0/0 vil, 0 rows",
    "2003": "0/10 sro, 0/0 vil, 0 rows",
    "2007": "0/10 sro, 0/0 vil, 0 rows",
-   "2012": "5/10 sro, 63/105 vil, 2456 rows",
+   "2012": "10/10 sro, 105/105 vil, 4017 rows",
    "2017": "10/10 sro, 114/114 vil, 4545 rows",
    "2023": "10/10 sro, 114/114 vil, 4419 rows",
    "2024": "10/10 sro, 114/114 vil, 4581 rows",
@@ -297,7 +297,7 @@
    "2002": "0/22 sro, 0/0 vil, 0 rows",
    "2003": "0/22 sro, 0/0 vil, 0 rows",
    "2007": "0/22 sro, 0/0 vil, 0 rows",
-   "2012": "0/22 sro, 0/0 vil, 0 rows",
+   "2012": "22/22 sro, 383/383 vil, 4870 rows",
    "2017": "22/22 sro, 404/404 vil, 5743 rows",
    "2023": "22/22 sro, 404/404 vil, 5818 rows",
    "2024": "22/22 sro, 404/404 vil, 6404 rows",
@@ -327,7 +327,7 @@
    "2002": "0/14 sro, 0/0 vil, 0 rows",
    "2003": "0/14 sro, 0/0 vil, 0 rows",
    "2007": "0/14 sro, 0/0 vil, 0 rows",
-   "2012": "0/14 sro, 0/0 vil, 0 rows",
+   "2012": "14/14 sro, 710/710 vil, 4657 rows",
    "2017": "14/14 sro, 783/783 vil, 5599 rows",
    "2023": "14/14 sro, 703/703 vil, 5991 rows",
    "2024": "14/14 sro, 692/692 vil, 6876 rows",
@@ -357,7 +357,7 @@
    "2002": "0/8 sro, 0/0 vil, 0 rows",
    "2003": "0/8 sro, 0/0 vil, 0 rows",
    "2007": "0/8 sro, 0/0 vil, 0 rows",
-   "2012": "0/8 sro, 0/0 vil, 0 rows",
+   "2012": "8/8 sro, 318/318 vil, 2887 rows",
    "2017": "8/8 sro, 328/328 vil, 2910 rows",
    "2023": "8/8 sro, 328/328 vil, 2918 rows",
    "2024": "8/8 sro, 328/328 vil, 3045 rows",
@@ -420,21 +420,21 @@
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 41104,
+   "rows": 46096,
    "sros": 595,
-   "sros_done": 189,
-   "villages": 5656,
-   "villages_done": 5656,
+   "sros_done": 193,
+   "villages": 5850,
+   "villages_done": 5708,
    "villages_failed_attempts": 0
   },
   "2012": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 120226,
+   "rows": 134201,
    "sros": 595,
-   "sros_done": 300,
-   "villages": 9077,
-   "villages_done": 9035,
+   "sros_done": 349,
+   "villages": 10488,
+   "villages_done": 10488,
    "villages_failed_attempts": 0
   },
   "2017": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T15:16:23Z"
+ "updated": "2026-10-26T15:41:17Z"
 }
