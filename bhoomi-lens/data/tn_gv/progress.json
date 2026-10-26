@@ -5,7 +5,7 @@
  "districts": {
   "Ariyalur": {
    "2002": "0/10 sro, 0/0 vil, 0 rows",
-   "2003": "0/10 sro, 26/185 vil, 19 rows",
+   "2003": "10/10 sro, 185/185 vil, 411 rows",
    "2007": "10/10 sro, 198/198 vil, 205 rows",
    "2012": "10/10 sro, 197/197 vil, 228 rows",
    "2017": "10/10 sro, 202/202 vil, 300 rows",
@@ -35,7 +35,7 @@
   },
   "Coimbatore": {
    "2002": "0/20 sro, 0/0 vil, 0 rows",
-   "2003": "0/20 sro, 0/0 vil, 0 rows",
+   "2003": "20/20 sro, 360/360 vil, 7063 rows",
    "2007": "20/20 sro, 324/324 vil, 12712 rows",
    "2012": "20/20 sro, 322/322 vil, 11302 rows",
    "2017": "20/20 sro, 324/324 vil, 12126 rows",
@@ -65,7 +65,7 @@
   },
   "Dindigul": {
    "2002": "0/22 sro, 0/0 vil, 0 rows",
-   "2003": "0/22 sro, 0/0 vil, 0 rows",
+   "2003": "22/22 sro, 284/284 vil, 4981 rows",
    "2007": "22/22 sro, 373/373 vil, 3722 rows",
    "2012": "22/22 sro, 376/376 vil, 4252 rows",
    "2017": "22/22 sro, 380/380 vil, 4629 rows",
@@ -95,7 +95,7 @@
   },
   "Kancheepuram": {
    "2002": "0/11 sro, 0/0 vil, 0 rows",
-   "2003": "0/11 sro, 0/0 vil, 0 rows",
+   "2003": "6/11 sro, 333/560 vil, 1605 rows",
    "2007": "11/11 sro, 590/590 vil, 3941 rows",
    "2012": "11/11 sro, 524/524 vil, 7710 rows",
    "2017": "11/11 sro, 575/575 vil, 8733 rows",
@@ -410,11 +410,11 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 1446,
+   "rows": 15487,
    "sros": 595,
-   "sros_done": 1,
-   "villages": 202,
-   "villages_done": 43,
+   "sros_done": 59,
+   "villages": 1406,
+   "villages_done": 1179,
    "villages_failed_attempts": 0
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T12:04:47Z"
+ "updated": "2026-10-26T12:05:02Z"
 }
