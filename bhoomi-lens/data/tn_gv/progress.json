@@ -60,7 +60,7 @@
    "2012": "0/12 sro, 0/0 vil, 0 rows",
    "2017": "0/12 sro, 0/0 vil, 0 rows",
    "2023": "0/12 sro, 0/0 vil, 0 rows",
-   "2024": "0/12 sro, 91/468 vil, 0 rows",
+   "2024": "12/12 sro, 468/468 vil, 1228 rows",
    "sros": 12
   },
   "Dindigul": {
@@ -90,7 +90,7 @@
    "2012": "0/15 sro, 0/0 vil, 0 rows",
    "2017": "0/15 sro, 0/0 vil, 0 rows",
    "2023": "0/15 sro, 0/0 vil, 0 rows",
-   "2024": "0/15 sro, 0/0 vil, 0 rows",
+   "2024": "13/15 sro, 533/553 vil, 9126 rows",
    "sros": 15
   },
   "Kancheepuram": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 148785,
+   "rows": 159139,
    "sros": 595,
-   "sros_done": 236,
-   "villages": 9665,
-   "villages_done": 8631,
+   "sros_done": 261,
+   "villages": 10218,
+   "villages_done": 9541,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:15:53Z"
+ "updated": "2026-10-26T03:17:36Z"
 }
