@@ -270,7 +270,7 @@
    "2012": "0/10 sro, 0/0 vil, 0 rows",
    "2017": "0/10 sro, 0/0 vil, 0 rows",
    "2023": "0/10 sro, 0/0 vil, 0 rows",
-   "2024": "0/10 sro, 0/0 vil, 0 rows",
+   "2024": "0/10 sro, 15/114 vil, 4 rows",
    "sros": 10
   },
   "Thoothukkudi": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 230009,
+   "rows": 230013,
    "sros": 595,
    "sros_done": 497,
-   "villages": 17280,
-   "villages_done": 16309,
+   "villages": 17394,
+   "villages_done": 16324,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:42:57Z"
+ "updated": "2026-10-26T03:46:34Z"
 }
