@@ -50,7 +50,7 @@
    "2012": "0/26 sro, 0/0 vil, 0 rows",
    "2017": "0/26 sro, 0/0 vil, 0 rows",
    "2023": "0/26 sro, 0/0 vil, 0 rows",
-   "2024": "21/26 sro, 1140/1285 vil, 14708 rows",
+   "2024": "26/26 sro, 1285/1285 vil, 17261 rows",
    "sros": 26
   },
   "Dharmapuri": {
@@ -80,7 +80,7 @@
    "2012": "0/19 sro, 0/0 vil, 0 rows",
    "2017": "0/19 sro, 0/0 vil, 0 rows",
    "2023": "0/19 sro, 0/0 vil, 0 rows",
-   "2024": "0/19 sro, 0/0 vil, 0 rows",
+   "2024": "19/19 sro, 637/637 vil, 6014 rows",
    "sros": 19
   },
   "Kallakurichi": {
@@ -110,7 +110,7 @@
    "2012": "0/21 sro, 0/0 vil, 0 rows",
    "2017": "0/21 sro, 0/0 vil, 0 rows",
    "2023": "0/21 sro, 0/0 vil, 0 rows",
-   "2024": "0/21 sro, 0/0 vil, 0 rows",
+   "2024": "20/21 sro, 190/192 vil, 3659 rows",
    "sros": 21
   },
   "Karur": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 166453,
+   "rows": 178679,
    "sros": 595,
-   "sros_done": 292,
-   "villages": 11073,
-   "villages_done": 10617,
+   "sros_done": 336,
+   "villages": 11902,
+   "villages_done": 11589,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:17:41Z"
+ "updated": "2026-10-26T03:17:52Z"
 }
