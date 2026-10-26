@@ -330,7 +330,7 @@
    "2012": "0/14 sro, 0/0 vil, 0 rows",
    "2017": "0/14 sro, 0/0 vil, 0 rows",
    "2023": "0/14 sro, 0/0 vil, 0 rows",
-   "2024": "0/14 sro, 46/692 vil, 626 rows",
+   "2024": "6/14 sro, 471/692 vil, 4804 rows",
    "sros": 14
   },
   "Tiruvannamalai": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 141397,
+   "rows": 145575,
    "sros": 595,
-   "sros_done": 219,
+   "sros_done": 225,
    "villages": 9302,
-   "villages_done": 7876,
+   "villages_done": 8301,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:05:43Z"
+ "updated": "2026-10-26T03:10:46Z"
 }
