@@ -6,6 +6,9 @@ on:
   workflow_dispatch: {}
 permissions:
   contents: write
+concurrency:
+  group: bhoomi-recheck
+  cancel-in-progress: false
 jobs:
   recheck:
     runs-on: ubuntu-latest
@@ -17,8 +20,35 @@ jobs:
       - name: Re-check projects
         run: python bhoomi-lens/scripts/recheck.py
       - name: Commit updates
+        # main is pushed every ~25 min by tn-gv-collect (3 shards + sandbox loop).
+        # The re-check owns only bhoomi-lens/data/updates.js, so on each attempt we
+        # re-base onto the latest main by resetting to it (keeps every tn_gv file
+        # exactly as the collector left it), re-apply our updates.js, and push.
+        # Works with the shallow checkout; no merge conflicts possible.
         run: |
+          set -u
           git config user.name "bhoomi-recheck"
           git config user.email "actions@users.noreply.github.com"
-          git add bhoomi-lens/data/updates.js
-          git diff --cached --quiet || git commit -m "Weekly re-check $(date -u +%F)" && git push
+          F=bhoomi-lens/data/updates.js
+          cp "$F" /tmp/updates.js
+          MSG="Weekly re-check $(date -u +%F)"
+          for i in 1 2 3 4 5 6 7 8; do
+            git fetch -q --depth=1 origin main
+            git reset -q --hard FETCH_HEAD
+            cp /tmp/updates.js "$F"
+            git add "$F"
+            if git diff --cached --quiet; then
+              echo "No change to $F versus latest main; nothing to commit."
+              exit 0
+            fi
+            git commit -q -m "$MSG"
+            if git push -q origin HEAD:main; then
+              echo "Pushed on attempt $i: $(git rev-parse HEAD)"
+              exit 0
+            fi
+            s=$(( (RANDOM % 20) + 5 * i ))
+            echo "Push attempt $i rejected; retrying in ${s}s"
+            sleep "$s"
+          done
+          echo "::error::Could not push $F after 8 attempts"
+          exit 1
