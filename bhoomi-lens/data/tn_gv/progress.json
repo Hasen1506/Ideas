@@ -340,7 +340,7 @@
    "2012": "0/23 sro, 0/0 vil, 0 rows",
    "2017": "0/23 sro, 0/0 vil, 0 rows",
    "2023": "0/23 sro, 0/0 vil, 0 rows",
-   "2024": "0/23 sro, 0/0 vil, 0 rows",
+   "2024": "0/23 sro, 2/1122 vil, 10 rows",
    "sros": 23
   },
   "Tiruvarur": {
@@ -350,7 +350,7 @@
    "2012": "0/11 sro, 0/0 vil, 0 rows",
    "2017": "0/11 sro, 0/0 vil, 0 rows",
    "2023": "0/11 sro, 0/0 vil, 0 rows",
-   "2024": "3/11 sro, 151/555 vil, 3237 rows",
+   "2024": "11/11 sro, 555/555 vil, 6408 rows",
    "sros": 11
   },
   "Vellore": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 78856,
+   "rows": 82037,
    "sros": 595,
-   "sros_done": 105,
-   "villages": 4239,
-   "villages_done": 3532,
+   "sros_done": 113,
+   "villages": 5361,
+   "villages_done": 3938,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:45:16Z"
+ "updated": "2026-10-26T02:50:27Z"
 }
