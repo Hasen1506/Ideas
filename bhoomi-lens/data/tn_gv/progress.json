@@ -260,7 +260,7 @@
    "2012": "0/24 sro, 0/0 vil, 0 rows",
    "2017": "0/24 sro, 0/0 vil, 0 rows",
    "2023": "0/24 sro, 0/0 vil, 0 rows",
-   "2024": "0/24 sro, 8/918 vil, 0 rows",
+   "2024": "11/24 sro, 508/918 vil, 2006 rows",
    "sros": 24
   },
   "Theni": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 234590,
+   "rows": 236596,
    "sros": 595,
-   "sros_done": 507,
+   "sros_done": 518,
    "villages": 18312,
-   "villages_done": 16431,
+   "villages_done": 16931,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:51:40Z"
+ "updated": "2026-10-26T03:56:45Z"
 }
