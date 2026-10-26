@@ -290,7 +290,7 @@
    "2012": "0/18 sro, 0/0 vil, 0 rows",
    "2017": "0/18 sro, 0/0 vil, 0 rows",
    "2023": "0/18 sro, 0/0 vil, 0 rows",
-   "2024": "0/18 sro, 0/0 vil, 0 rows",
+   "2024": "7/18 sro, 312/555 vil, 2870 rows",
    "sros": 18
   },
   "Tirunelveli": {
@@ -300,7 +300,7 @@
    "2012": "0/22 sro, 0/0 vil, 0 rows",
    "2017": "0/22 sro, 0/0 vil, 0 rows",
    "2023": "0/22 sro, 0/0 vil, 0 rows",
-   "2024": "20/22 sro, 402/404 vil, 5468 rows",
+   "2024": "22/22 sro, 404/404 vil, 6404 rows",
    "sros": 22
   },
   "Tirupathur": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 191176,
+   "rows": 194982,
    "sros": 595,
-   "sros_done": 374,
-   "villages": 12787,
-   "villages_done": 12726,
+   "sros_done": 383,
+   "villages": 13342,
+   "villages_done": 13040,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:31:18Z"
+ "updated": "2026-10-26T03:36:23Z"
 }
