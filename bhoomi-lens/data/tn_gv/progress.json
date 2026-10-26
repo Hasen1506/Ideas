@@ -340,7 +340,7 @@
    "2012": "0/23 sro, 0/0 vil, 0 rows",
    "2017": "0/23 sro, 0/0 vil, 0 rows",
    "2023": "0/23 sro, 0/0 vil, 0 rows",
-   "2024": "0/23 sro, 2/1122 vil, 10 rows",
+   "2024": "9/23 sro, 470/1122 vil, 2336 rows",
    "sros": 23
   },
   "Tiruvarur": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 135924,
+   "rows": 138250,
    "sros": 595,
-   "sros_done": 196,
+   "sros_done": 205,
    "villages": 8610,
-   "villages_done": 6710,
+   "villages_done": 7178,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:52:36Z"
+ "updated": "2026-10-26T02:55:32Z"
 }
