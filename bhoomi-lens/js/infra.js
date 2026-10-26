@@ -17,8 +17,8 @@
       return { type: "Feature", properties: { id, n: p.n || b.name, osm: b.name, cancelled: p.cancelled ? 1 : 0 }, geometry: { type: "Polygon", coordinates: [ring] } };
     }) };
   }
-  // Weekly Gazette notices (scripts/recheck.py): villages placed on Census 2011 points join the notified-villages layer.
-  (() => { const G = (window.BL_UPDATES || {}).gazette; if (!G || !G.villages) return; const seen = new Set(D.acq.map((a) => (a.v + "|" + a.s).toLowerCase()));
+  // Weekly Gazette notices (scripts/gazette_job.py -> data/gazette.js): villages placed on Census 2011 points join the notified-villages layer.
+  (() => { const G = window.BL_GAZETTE || (window.BL_UPDATES || {}).gazette; if (!G || !G.villages) return; const seen = new Set(D.acq.map((a) => (a.v + "|" + a.s).toLowerCase()));
     G.villages.forEach((g) => { const k = (g.v + "|" + g.s).toLowerCase(); if (!g.ll || seen.has(k)) return; seen.add(k);
       D.acq.push({ g: 1, p: g.p || "National highway land acquisition", v: g.v, tk: g.tk, d: g.d, s: g.s, sv: g.sv, nt: g.nt, dt: g.dt, au: (g.so || "") + (g.km ? ", Km " + g.km : ""), u: g.u, ll: g.ll, geo: "Census 2011 village point (approximate)" }); }); })();
   function acqFC() {
