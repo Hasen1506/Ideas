@@ -234,7 +234,7 @@
    "sros": 23
   },
   "Sivagangai": {
-   "2002": "0/12 sro, 3/756 vil, 0 rows",
+   "2002": "12/12 sro, 756/756 vil, 1581 rows",
    "2003": "12/12 sro, 733/733 vil, 2183 rows",
    "2007": "12/12 sro, 557/557 vil, 2107 rows",
    "2012": "12/12 sro, 505/505 vil, 2628 rows",
@@ -264,7 +264,7 @@
    "sros": 24
   },
   "Theni": {
-   "2002": "0/10 sro, 0/0 vil, 0 rows",
+   "2002": "10/10 sro, 122/122 vil, 3474 rows",
    "2003": "10/10 sro, 134/134 vil, 4126 rows",
    "2007": "10/10 sro, 106/106 vil, 3264 rows",
    "2012": "10/10 sro, 105/105 vil, 4017 rows",
@@ -294,7 +294,7 @@
    "sros": 18
   },
   "Tirunelveli": {
-   "2002": "0/22 sro, 0/0 vil, 0 rows",
+   "2002": "22/22 sro, 355/355 vil, 4039 rows",
    "2003": "22/22 sro, 340/340 vil, 4243 rows",
    "2007": "22/22 sro, 412/412 vil, 5897 rows",
    "2012": "22/22 sro, 383/383 vil, 4870 rows",
@@ -324,7 +324,7 @@
    "sros": 15
   },
   "Tiruvallur": {
-   "2002": "0/14 sro, 0/0 vil, 0 rows",
+   "2002": "14/14 sro, 721/721 vil, 2228 rows",
    "2003": "14/14 sro, 722/722 vil, 2283 rows",
    "2007": "14/14 sro, 710/710 vil, 2751 rows",
    "2012": "14/14 sro, 710/710 vil, 4657 rows",
@@ -354,7 +354,7 @@
    "sros": 11
   },
   "Vellore": {
-   "2002": "0/8 sro, 0/0 vil, 0 rows",
+   "2002": "0/8 sro, 125/312 vil, 412 rows",
    "2003": "8/8 sro, 316/316 vil, 1832 rows",
    "2007": "8/8 sro, 306/306 vil, 4318 rows",
    "2012": "8/8 sro, 318/318 vil, 2887 rows",
@@ -400,11 +400,11 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 57938,
+   "rows": 69672,
    "sros": 595,
-   "sros_done": 283,
-   "villages": 9297,
-   "villages_done": 8544,
+   "sros_done": 341,
+   "villages": 10807,
+   "villages_done": 10620,
    "villages_failed_attempts": 0
   },
   "2003": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T19:03:37Z"
+ "updated": "2026-10-26T19:04:04Z"
 }
