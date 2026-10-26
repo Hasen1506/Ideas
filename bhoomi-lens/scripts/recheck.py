@@ -42,39 +42,8 @@ def page_hash(url):
         return hashlib.sha1(txt.encode()).hexdigest()[:16]
     except Exception: return None
 
-def gazette(prev):
-    """Central Gazette land notices (NH 3A/3D) for all states via scripts/gazette_scraper.py, incremental and time-capped.
-    Villages are placed on Census 2011 village points (approximate). Owner names are never kept."""
-    import subprocess
-    here = os.path.dirname(os.path.abspath(__file__)); work = os.path.join(ROOT, ".gz"); os.makedirs(work, exist_ok=True)
-    store = os.path.join(work, "gz.json")
-    json.dump({"records": (prev or {}).get("raw", [])}, open(store, "w"))
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "requests", "beautifulsoup4", "pyarrow"], check=False, timeout=300)
-        subprocess.run([sys.executable, os.path.join(here, "gazette_scraper.py"), "--out", store, "--since", "2024-01-01"],
-                       timeout=int(os.environ.get("GZ_MINUTES", "25")) * 60, check=False)
-    except Exception as e: print("gazette step stopped:", e, file=sys.stderr)
-    try: recs = json.load(open(store)).get("records", [])
-    except Exception: recs = (prev or {}).get("raw", [])
-    pts = {}
-    try:
-        import pyarrow.parquet as pq
-        cv = os.path.join(work, "cv.parquet")
-        if not os.path.exists(cv):
-            open(cv, "wb").write(get("https://github.com/ramSeraph/indian_admin_boundaries/releases/download/census-2011/Census_Villages.parquet", 300))
-        n = lambda x: re.sub(r"[^a-z]", "", re.sub(r"\(.*?\)|\d+", "", (x or "").lower()))
-        for r in pq.read_table(cv, columns=["stname", "dtname", "vilname", "Long", "Lat"]).to_pylist():
-            pts.setdefault((n(r["stname"]), n(r["dtname"])[:5], n(r["vilname"])), (round(r["Long"], 5), round(r["Lat"], 5)))
-    except Exception as e: print("census points unavailable:", e, file=sys.stderr)
-    out = []
-    for r in recs:
-        st = re.sub(r"[^a-z]", "", (r.get("state") or "").lower()); dt5 = re.sub(r"[^a-z]", "", (r.get("district") or "").lower())[:5]
-        for v in r.get("villages") or []:
-            ll = pts.get((st, dt5, re.sub(r"[^a-z]", "", re.sub(r"\(.*?\)|\d+", "", (v.get("v") or "").lower()))))
-            out.append({"v": v.get("v"), "tk": v.get("t"), "d": r.get("district"), "s": r.get("state"), "sv": v.get("sv") or [],
-                        "nt": r.get("type"), "dt": r.get("date"), "so": r.get("so"), "p": r.get("project"), "km": r.get("km"),
-                        "u": r.get("url"), "ll": list(ll) if ll else None})
-    return {"gen": datetime.date.today().isoformat(), "notices": len(recs), "villages": out, "raw": recs}
+# Gazette land notices moved to their own job (scripts/gazette_job.py -> data/gazette.js, data/gazette_raw.json)
+# in Oct 2026: the scraper kept hitting its timeout inside this job and both wrote updates.js.
 
 def main(limit=None):
     P = load_projects()[: int(limit) if limit else None]
@@ -101,9 +70,7 @@ def main(limit=None):
     cutoff = (datetime.date.today() - datetime.timedelta(days=120)).isoformat()
     items = [i for i in items if i["found"] >= cutoff]
     items.sort(key=lambda i: (i.get("date") or i["found"]), reverse=True)
-    gz = prev.get("gazette")
-    if os.environ.get("GZ_SKIP") != "1": gz = gazette(gz)
-    out = {"gen": today, "checked": len(P), "items": items, "hashes": hashes, "gazette": gz}
+    out = {"gen": today, "checked": len(P), "items": items, "hashes": hashes}
     open(path, "w", encoding="utf-8").write("/* Weekly re-check output (scripts/recheck.py). Items are leads to review, not confirmed status changes. */\nwindow.BL_UPDATES=" + json.dumps(out, ensure_ascii=False, separators=(",", ":")) + ";\n")
-    print("checked", len(P), "new", n, "total", len(items))
+    print("checked", len(P), "new", n, "total", len(items), flush=True)
 if __name__ == "__main__": main(sys.argv[1] if len(sys.argv) > 1 else None)

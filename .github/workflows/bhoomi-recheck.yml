@@ -1,9 +1,18 @@
 name: Bhoomi Lens weekly re-check
 # Free: public repo minutes, public pages and Google News RSS. No API keys.
+# Two independent jobs that each own their own files, so they can push in any order:
+#   recheck  -> bhoomi-lens/data/updates.js                      (news + source-page leads)
+#   gazette  -> bhoomi-lens/data/gazette.js, data/gazette_raw.json (Gazette 3A/3D land notices, resumable)
 on:
   schedule:
     - cron: "30 0 * * 1"   # Mondays 06:00 IST
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Run both jobs, or just one (e.g. extra gazette runs to finish a backfill)"
+        type: choice
+        options: [both, recheck, gazette]
+        default: both
 permissions:
   contents: write
 concurrency:
@@ -11,19 +20,20 @@ concurrency:
   cancel-in-progress: false
 jobs:
   recheck:
+    if: github.event_name != 'workflow_dispatch' || inputs.only != 'gazette'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25   # ~186 projects x (news + 2 source pages); was ~7 min of the old 34
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - name: Re-check projects
-        run: python bhoomi-lens/scripts/recheck.py
+        run: python -u bhoomi-lens/scripts/recheck.py
       - name: Commit updates
         # main is pushed every ~25 min by tn-gv-collect (3 shards + sandbox loop).
         # The re-check owns only bhoomi-lens/data/updates.js, so on each attempt we
-        # re-base onto the latest main by resetting to it (keeps every tn_gv file
-        # exactly as the collector left it), re-apply our updates.js, and push.
+        # re-base onto the latest main by resetting to it (keeps every tn_gv file and the
+        # gazette job's files exactly as they are on main), re-apply our updates.js, and push.
         # Works with the shallow checkout; no merge conflicts possible.
         run: |
           set -u
@@ -51,4 +61,55 @@ jobs:
             sleep "$s"
           done
           echo "::error::Could not push $F after 8 attempts"
+          exit 1
+
+  gazette:
+    if: github.event_name != 'workflow_dispatch' || inputs.only != 'recheck'
+    runs-on: ubuntu-latest
+    # Scraper stops itself after GZ_MINUTES and saves a checkpoint; the rest is setup + census join + push.
+    timeout-minutes: 35
+    env:
+      GZ_MINUTES: "20"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Cache Census 2011 village points
+        uses: actions/cache@v4
+        with:
+          path: bhoomi-lens/.gz/cv.parquet
+          key: census-2011-villages-v1
+      - name: Install scraper deps
+        run: python -m pip install -q requests beautifulsoup4 pyarrow
+      - name: Scrape Gazette notices (incremental, time-capped)
+        run: python -u bhoomi-lens/scripts/gazette_job.py
+      - name: Commit gazette data
+        # Same reset/restore/push loop as the re-check, for the two files only this job writes.
+        run: |
+          set -u
+          git config user.name "bhoomi-gazette"
+          git config user.email "actions@users.noreply.github.com"
+          FILES="bhoomi-lens/data/gazette.js bhoomi-lens/data/gazette_raw.json"
+          mkdir -p /tmp/gz
+          for f in $FILES; do cp "$f" /tmp/gz/; done
+          MSG="Gazette land notices $(date -u +%F)"
+          for i in 1 2 3 4 5 6 7 8; do
+            git fetch -q --depth=1 origin main
+            git reset -q --hard FETCH_HEAD
+            for f in $FILES; do cp "/tmp/gz/$(basename "$f")" "$f"; done
+            git add $FILES
+            if git diff --cached --quiet; then
+              echo "No change to gazette files versus latest main; nothing to commit."
+              exit 0
+            fi
+            git commit -q -m "$MSG"
+            if git push -q origin HEAD:main; then
+              echo "Pushed on attempt $i: $(git rev-parse HEAD)"
+              exit 0
+            fi
+            s=$(( (RANDOM % 20) + 5 * i ))
+            echo "Push attempt $i rejected; retrying in ${s}s"
+            sleep "$s"
+          done
+          echo "::error::Could not push gazette files after 8 attempts"
           exit 1

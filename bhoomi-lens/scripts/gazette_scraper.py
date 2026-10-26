@@ -1,73 +1,71 @@
 #!/usr/bin/env python3
 """
-gazette_scraper.py - weekly scraper for central Gazette of India land-acquisition notices.
-Scope: MoRTH National Highways Act 1956 s.3A / s.3D, Railways Act 1989 s.20A / s.20E.
-Source: gazettetracker.com (per-state listing /location/<state>?page=N and per-notice /g/<gazette_id>),
-        with egazette.gov.in PDF as fallback when the HTML page has no schedule.
-Output: JSON records {gid, so, date, type, project, km, state, district, taluk,
-        villages:[{t, v, sv:[...]}], url, parse_status}. Owner-name columns are dropped.
-Incremental: already-parsed gids are skipped (state kept in the output file itself).
-Usage:  pip install requests beautifulsoup4 pdfplumber
-        python gazette_scraper.py --out gazette_notices.json [--since 2024-01-01] [--until 2026-10-25] [--max-per-state 0]
-Be polite: 1 request every 2 s (DELAY).
+gazette_scraper.py - resumable scraper for central Gazette of India land-acquisition notices.
+Scope: MoRTH National Highways Act 1956 s.3A / s.3D (Railways Act 20A / 20E with --railways).
+Source: gazettetracker.com (per-state listing /location/<state>?page=N and per-notice /g/<gazette_id>).
+Output/store: one JSON file {generated, records:[...], cursor:{...}, skip:[...], pending:[...], stats, failures}.
+  records: {gid, so, date, type, project, km, state, district, taluk, villages:[{t,v,sv:[...]}], url, parse_status, tries}
+  Owner-name columns are dropped.
+
+Why it is shaped like this (Oct 2026): the old version re-walked every state's listing back to --since and
+re-fetched every notice it could not parse (1,400+ of them, at 2 s each) on every run, with no clock of its
+own, so the 25-minute subprocess timeout killed it every week. Now:
+  * hard wall-clock budget (--max-minutes); every request checks it and the run stops cleanly and saves;
+  * per-request connect/read timeouts and bounded retries;
+  * per-state cursor: a "head" scan of the newest pages stops at the first page with nothing new, and the
+    one-time backfill toward --since resumes from the saved page on the next run;
+  * gids that are not wanted (non-3A/3D after parsing) are remembered in `skip`; unparsable notices are
+    retried at most MAX_TRIES times, failed fetches are queued in `pending`;
+  * checkpoint written atomically every few notices and at the end, so a killed run keeps its work.
+Usage:  python -u gazette_scraper.py --out store.json [--since 2024-01-01] [--max-minutes 20]
 """
 import argparse, json, os, re, sys, time, datetime as dt
 import requests
 from bs4 import BeautifulSoup
 
 BASE = "https://gazettetracker.com"
-DELAY = float(os.environ.get("GZ_DELAY", "2.0"))
+DELAY = float(os.environ.get("GZ_DELAY", "1.5"))          # polite gap between requests (s)
+TIMEOUT = (10, 30)                                         # connect, read (s)
+MAX_TRIES = 3                                              # parse attempts before a notice is left as metadata_only
 UA = {"User-Agent": "Mozilla/5.0 (bhoomi-lens research scraper; weekly; contact owner)"}
 STATES = ["tamil-nadu","karnataka","kerala","andhra-pradesh","telangana","puducherry","maharashtra","arunachal-pradesh","assam","bihar","chhattisgarh","goa","gujarat","haryana","himachal-pradesh","jharkhand","madhya-pradesh","manipur","meghalaya","mizoram","nagaland","odisha","punjab","rajasthan","sikkim","tripura","uttar-pradesh","uttarakhand","west-bengal","andaman-and-nicobar-islands","chandigarh","dadra-and-nagar-haveli-and-daman-and-diu","delhi","jammu-and-kashmir","ladakh","lakshadweep"]
-TYPE_PATTERNS = [("3A", r"section\s*3\s*\(?A\)?(?![a-z])"), ("3D", r"section\s*3\s*\(?D\)?"),
-                 ("20A", r"(section|clause)\s*\(?20\s*\(?A\)?"), ("20E", r"(section|clause)\s*\(?20\s*\(?E\)?")]
-_last = [0.0]
+LA_TITLE = re.compile(r"3a|3d|20a|20e|20\(a\)|20\(e\)")
+
+class OutOfTime(Exception): pass
+_S = requests.Session(); _S.headers.update(UA)
+_last = [0.0]; DEADLINE = [float("inf")]; REQS = [0]
 def get(url, binary=False):
-    wait = DELAY - (time.time() - _last[0])
-    if wait > 0: time.sleep(wait)
     for attempt in range(3):
+        if time.time() > DEADLINE[0]: raise OutOfTime()
+        wait = DELAY - (time.time() - _last[0])
+        if wait > 0: time.sleep(wait)
         try:
-            r = requests.get(url, headers=UA, timeout=40); _last[0] = time.time()
+            REQS[0] += 1
+            r = _S.get(url, timeout=TIMEOUT); _last[0] = time.time()
             if r.status_code == 200: return r.content if binary else r.text
             if r.status_code in (404, 410): return None
+            print(f"  http {r.status_code} {url}", flush=True)
         except requests.RequestException as e:
-            print("  retry", url, e, file=sys.stderr)
+            _last[0] = time.time(); print("  retry", url, type(e).__name__, flush=True)
         time.sleep(DELAY * (attempt + 2))
     return None
 
 def gid_date(gid):
     m = re.search(r"-(\d{2})(\d{2})(\d{4})-", gid)
-    return dt.date(int(m.group(3)), int(m.group(2)), int(m.group(1))) if m else None
+    try: return dt.date(int(m.group(3)), int(m.group(2)), int(m.group(1))) if m else None
+    except ValueError: return None
 
-def classify(text):
-    t = text.lower()
-    if "corrigendum" in t[:300] or "clause (a) of section 3 " in t or "competent authorit" in t[:400] and "3a" not in t[:200]:
-        pass
-    for typ, pat in TYPE_PATTERNS:
-        if re.search(pat, t[:600], re.I): return typ
-    return None
-
-def list_state(slug, since, until, max_items=0):
-    """Yield (gid, title) for land-acquisition notices in a state's listing, newest first."""
-    page = 1
-    while True:
-        html = get(f"{BASE}/location/{slug}" + (f"?page={page}" if page > 1 else ""))
-        if not html: return
-        soup = BeautifulSoup(html, "html.parser")
-        links = soup.select('a[href^="/g/"], a[href*="gazettetracker.com/g/"]')
-        if not links: return
-        seen_old = False; n = 0
-        for a in links:
-            gid = a["href"].rstrip("/").split("/g/")[-1].split("?")[0]
-            title = a.get_text(" ", strip=True)
-            d = gid_date(gid)
-            if d and d < since: seen_old = True; continue
-            if d and d > until: continue
-            n += 1
-            yield gid, title
-        if seen_old or n == 0: return
-        page += 1
-        if max_items and page > 1 + max_items // 20: return
+def list_page(slug, page):
+    """[(gid, title)] on one listing page (newest first), [] past the end, None if the fetch failed."""
+    html = get(f"{BASE}/location/{slug}" + (f"?page={page}" if page > 1 else ""))
+    if html is None: return None
+    soup = BeautifulSoup(html, "html.parser"); out, seen = [], set()
+    for a in soup.find_all("a", href=True):
+        h = a["href"]
+        if "/g/" not in h: continue
+        gid = h.rstrip("/").split("/g/")[-1].split("?")[0]
+        if gid and gid not in seen: seen.add(gid); out.append((gid, a.get_text(" ", strip=True)))
+    return out
 
 ROW_SKIP = re.compile(r"^(sl\.?\s*no|total|\d+\s*$)", re.I)
 def parse_notice(gid, html):
@@ -114,19 +112,57 @@ def parse_notice(gid, html):
                     key = (taluk, village)
                     vmap.setdefault(key, [])
                     if sv not in vmap[key]: vmap[key].append(sv)   # owner columns (6+) ignored
-    # Fallback for pages rendered as ASCII grid text ("| 1 | 73// 18 Min | Private |")
+    # Fallback: schedules rendered as text. Seen in the wild (Oct 2026), all after "Taluk:"/"Village:" markers:
+    #   ASCII grid   "| 3 | 37/1A1C | Private | ... |"  (also "| Village: | Gharbara |")
+    #   bare pipes   "1 | 153-2B | Private (patta) | Dry | ..."
+    #   spaces       "1 13/1/1  Private   Irrigated  0.025"
+    #   one cell per line  "1" / "1623" / "Private" / ...
+    # A row is the next serial number followed by the survey number. Owner-name columns are never read.
+    # (The old fallback split on +----+ rules and only ever saw the first row of a block, so these notices
+    # stayed metadata_only forever and every run re-fetched all of them.)
     if not vmap:
-        for line in re.split(r"\+[-=+]+\+", full):
-            tm = re.search(r"Taluk\s*:\s*([^|]+)", line); vm = re.search(r"Village\s*:\s*([^|]+)", line)
-            if tm: taluk = tm.group(1).strip()
-            if vm: village = vm.group(1).strip(); continue
-            m = re.match(r"\s*\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*(Private|Government|Common|Govt)", line, re.I)
-            if m and village: vmap.setdefault((taluk, village), []).append(m.group(2).strip())
+        vmap = parse_text_schedule(full)
     rec["villages"] = [{"t": t, "v": v, "sv": s} for (t, v), s in vmap.items()]
     tks = sorted({t for t, _ in vmap if t})
     rec["taluk"] = ", ".join(tks) if tks else None
     if vmap: rec["parse_status"] = "full"
     return rec, full
+
+_SV_OK = re.compile(r"^(?=.*\d)[0-9A-Za-z][0-9A-Za-z/\-+.,() ]{0,39}$")
+def parse_text_schedule(full):
+    vmap, taluk, village, expect = {}, None, None, 1
+    lines = [l.strip() for l in full.split("\n")]
+    i = 0
+    def add(sv):
+        sv = re.sub(r"\s+", " ", sv).strip(" .")
+        if sv and _SV_OK.match(sv) and not re.match(r"(sl|total|survey|area)", sv, re.I):
+            lst = vmap.setdefault((taluk, village), [])
+            if sv not in lst: lst.append(sv)
+    while i < len(lines):
+        line = re.sub(r"(Taluk|Village)\s*:\s*\|\s*", r"\1: ", lines[i]); i += 1
+        if not line or re.fullmatch(r"[+=\-|]+", line): continue
+        tm = re.search(r"Taluk\s*:\s*([^|]+?)\s*(?=\||Village\s*:|$)", line, re.I)
+        vm = re.search(r"Village\s*:\s*([^|]+?)\s*(?=\||$)", line, re.I)
+        if tm: taluk = re.sub(r"\s+", " ", tm.group(1)).strip()
+        if vm: village = re.sub(r"\s+", " ", vm.group(1)).strip()
+        if tm or vm: continue
+        if not village: continue
+        if re.match(r"(Total|\[F\.?\s*No|Uploaded by|Login to read)", line, re.I):
+            if re.match(r"(Uploaded by|Login to read)", line, re.I): break
+            continue
+        if "|" in line:
+            cells = [c.strip() for c in line.strip("|").split("|")]
+        else:
+            cells = line.split(None, 1)
+            if len(cells) == 2: cells = [cells[0]] + cells[1].split(None, 1)
+        if not cells or not re.fullmatch(r"\d+", cells[0]): continue
+        n = int(cells[0])
+        if n not in (expect, 1): continue
+        if len(cells) >= 2 and cells[1]:
+            add(cells[1]); expect = n + 1
+        elif len(cells) == 1 and i < len(lines):                  # one cell per line
+            add(lines[i]); i += 1; expect = n + 1
+    return vmap
 
 def egazette_pdf_fallback(gid, year):
     """Optional: egazette serves PDFs at /WriteReadData/<year>/<seq>.pdf where seq = trailing number of gid."""
@@ -140,46 +176,125 @@ def egazette_pdf_fallback(gid, year):
     except Exception as e:
         print("  pdf parse fail", gid, e, file=sys.stderr); return None
 
+
+class Store:
+    def __init__(self, path, keep_types):
+        self.path = path; self.keep = keep_types
+        d = json.load(open(path)) if os.path.exists(path) else {}
+        self.rec = {r["gid"]: r for r in d.get("records", [])}
+        self.cursor = d.get("cursor", {}); self.skip = set(d.get("skip", []))
+        self.pending = {p["gid"]: p for p in d.get("pending", [])}
+        self.stats = {}; self.failures = []; self.new = 0; self.upgraded = 0; self.n_since_save = 0
+    def known(self, gid):
+        return gid in self.rec or gid in self.skip or gid in self.pending
+    def save(self):
+        d = {"generated": dt.date.today().isoformat(), "records": list(self.rec.values()), "cursor": self.cursor,
+             "skip": sorted(self.skip), "pending": list(self.pending.values()), "stats": self.stats, "failures": self.failures[-200:]}
+        tmp = self.path + ".tmp"; json.dump(d, open(tmp, "w"), ensure_ascii=False, separators=(",", ":")); os.replace(tmp, self.path)
+        self.n_since_save = 0
+    def fetch(self, gid, slug):
+        """Fetch + parse one notice. Returns True if a record was stored."""
+        html = get(f"{BASE}/g/{gid}")
+        if not html and gid in self.rec:
+            self.rec[gid]["tries"] = self.rec[gid].get("tries", 0) + 1; return False
+        if not html:
+            p = self.pending.setdefault(gid, {"gid": gid, "state": slug, "tries": 0}); p["tries"] += 1
+            if p["tries"] >= MAX_TRIES: self.pending.pop(gid); self.skip.add(gid)
+            self.failures.append({"gid": gid, "state": slug, "err": "fetch"}); return False
+        self.pending.pop(gid, None)
+        try: rec, _ = parse_notice(gid, html)
+        except Exception as e:
+            self.failures.append({"gid": gid, "state": slug, "err": repr(e)[:200]}); self.skip.add(gid); return False
+        if rec["type"] not in self.keep: self.skip.add(gid); self.rec.pop(gid, None); return False
+        old = self.rec.get(gid)
+        if not rec["state"]: rec["state"] = (old or {}).get("state") or slug.replace("-", " ").title()
+        rec["tries"] = ((old or {}).get("tries", 0) + 1) if rec["parse_status"] != "full" else 0
+        if old is None: self.new += 1
+        elif old.get("parse_status") != "full" and rec["parse_status"] == "full": self.upgraded += 1
+        self.rec[gid] = rec
+        print(f"  {slug}: {gid} {rec['type']} {rec['so']} villages={len(rec['villages'])} {rec['parse_status']}", flush=True)
+        self.n_since_save += 1
+        if self.n_since_save >= 10: self.save()
+        return True
+
+def take(store, slug, items, since, until):
+    """Fetch the unknown land-acquisition notices on one listing page. Returns (n_new, all_older_than_since)."""
+    n, older = 0, bool(items)
+    for gid, title in items:
+        d = gid_date(gid)
+        if not (d and d < since): older = False
+        if (d and (d < since or d > until)) or store.known(gid): continue
+        t = title.lower().replace(" ", "")
+        if not LA_TITLE.search(t) and "acqui" not in t: store.skip.add(gid); continue
+        n += 1; store.fetch(gid, slug)
+    return n, older
+
+def run(a):
+    since, until = dt.date.fromisoformat(a.since), dt.date.fromisoformat(a.until)
+    keep = {"3A", "3D"} | ({"20A", "20E"} if a.railways else set())
+    DEADLINE[0] = time.time() + a.max_minutes * 60
+    st = Store(a.out, keep); slugs = a.states.split(",")
+    print(f"store: {len(st.rec)} records, {len(st.skip)} skipped gids, {len(st.pending)} pending; budget {a.max_minutes} min", flush=True)
+    phase = "head"
+    try:
+        # 1) head: newest pages of every state until a page has nothing new (least recently visited first).
+        for slug in sorted(slugs, key=lambda s: st.cursor.get(s, {}).get("head_at", "")):
+            c = st.cursor.setdefault(slug, {"resume_page": 1, "complete": False}); new = 0
+            for page in range(1, a.head_pages + 1):
+                items = list_page(slug, page)
+                if not items: break
+                n, older = take(st, slug, items, since, until); new += n
+                if older or n == 0: break
+            else:
+                if c.get("complete"): c.update(complete=False, resume_page=a.head_pages + 1)   # >head_pages of new items: let backfill close the gap
+            c["head_at"] = dt.datetime.utcnow().isoformat(timespec="seconds"); st.stats[slug] = {"head_new": new}
+            print(f"head {slug}: {new} new", flush=True)
+        st.save()
+        # 2) retries: failed fetches and notices whose schedule did not parse (bounded attempts).
+        phase = "retry"
+        todo = [(p["gid"], p["state"]) for p in list(st.pending.values())]
+        todo += [(g, (r.get("state") or "").lower().replace(" ", "-")) for g, r in st.rec.items()
+                 if r.get("parse_status") != "full" and r.get("tries", 0) < MAX_TRIES]
+        todo.sort(key=lambda x: x[0].split("-")[-1], reverse=True)       # newest gazette sequence first
+        print(f"retry queue: {len(todo)}", flush=True)
+        for gid, slug in todo:
+            if gid in st.rec and st.rec[gid].get("parse_status") == "full": continue
+            st.fetch(gid, slug or "unknown")
+        st.save()
+        # 3) backfill toward --since, resuming each incomplete state's saved page.
+        phase = "backfill"
+        for slug in slugs:
+            c = st.cursor.setdefault(slug, {"resume_page": 1, "complete": False})
+            if c.get("complete"): continue
+            page = max(2, c.get("resume_page", 1))
+            while True:
+                items = list_page(slug, page)
+                if items is None: break                     # transient; resume here next run
+                if not items: c["complete"] = True; break
+                n, older = take(st, slug, items, since, until)
+                c["resume_page"] = page + 1
+                if older: c["complete"] = True; break
+                page += 1
+            print(f"backfill {slug}: page {c['resume_page']} complete={c['complete']}", flush=True)
+        phase = "done"
+    except OutOfTime:
+        print(f"time budget reached during {phase}; saving checkpoint", flush=True)
+    st.save()
+    left = sum(1 for c in st.cursor.values() if not c.get("complete"))
+    full = sum(1 for r in st.rec.values() if r.get("parse_status") == "full")
+    print(f"gazette: {len(st.rec)} records ({full} full), +{st.new} new, {st.upgraded} upgraded to full, "
+          f"{len(st.pending)} pending, {left} states still backfilling, {REQS[0]} requests, phase reached: {phase}", flush=True)
+    return st
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="gazette_notices.json")
     ap.add_argument("--since", default="2024-01-01"); ap.add_argument("--until", default=dt.date.today().isoformat())
-    ap.add_argument("--max-per-state", type=int, default=0, help="0 = no cap")
+    ap.add_argument("--max-minutes", type=float, default=float(os.environ.get("GZ_MINUTES", "20")))
+    ap.add_argument("--head-pages", type=int, default=5, help="max newest pages per state per run before backfill takes over")
     ap.add_argument("--states", default=",".join(STATES))
     ap.add_argument("--railways", action="store_true", help="also keep 20A/20E notices")
-    a = ap.parse_args()
-    since, until = dt.date.fromisoformat(a.since), dt.date.fromisoformat(a.until)
-    data = json.load(open(a.out)) if os.path.exists(a.out) else {"records": []}
-    done = {r["gid"]: r for r in data["records"] if r.get("parse_status") == "full"}
-    keep_types = {"3A", "3D"} | ({"20A", "20E"} if a.railways else set())
-    stats, failures = {}, []
-    for slug in a.states.split(","):
-        found = processed = 0
-        for gid, title in list_state(slug, since, until, a.max_per_state):
-            t = title.lower()
-            if not re.search(r"3a|3d|3 a|3 d|20a|20e|20\(a\)|20\(e\)", t.replace(" ", "")) and "acqui" not in t:
-                continue
-            found += 1
-            if gid in done: processed += 1; continue
-            if a.max_per_state and processed >= a.max_per_state: continue
-            html = get(f"{BASE}/g/{gid}")
-            if not html: failures.append({"gid": gid, "state": slug, "err": "fetch"}); continue
-            try:
-                rec, _ = parse_notice(gid, html)
-            except Exception as e:
-                failures.append({"gid": gid, "state": slug, "err": repr(e)}); continue
-            if rec["type"] not in keep_types: continue
-            if not rec["state"]: rec["state"] = slug.replace("-", " ").title()
-            done[gid] = rec; processed += 1
-            print(f"{slug}: {gid} {rec['type']} {rec['so']} villages={len(rec['villages'])}")
-            if processed % 5 == 0:   # checkpoint often so a time-capped run keeps its work
-                json.dump({"generated": dt.date.today().isoformat(), "records": list(done.values()) + [r for r in data["records"] if r["gid"] not in done], "stats": stats, "failures": failures}, open(a.out, "w"), ensure_ascii=False)
-        stats[slug] = {"found": found, "processed": processed}
-        others = [r for r in data["records"] if r["gid"] not in done]
-        data = {"generated": dt.date.today().isoformat(), "records": list(done.values()) + others,
-                "stats": stats, "failures": failures}
-        json.dump(data, open(a.out, "w"), ensure_ascii=False, indent=1)   # checkpoint per state
-    print(json.dumps(stats, indent=1)); print("failures:", len(failures))
+    run(ap.parse_args())
 
 if __name__ == "__main__":
     main()
