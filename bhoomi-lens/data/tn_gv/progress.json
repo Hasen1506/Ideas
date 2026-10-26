@@ -90,7 +90,7 @@
    "2012": "0/15 sro, 0/0 vil, 0 rows",
    "2017": "0/15 sro, 0/0 vil, 0 rows",
    "2023": "0/15 sro, 0/0 vil, 0 rows",
-   "2024": "13/15 sro, 533/553 vil, 9126 rows",
+   "2024": "15/15 sro, 553/553 vil, 9948 rows",
    "sros": 15
   },
   "Kancheepuram": {
@@ -120,7 +120,7 @@
    "2012": "0/11 sro, 0/0 vil, 0 rows",
    "2017": "0/11 sro, 0/0 vil, 0 rows",
    "2023": "0/11 sro, 0/0 vil, 0 rows",
-   "2024": "0/11 sro, 0/0 vil, 0 rows",
+   "2024": "11/11 sro, 204/204 vil, 3579 rows",
    "sros": 11
   },
   "Krishnagiri": {
@@ -150,7 +150,7 @@
    "2012": "0/7 sro, 0/0 vil, 0 rows",
    "2017": "0/7 sro, 0/0 vil, 0 rows",
    "2023": "0/7 sro, 0/0 vil, 0 rows",
-   "2024": "0/7 sro, 0/0 vil, 0 rows",
+   "2024": "7/7 sro, 333/333 vil, 9171 rows",
    "sros": 7
   },
   "Nagapattinam": {
@@ -180,7 +180,7 @@
    "2012": "0/5 sro, 0/0 vil, 0 rows",
    "2017": "0/5 sro, 0/0 vil, 0 rows",
    "2023": "0/5 sro, 0/0 vil, 0 rows",
-   "2024": "0/5 sro, 0/0 vil, 0 rows",
+   "2024": "5/5 sro, 373/373 vil, 444 rows",
    "sros": 5
   },
   "Perambalur": {
@@ -210,7 +210,7 @@
    "2012": "0/17 sro, 0/0 vil, 0 rows",
    "2017": "0/17 sro, 0/0 vil, 0 rows",
    "2023": "0/17 sro, 0/0 vil, 0 rows",
-   "2024": "0/17 sro, 0/0 vil, 0 rows",
+   "2024": "0/17 sro, 48/554 vil, 0 rows",
    "sros": 17
   },
   "Ranipet": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 200160,
+   "rows": 214176,
    "sros": 595,
-   "sros_done": 394,
-   "villages": 13860,
-   "villages_done": 13348,
+   "sros_done": 419,
+   "villages": 15324,
+   "villages_done": 14326,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:41:28Z"
+ "updated": "2026-10-26T03:42:41Z"
 }
