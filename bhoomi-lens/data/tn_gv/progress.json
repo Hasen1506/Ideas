@@ -30,7 +30,7 @@
    "2012": "0/27 sro, 0/0 vil, 0 rows",
    "2017": "0/27 sro, 0/0 vil, 0 rows",
    "2023": "0/27 sro, 0/0 vil, 0 rows",
-   "2024": "10/27 sro, 157/202 vil, 19490 rows",
+   "2024": "27/27 sro, 202/202 vil, 42096 rows",
    "sros": 27
   },
   "Coimbatore": {
@@ -60,7 +60,7 @@
    "2012": "0/12 sro, 0/0 vil, 0 rows",
    "2017": "0/12 sro, 0/0 vil, 0 rows",
    "2023": "0/12 sro, 0/0 vil, 0 rows",
-   "2024": "0/12 sro, 0/0 vil, 0 rows",
+   "2024": "0/12 sro, 91/468 vil, 0 rows",
    "sros": 12
   },
   "Dindigul": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 97897,
+   "rows": 120503,
    "sros": 595,
-   "sros_done": 135,
-   "villages": 6646,
-   "villages_done": 5079,
+   "sros_done": 152,
+   "villages": 7114,
+   "villages_done": 5215,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:52:17Z"
+ "updated": "2026-10-26T02:52:31Z"
 }
