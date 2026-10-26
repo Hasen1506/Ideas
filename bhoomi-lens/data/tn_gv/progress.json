@@ -214,7 +214,7 @@
    "sros": 17
   },
   "Ranipet": {
-   "2002": "2/8 sro, 5/241 vil, 0 rows",
+   "2002": "8/8 sro, 241/241 vil, 865 rows",
    "2003": "8/8 sro, 285/285 vil, 896 rows",
    "2007": "8/8 sro, 277/277 vil, 1131 rows",
    "2012": "8/8 sro, 430/430 vil, 1238 rows",
@@ -244,7 +244,7 @@
    "sros": 12
   },
   "Tenkasi": {
-   "2002": "0/18 sro, 0/0 vil, 0 rows",
+   "2002": "18/18 sro, 197/197 vil, 2364 rows",
    "2003": "18/18 sro, 196/196 vil, 262 rows",
    "2007": "18/18 sro, 256/256 vil, 2855 rows",
    "2012": "18/18 sro, 231/231 vil, 2768 rows",
@@ -274,7 +274,7 @@
    "sros": 10
   },
   "Thoothukkudi": {
-   "2002": "0/24 sro, 0/0 vil, 0 rows",
+   "2002": "24/24 sro, 466/466 vil, 2209 rows",
    "2003": "24/24 sro, 469/469 vil, 3526 rows",
    "2007": "24/24 sro, 517/517 vil, 1226 rows",
    "2012": "24/24 sro, 514/514 vil, 2262 rows",
@@ -304,7 +304,7 @@
    "sros": 22
   },
   "Tirupathur": {
-   "2002": "0/6 sro, 0/0 vil, 0 rows",
+   "2002": "6/6 sro, 141/141 vil, 1145 rows",
    "2003": "6/6 sro, 146/146 vil, 1137 rows",
    "2007": "6/6 sro, 136/136 vil, 1336 rows",
    "2012": "6/6 sro, 398/398 vil, 1349 rows",
@@ -334,7 +334,7 @@
    "sros": 14
   },
   "Tiruvannamalai": {
-   "2002": "0/23 sro, 0/0 vil, 0 rows",
+   "2002": "23/23 sro, 954/954 vil, 1841 rows",
    "2003": "23/23 sro, 1533/1533 vil, 1947 rows",
    "2007": "23/23 sro, 1056/1056 vil, 2144 rows",
    "2012": "23/23 sro, 1056/1056 vil, 2025 rows",
@@ -364,7 +364,7 @@
    "sros": 8
   },
   "Viluppuram": {
-   "2002": "0/20 sro, 0/0 vil, 0 rows",
+   "2002": "4/20 sro, 305/884 vil, 763 rows",
    "2003": "20/20 sro, 875/875 vil, 5144 rows",
    "2007": "20/20 sro, 905/905 vil, 8132 rows",
    "2012": "20/20 sro, 905/905 vil, 14139 rows",
@@ -400,11 +400,11 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 14566,
+   "rows": 23753,
    "sros": 595,
-   "sros_done": 92,
-   "villages": 3196,
-   "villages_done": 2960,
+   "sros_done": 173,
+   "villages": 5838,
+   "villages_done": 5259,
    "villages_failed_attempts": 0
   },
   "2003": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T16:31:44Z"
+ "updated": "2026-10-26T16:32:47Z"
 }
