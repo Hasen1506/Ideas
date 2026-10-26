@@ -110,7 +110,7 @@
    "2012": "0/21 sro, 0/0 vil, 0 rows",
    "2017": "0/21 sro, 0/0 vil, 0 rows",
    "2023": "0/21 sro, 0/0 vil, 0 rows",
-   "2024": "20/21 sro, 190/192 vil, 3659 rows",
+   "2024": "21/21 sro, 192/192 vil, 5277 rows",
    "sros": 21
   },
   "Karur": {
@@ -140,7 +140,7 @@
    "2012": "0/26 sro, 0/0 vil, 0 rows",
    "2017": "0/26 sro, 0/0 vil, 0 rows",
    "2023": "0/26 sro, 0/0 vil, 0 rows",
-   "2024": "0/26 sro, 0/0 vil, 0 rows",
+   "2024": "26/26 sro, 688/688 vil, 7630 rows",
    "sros": 26
   },
   "Mayiladuthurai": {
@@ -170,7 +170,7 @@
    "2012": "0/15 sro, 0/0 vil, 0 rows",
    "2017": "0/15 sro, 0/0 vil, 0 rows",
    "2023": "0/15 sro, 0/0 vil, 0 rows",
-   "2024": "0/15 sro, 0/0 vil, 0 rows",
+   "2024": "15/15 sro, 449/449 vil, 2726 rows",
    "sros": 15
   },
   "Nilgiris": {
@@ -200,7 +200,7 @@
    "2012": "0/17 sro, 0/0 vil, 0 rows",
    "2017": "0/17 sro, 0/0 vil, 0 rows",
    "2023": "0/17 sro, 0/0 vil, 0 rows",
-   "2024": "0/17 sro, 0/0 vil, 0 rows",
+   "2024": "5/17 sro, 354/819 vil, 806 rows",
    "sros": 17
   },
   "Ramanathapuram": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 217229,
+   "rows": 230009,
    "sros": 595,
-   "sros_done": 450,
-   "villages": 15324,
-   "villages_done": 14816,
+   "sros_done": 497,
+   "villages": 17280,
+   "villages_done": 16309,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T03:42:46Z"
+ "updated": "2026-10-26T03:42:57Z"
 }
