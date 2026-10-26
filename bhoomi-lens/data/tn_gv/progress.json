@@ -1,6 +1,6 @@
 {
  "all_done": false,
- "current_revision": "2024",
+ "current_revision": "2023",
  "discovery_complete": true,
  "districts": {
   "Ariyalur": {
@@ -19,7 +19,7 @@
    "2007": "1/15 sro, 14/14 vil, 1304 rows",
    "2012": "1/15 sro, 13/13 vil, 1882 rows",
    "2017": "1/15 sro, 14/14 vil, 1902 rows",
-   "2023": "1/15 sro, 14/14 vil, 1919 rows",
+   "2023": "8/15 sro, 314/712 vil, 9695 rows",
    "2024": "15/15 sro, 703/703 vil, 19071 rows",
    "sros": 15
   },
@@ -260,7 +260,7 @@
    "2012": "0/24 sro, 0/0 vil, 0 rows",
    "2017": "0/24 sro, 0/0 vil, 0 rows",
    "2023": "0/24 sro, 0/0 vil, 0 rows",
-   "2024": "11/24 sro, 508/918 vil, 2006 rows",
+   "2024": "24/24 sro, 918/918 vil, 11319 rows",
    "sros": 24
   },
   "Theni": {
@@ -450,23 +450,23 @@
   "2023": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 39564,
+   "rows": 47340,
    "sros": 595,
-   "sros_done": 132,
-   "villages": 3806,
-   "villages_done": 3649,
+   "sros_done": 139,
+   "villages": 4504,
+   "villages_done": 3949,
    "villages_failed_attempts": 0
   },
   "2024": {
-   "complete": false,
+   "complete": true,
    "items_mismatch": 0,
-   "rows": 249756,
+   "rows": 259069,
    "sros": 595,
-   "sros_done": 582,
+   "sros_done": 595,
    "villages": 19895,
-   "villages_done": 19485,
+   "villages_done": 19895,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T04:32:57Z"
+ "updated": "2026-10-26T04:33:14Z"
 }
