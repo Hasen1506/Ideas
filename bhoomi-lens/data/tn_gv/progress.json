@@ -200,7 +200,7 @@
    "2012": "0/17 sro, 0/0 vil, 0 rows",
    "2017": "0/17 sro, 0/0 vil, 0 rows",
    "2023": "0/17 sro, 0/0 vil, 0 rows",
-   "2024": "5/17 sro, 354/819 vil, 806 rows",
+   "2024": "17/17 sro, 819/819 vil, 2198 rows",
    "sros": 17
   },
   "Ramanathapuram": {
@@ -230,7 +230,7 @@
    "2012": "0/23 sro, 0/0 vil, 0 rows",
    "2017": "0/23 sro, 0/0 vil, 0 rows",
    "2023": "0/23 sro, 0/0 vil, 0 rows",
-   "2024": "0/23 sro, 0/0 vil, 0 rows",
+   "2024": "23/23 sro, 798/798 vil, 7303 rows",
    "sros": 23
   },
   "Sivagangai": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 236596,
+   "rows": 245291,
    "sros": 595,
-   "sros_done": 518,
-   "villages": 18312,
-   "villages_done": 16931,
+   "sros_done": 553,
+   "villages": 19110,
+   "villages_done": 18194,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T04:07:51Z"
+ "updated": "2026-10-26T04:08:07Z"
 }
