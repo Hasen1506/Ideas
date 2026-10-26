@@ -36,7 +36,7 @@
   "Coimbatore": {
    "2002": "0/20 sro, 0/0 vil, 0 rows",
    "2003": "0/20 sro, 0/0 vil, 0 rows",
-   "2007": "8/20 sro, 115/324 vil, 4679 rows",
+   "2007": "20/20 sro, 324/324 vil, 12712 rows",
    "2012": "20/20 sro, 322/322 vil, 11302 rows",
    "2017": "20/20 sro, 324/324 vil, 12126 rows",
    "2023": "20/20 sro, 331/331 vil, 13746 rows",
@@ -66,7 +66,7 @@
   "Dindigul": {
    "2002": "0/22 sro, 0/0 vil, 0 rows",
    "2003": "0/22 sro, 0/0 vil, 0 rows",
-   "2007": "0/22 sro, 0/0 vil, 0 rows",
+   "2007": "22/22 sro, 373/373 vil, 3722 rows",
    "2012": "22/22 sro, 376/376 vil, 4252 rows",
    "2017": "22/22 sro, 380/380 vil, 4629 rows",
    "2023": "22/22 sro, 380/380 vil, 4685 rows",
@@ -96,7 +96,7 @@
   "Kancheepuram": {
    "2002": "0/11 sro, 0/0 vil, 0 rows",
    "2003": "0/11 sro, 0/0 vil, 0 rows",
-   "2007": "0/11 sro, 0/0 vil, 0 rows",
+   "2007": "9/11 sro, 550/590 vil, 3617 rows",
    "2012": "11/11 sro, 524/524 vil, 7710 rows",
    "2017": "11/11 sro, 575/575 vil, 8733 rows",
    "2023": "11/11 sro, 557/557 vil, 9063 rows",
@@ -420,11 +420,11 @@
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 6188,
+   "rows": 21560,
    "sros": 595,
-   "sros_done": 19,
-   "villages": 536,
-   "villages_done": 327,
+   "sros_done": 62,
+   "villages": 1499,
+   "villages_done": 1459,
    "villages_failed_attempts": 0
   },
   "2012": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T10:23:08Z"
+ "updated": "2026-10-26T10:23:22Z"
 }
