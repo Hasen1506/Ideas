@@ -370,7 +370,7 @@
    "2012": "0/20 sro, 0/0 vil, 0 rows",
    "2017": "0/20 sro, 0/0 vil, 0 rows",
    "2023": "0/20 sro, 0/0 vil, 0 rows",
-   "2024": "8/20 sro, 369/927 vil, 8894 rows",
+   "2024": "15/20 sro, 712/927 vil, 12844 rows",
    "sros": 20
   },
   "Virudhunagar": {
@@ -460,13 +460,13 @@
   "2024": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 65894,
+   "rows": 69844,
    "sros": 595,
-   "sros_done": 82,
+   "sros_done": 89,
    "villages": 3356,
-   "villages_done": 2495,
+   "villages_done": 2838,
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T02:30:06Z"
+ "updated": "2026-10-26T02:35:10Z"
 }
