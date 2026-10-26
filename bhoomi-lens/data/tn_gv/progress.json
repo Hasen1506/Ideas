@@ -1,0 +1,472 @@
+{
+ "all_done": false,
+ "current_revision": "2024",
+ "discovery_complete": true,
+ "districts": {
+  "Ariyalur": {
+   "2002": "0/10 sro, 0/0 vil, 0 rows",
+   "2003": "0/10 sro, 0/0 vil, 0 rows",
+   "2007": "0/10 sro, 0/0 vil, 0 rows",
+   "2012": "0/10 sro, 0/0 vil, 0 rows",
+   "2017": "0/10 sro, 0/0 vil, 0 rows",
+   "2023": "0/10 sro, 0/0 vil, 0 rows",
+   "2024": "0/10 sro, 0/194 vil, 0 rows",
+   "sros": 10
+  },
+  "Chengalpattu": {
+   "2002": "1/15 sro, 22/22 vil, 1163 rows",
+   "2003": "1/15 sro, 17/17 vil, 1427 rows",
+   "2007": "1/15 sro, 14/14 vil, 1304 rows",
+   "2012": "1/15 sro, 13/13 vil, 1882 rows",
+   "2017": "1/15 sro, 14/14 vil, 1902 rows",
+   "2023": "1/15 sro, 14/14 vil, 1919 rows",
+   "2024": "1/15 sro, 14/14 vil, 1932 rows",
+   "sros": 15
+  },
+  "Chennai": {
+   "2002": "0/27 sro, 0/0 vil, 0 rows",
+   "2003": "0/27 sro, 0/0 vil, 0 rows",
+   "2007": "0/27 sro, 0/0 vil, 0 rows",
+   "2012": "0/27 sro, 0/0 vil, 0 rows",
+   "2017": "0/27 sro, 0/0 vil, 0 rows",
+   "2023": "0/27 sro, 0/0 vil, 0 rows",
+   "2024": "0/27 sro, 0/0 vil, 0 rows",
+   "sros": 27
+  },
+  "Coimbatore": {
+   "2002": "0/20 sro, 0/0 vil, 0 rows",
+   "2003": "0/20 sro, 0/0 vil, 0 rows",
+   "2007": "0/20 sro, 0/0 vil, 0 rows",
+   "2012": "0/20 sro, 0/0 vil, 0 rows",
+   "2017": "0/20 sro, 0/0 vil, 0 rows",
+   "2023": "0/20 sro, 0/0 vil, 0 rows",
+   "2024": "0/20 sro, 0/0 vil, 0 rows",
+   "sros": 20
+  },
+  "Cuddalore": {
+   "2002": "0/26 sro, 0/0 vil, 0 rows",
+   "2003": "0/26 sro, 0/0 vil, 0 rows",
+   "2007": "0/26 sro, 0/0 vil, 0 rows",
+   "2012": "0/26 sro, 0/0 vil, 0 rows",
+   "2017": "0/26 sro, 0/0 vil, 0 rows",
+   "2023": "0/26 sro, 0/0 vil, 0 rows",
+   "2024": "0/26 sro, 0/0 vil, 0 rows",
+   "sros": 26
+  },
+  "Dharmapuri": {
+   "2002": "0/12 sro, 0/0 vil, 0 rows",
+   "2003": "0/12 sro, 0/0 vil, 0 rows",
+   "2007": "0/12 sro, 0/0 vil, 0 rows",
+   "2012": "0/12 sro, 0/0 vil, 0 rows",
+   "2017": "0/12 sro, 0/0 vil, 0 rows",
+   "2023": "0/12 sro, 0/0 vil, 0 rows",
+   "2024": "0/12 sro, 0/0 vil, 0 rows",
+   "sros": 12
+  },
+  "Dindigul": {
+   "2002": "0/22 sro, 0/0 vil, 0 rows",
+   "2003": "0/22 sro, 0/0 vil, 0 rows",
+   "2007": "0/22 sro, 0/0 vil, 0 rows",
+   "2012": "0/22 sro, 0/0 vil, 0 rows",
+   "2017": "0/22 sro, 0/0 vil, 0 rows",
+   "2023": "0/22 sro, 0/0 vil, 0 rows",
+   "2024": "0/22 sro, 0/0 vil, 0 rows",
+   "sros": 22
+  },
+  "Erode": {
+   "2002": "0/19 sro, 0/0 vil, 0 rows",
+   "2003": "0/19 sro, 0/0 vil, 0 rows",
+   "2007": "0/19 sro, 0/0 vil, 0 rows",
+   "2012": "0/19 sro, 0/0 vil, 0 rows",
+   "2017": "0/19 sro, 0/0 vil, 0 rows",
+   "2023": "0/19 sro, 0/0 vil, 0 rows",
+   "2024": "0/19 sro, 0/0 vil, 0 rows",
+   "sros": 19
+  },
+  "Kallakurichi": {
+   "2002": "0/15 sro, 0/0 vil, 0 rows",
+   "2003": "0/15 sro, 0/0 vil, 0 rows",
+   "2007": "0/15 sro, 0/0 vil, 0 rows",
+   "2012": "0/15 sro, 0/0 vil, 0 rows",
+   "2017": "0/15 sro, 0/0 vil, 0 rows",
+   "2023": "0/15 sro, 0/0 vil, 0 rows",
+   "2024": "0/15 sro, 0/0 vil, 0 rows",
+   "sros": 15
+  },
+  "Kancheepuram": {
+   "2002": "0/11 sro, 0/0 vil, 0 rows",
+   "2003": "0/11 sro, 0/0 vil, 0 rows",
+   "2007": "0/11 sro, 0/0 vil, 0 rows",
+   "2012": "0/11 sro, 0/0 vil, 0 rows",
+   "2017": "0/11 sro, 0/0 vil, 0 rows",
+   "2023": "0/11 sro, 0/0 vil, 0 rows",
+   "2024": "0/11 sro, 0/0 vil, 0 rows",
+   "sros": 11
+  },
+  "Kanniyakumari": {
+   "2002": "0/21 sro, 0/0 vil, 0 rows",
+   "2003": "0/21 sro, 0/0 vil, 0 rows",
+   "2007": "0/21 sro, 0/0 vil, 0 rows",
+   "2012": "0/21 sro, 0/0 vil, 0 rows",
+   "2017": "0/21 sro, 0/0 vil, 0 rows",
+   "2023": "0/21 sro, 0/0 vil, 0 rows",
+   "2024": "0/21 sro, 0/0 vil, 0 rows",
+   "sros": 21
+  },
+  "Karur": {
+   "2002": "0/11 sro, 0/0 vil, 0 rows",
+   "2003": "0/11 sro, 0/0 vil, 0 rows",
+   "2007": "0/11 sro, 0/0 vil, 0 rows",
+   "2012": "0/11 sro, 0/0 vil, 0 rows",
+   "2017": "0/11 sro, 0/0 vil, 0 rows",
+   "2023": "0/11 sro, 0/0 vil, 0 rows",
+   "2024": "0/11 sro, 0/0 vil, 0 rows",
+   "sros": 11
+  },
+  "Krishnagiri": {
+   "2002": "0/14 sro, 0/0 vil, 0 rows",
+   "2003": "0/14 sro, 0/0 vil, 0 rows",
+   "2007": "0/14 sro, 0/0 vil, 0 rows",
+   "2012": "0/14 sro, 0/0 vil, 0 rows",
+   "2017": "0/14 sro, 0/0 vil, 0 rows",
+   "2023": "0/14 sro, 0/0 vil, 0 rows",
+   "2024": "0/14 sro, 0/0 vil, 0 rows",
+   "sros": 14
+  },
+  "Madurai": {
+   "2002": "0/26 sro, 0/0 vil, 0 rows",
+   "2003": "0/26 sro, 0/0 vil, 0 rows",
+   "2007": "0/26 sro, 0/0 vil, 0 rows",
+   "2012": "0/26 sro, 0/0 vil, 0 rows",
+   "2017": "0/26 sro, 0/0 vil, 0 rows",
+   "2023": "0/26 sro, 0/0 vil, 0 rows",
+   "2024": "0/26 sro, 0/0 vil, 0 rows",
+   "sros": 26
+  },
+  "Mayiladuthurai": {
+   "2002": "0/7 sro, 0/0 vil, 0 rows",
+   "2003": "0/7 sro, 0/0 vil, 0 rows",
+   "2007": "0/7 sro, 0/0 vil, 0 rows",
+   "2012": "0/7 sro, 0/0 vil, 0 rows",
+   "2017": "0/7 sro, 0/0 vil, 0 rows",
+   "2023": "0/7 sro, 0/0 vil, 0 rows",
+   "2024": "0/7 sro, 0/0 vil, 0 rows",
+   "sros": 7
+  },
+  "Nagapattinam": {
+   "2002": "0/6 sro, 0/0 vil, 0 rows",
+   "2003": "0/6 sro, 0/0 vil, 0 rows",
+   "2007": "0/6 sro, 0/0 vil, 0 rows",
+   "2012": "0/6 sro, 0/0 vil, 0 rows",
+   "2017": "0/6 sro, 0/0 vil, 0 rows",
+   "2023": "0/6 sro, 0/0 vil, 0 rows",
+   "2024": "0/6 sro, 0/0 vil, 0 rows",
+   "sros": 6
+  },
+  "Namakkal": {
+   "2002": "0/15 sro, 0/0 vil, 0 rows",
+   "2003": "0/15 sro, 0/0 vil, 0 rows",
+   "2007": "0/15 sro, 0/0 vil, 0 rows",
+   "2012": "0/15 sro, 0/0 vil, 0 rows",
+   "2017": "0/15 sro, 0/0 vil, 0 rows",
+   "2023": "0/15 sro, 0/0 vil, 0 rows",
+   "2024": "0/15 sro, 0/0 vil, 0 rows",
+   "sros": 15
+  },
+  "Nilgiris": {
+   "2002": "0/5 sro, 0/0 vil, 0 rows",
+   "2003": "0/5 sro, 0/0 vil, 0 rows",
+   "2007": "0/5 sro, 0/0 vil, 0 rows",
+   "2012": "0/5 sro, 0/0 vil, 0 rows",
+   "2017": "0/5 sro, 0/0 vil, 0 rows",
+   "2023": "0/5 sro, 0/0 vil, 0 rows",
+   "2024": "0/5 sro, 0/0 vil, 0 rows",
+   "sros": 5
+  },
+  "Perambalur": {
+   "2002": "0/6 sro, 0/0 vil, 0 rows",
+   "2003": "0/6 sro, 0/0 vil, 0 rows",
+   "2007": "0/6 sro, 0/0 vil, 0 rows",
+   "2012": "0/6 sro, 0/0 vil, 0 rows",
+   "2017": "0/6 sro, 0/0 vil, 0 rows",
+   "2023": "0/6 sro, 0/0 vil, 0 rows",
+   "2024": "0/6 sro, 0/0 vil, 0 rows",
+   "sros": 6
+  },
+  "Pudukkottai": {
+   "2002": "0/17 sro, 0/0 vil, 0 rows",
+   "2003": "0/17 sro, 0/0 vil, 0 rows",
+   "2007": "0/17 sro, 0/0 vil, 0 rows",
+   "2012": "0/17 sro, 0/0 vil, 0 rows",
+   "2017": "0/17 sro, 0/0 vil, 0 rows",
+   "2023": "0/17 sro, 0/0 vil, 0 rows",
+   "2024": "0/17 sro, 0/0 vil, 0 rows",
+   "sros": 17
+  },
+  "Ramanathapuram": {
+   "2002": "0/17 sro, 0/0 vil, 0 rows",
+   "2003": "0/17 sro, 0/0 vil, 0 rows",
+   "2007": "0/17 sro, 0/0 vil, 0 rows",
+   "2012": "0/17 sro, 0/0 vil, 0 rows",
+   "2017": "0/17 sro, 0/0 vil, 0 rows",
+   "2023": "0/17 sro, 0/0 vil, 0 rows",
+   "2024": "0/17 sro, 0/0 vil, 0 rows",
+   "sros": 17
+  },
+  "Ranipet": {
+   "2002": "0/8 sro, 0/0 vil, 0 rows",
+   "2003": "0/8 sro, 0/0 vil, 0 rows",
+   "2007": "0/8 sro, 0/0 vil, 0 rows",
+   "2012": "0/8 sro, 0/0 vil, 0 rows",
+   "2017": "0/8 sro, 0/0 vil, 0 rows",
+   "2023": "0/8 sro, 0/0 vil, 0 rows",
+   "2024": "0/8 sro, 0/0 vil, 0 rows",
+   "sros": 8
+  },
+  "Salem": {
+   "2002": "0/23 sro, 0/0 vil, 0 rows",
+   "2003": "0/23 sro, 0/0 vil, 0 rows",
+   "2007": "0/23 sro, 0/0 vil, 0 rows",
+   "2012": "0/23 sro, 0/0 vil, 0 rows",
+   "2017": "0/23 sro, 0/0 vil, 0 rows",
+   "2023": "0/23 sro, 0/0 vil, 0 rows",
+   "2024": "0/23 sro, 0/0 vil, 0 rows",
+   "sros": 23
+  },
+  "Sivagangai": {
+   "2002": "0/12 sro, 0/0 vil, 0 rows",
+   "2003": "0/12 sro, 0/0 vil, 0 rows",
+   "2007": "0/12 sro, 0/0 vil, 0 rows",
+   "2012": "0/12 sro, 0/0 vil, 0 rows",
+   "2017": "0/12 sro, 0/0 vil, 0 rows",
+   "2023": "0/12 sro, 0/0 vil, 0 rows",
+   "2024": "0/12 sro, 0/0 vil, 0 rows",
+   "sros": 12
+  },
+  "Tenkasi": {
+   "2002": "0/18 sro, 0/0 vil, 0 rows",
+   "2003": "0/18 sro, 0/0 vil, 0 rows",
+   "2007": "0/18 sro, 0/0 vil, 0 rows",
+   "2012": "0/18 sro, 0/0 vil, 0 rows",
+   "2017": "0/18 sro, 0/0 vil, 0 rows",
+   "2023": "0/18 sro, 0/0 vil, 0 rows",
+   "2024": "0/18 sro, 0/0 vil, 0 rows",
+   "sros": 18
+  },
+  "Thanjavur": {
+   "2002": "0/24 sro, 0/0 vil, 0 rows",
+   "2003": "0/24 sro, 0/0 vil, 0 rows",
+   "2007": "0/24 sro, 0/0 vil, 0 rows",
+   "2012": "0/24 sro, 0/0 vil, 0 rows",
+   "2017": "0/24 sro, 0/0 vil, 0 rows",
+   "2023": "0/24 sro, 0/0 vil, 0 rows",
+   "2024": "0/24 sro, 0/0 vil, 0 rows",
+   "sros": 24
+  },
+  "Theni": {
+   "2002": "0/10 sro, 0/0 vil, 0 rows",
+   "2003": "0/10 sro, 0/0 vil, 0 rows",
+   "2007": "0/10 sro, 0/0 vil, 0 rows",
+   "2012": "0/10 sro, 0/0 vil, 0 rows",
+   "2017": "0/10 sro, 0/0 vil, 0 rows",
+   "2023": "0/10 sro, 0/0 vil, 0 rows",
+   "2024": "0/10 sro, 0/0 vil, 0 rows",
+   "sros": 10
+  },
+  "Thoothukkudi": {
+   "2002": "0/24 sro, 0/0 vil, 0 rows",
+   "2003": "0/24 sro, 0/0 vil, 0 rows",
+   "2007": "0/24 sro, 0/0 vil, 0 rows",
+   "2012": "0/24 sro, 0/0 vil, 0 rows",
+   "2017": "0/24 sro, 0/0 vil, 0 rows",
+   "2023": "0/24 sro, 0/0 vil, 0 rows",
+   "2024": "0/24 sro, 0/0 vil, 0 rows",
+   "sros": 24
+  },
+  "Tiruchirappalli": {
+   "2002": "0/18 sro, 0/0 vil, 0 rows",
+   "2003": "0/18 sro, 0/0 vil, 0 rows",
+   "2007": "0/18 sro, 0/0 vil, 0 rows",
+   "2012": "0/18 sro, 0/0 vil, 0 rows",
+   "2017": "0/18 sro, 0/0 vil, 0 rows",
+   "2023": "0/18 sro, 0/0 vil, 0 rows",
+   "2024": "0/18 sro, 0/0 vil, 0 rows",
+   "sros": 18
+  },
+  "Tirunelveli": {
+   "2002": "0/22 sro, 0/0 vil, 0 rows",
+   "2003": "0/22 sro, 0/0 vil, 0 rows",
+   "2007": "0/22 sro, 0/0 vil, 0 rows",
+   "2012": "0/22 sro, 0/0 vil, 0 rows",
+   "2017": "0/22 sro, 0/0 vil, 0 rows",
+   "2023": "0/22 sro, 0/0 vil, 0 rows",
+   "2024": "0/22 sro, 0/0 vil, 0 rows",
+   "sros": 22
+  },
+  "Tirupathur": {
+   "2002": "0/6 sro, 0/0 vil, 0 rows",
+   "2003": "0/6 sro, 0/0 vil, 0 rows",
+   "2007": "0/6 sro, 0/0 vil, 0 rows",
+   "2012": "0/6 sro, 0/0 vil, 0 rows",
+   "2017": "0/6 sro, 0/0 vil, 0 rows",
+   "2023": "0/6 sro, 0/0 vil, 0 rows",
+   "2024": "0/6 sro, 0/0 vil, 0 rows",
+   "sros": 6
+  },
+  "Tiruppur": {
+   "2002": "0/15 sro, 0/0 vil, 0 rows",
+   "2003": "0/15 sro, 0/0 vil, 0 rows",
+   "2007": "0/15 sro, 0/0 vil, 0 rows",
+   "2012": "0/15 sro, 0/0 vil, 0 rows",
+   "2017": "0/15 sro, 0/0 vil, 0 rows",
+   "2023": "0/15 sro, 0/0 vil, 0 rows",
+   "2024": "0/15 sro, 0/0 vil, 0 rows",
+   "sros": 15
+  },
+  "Tiruvallur": {
+   "2002": "0/14 sro, 0/0 vil, 0 rows",
+   "2003": "0/14 sro, 0/0 vil, 0 rows",
+   "2007": "0/14 sro, 0/0 vil, 0 rows",
+   "2012": "0/14 sro, 0/0 vil, 0 rows",
+   "2017": "0/14 sro, 0/0 vil, 0 rows",
+   "2023": "0/14 sro, 0/0 vil, 0 rows",
+   "2024": "0/14 sro, 0/0 vil, 0 rows",
+   "sros": 14
+  },
+  "Tiruvannamalai": {
+   "2002": "0/23 sro, 0/0 vil, 0 rows",
+   "2003": "0/23 sro, 0/0 vil, 0 rows",
+   "2007": "0/23 sro, 0/0 vil, 0 rows",
+   "2012": "0/23 sro, 0/0 vil, 0 rows",
+   "2017": "0/23 sro, 0/0 vil, 0 rows",
+   "2023": "0/23 sro, 0/0 vil, 0 rows",
+   "2024": "0/23 sro, 0/0 vil, 0 rows",
+   "sros": 23
+  },
+  "Tiruvarur": {
+   "2002": "0/11 sro, 0/0 vil, 0 rows",
+   "2003": "0/11 sro, 0/0 vil, 0 rows",
+   "2007": "0/11 sro, 0/0 vil, 0 rows",
+   "2012": "0/11 sro, 0/0 vil, 0 rows",
+   "2017": "0/11 sro, 0/0 vil, 0 rows",
+   "2023": "0/11 sro, 0/0 vil, 0 rows",
+   "2024": "0/11 sro, 0/0 vil, 0 rows",
+   "sros": 11
+  },
+  "Vellore": {
+   "2002": "0/8 sro, 0/0 vil, 0 rows",
+   "2003": "0/8 sro, 0/0 vil, 0 rows",
+   "2007": "0/8 sro, 0/0 vil, 0 rows",
+   "2012": "0/8 sro, 0/0 vil, 0 rows",
+   "2017": "0/8 sro, 0/0 vil, 0 rows",
+   "2023": "0/8 sro, 0/0 vil, 0 rows",
+   "2024": "0/8 sro, 0/0 vil, 0 rows",
+   "sros": 8
+  },
+  "Viluppuram": {
+   "2002": "0/20 sro, 0/0 vil, 0 rows",
+   "2003": "0/20 sro, 0/0 vil, 0 rows",
+   "2007": "0/20 sro, 0/0 vil, 0 rows",
+   "2012": "0/20 sro, 0/0 vil, 0 rows",
+   "2017": "0/20 sro, 0/0 vil, 0 rows",
+   "2023": "0/20 sro, 0/0 vil, 0 rows",
+   "2024": "0/20 sro, 0/0 vil, 0 rows",
+   "sros": 20
+  },
+  "Virudhunagar": {
+   "2002": "0/17 sro, 0/0 vil, 0 rows",
+   "2003": "0/17 sro, 0/0 vil, 0 rows",
+   "2007": "0/17 sro, 0/0 vil, 0 rows",
+   "2012": "0/17 sro, 0/0 vil, 0 rows",
+   "2017": "0/17 sro, 0/0 vil, 0 rows",
+   "2023": "0/17 sro, 0/0 vil, 0 rows",
+   "2024": "0/17 sro, 0/0 vil, 0 rows",
+   "sros": 17
+  }
+ },
+ "districts_discovered": 38,
+ "revision_order": [
+  "2024",
+  "2023",
+  "2017",
+  "2012",
+  "2007",
+  "2003",
+  "2002"
+ ],
+ "scope": "street-wise guideline values, all SROs, revisions newest first",
+ "sros_discovered": 595,
+ "totals": {
+  "2002": {
+   "complete": false,
+   "items_mismatch": 0,
+   "rows": 1163,
+   "sros": 595,
+   "sros_done": 1,
+   "villages": 22,
+   "villages_done": 22,
+   "villages_failed_attempts": 0
+  },
+  "2003": {
+   "complete": false,
+   "items_mismatch": 0,
+   "rows": 1427,
+   "sros": 595,
+   "sros_done": 1,
+   "villages": 17,
+   "villages_done": 17,
+   "villages_failed_attempts": 0
+  },
+  "2007": {
+   "complete": false,
+   "items_mismatch": 0,
+   "rows": 1304,
+   "sros": 595,
+   "sros_done": 1,
+   "villages": 14,
+   "villages_done": 14,
+   "villages_failed_attempts": 0
+  },
+  "2012": {
+   "complete": false,
+   "items_mismatch": 0,
+   "rows": 1882,
+   "sros": 595,
+   "sros_done": 1,
+   "villages": 13,
+   "villages_done": 13,
+   "villages_failed_attempts": 0
+  },
+  "2017": {
+   "complete": false,
+   "items_mismatch": 0,
+   "rows": 1902,
+   "sros": 595,
+   "sros_done": 1,
+   "villages": 14,
+   "villages_done": 14,
+   "villages_failed_attempts": 0
+  },
+  "2023": {
+   "complete": false,
+   "items_mismatch": 0,
+   "rows": 1919,
+   "sros": 595,
+   "sros_done": 1,
+   "villages": 14,
+   "villages_done": 14,
+   "villages_failed_attempts": 0
+  },
+  "2024": {
+   "complete": false,
+   "items_mismatch": 0,
+   "rows": 1932,
+   "sros": 595,
+   "sros_done": 1,
+   "villages": 208,
+   "villages_done": 14,
+   "villages_failed_attempts": 0
+  }
+ },
+ "updated": "2026-10-26T01:57:23Z"
+}

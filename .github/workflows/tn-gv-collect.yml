@@ -1,0 +1,68 @@
+name: TN guideline values - collect (tnreginet street-wise)
+# Collects official Tamil Nadu street-wise guideline values from tnreginet.gov.in for every SRO
+# and village, revision by revision (2024 current first, then 2023, 2017, 2012, 2007, 2003, 2002).
+# Resumable: the committed files in bhoomi-lens/data/tn_gv/ are the checkpoint.
+# Once progress.json says all_done, the workflow disables itself.
+on:
+  schedule:
+    - cron: "17 */2 * * *"   # every 2 hours; a run that is still going simply queues the next one
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Minutes of crawling per shard (job is capped at ~5 h)"
+        default: "285"
+permissions:
+  contents: write
+  actions: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      done: ${{ steps.p.outputs.done }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: bhoomi-lens/data/tn_gv/progress.json, sparse-checkout-cone-mode: false }
+      - id: p
+        run: |
+          f=bhoomi-lens/data/tn_gv/progress.json
+          if [ -f "$f" ] && python3 -c "import json,sys; sys.exit(0 if json.load(open('$f')).get('all_done') else 1)"; then
+            echo "done=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "done=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Stop scheduling once everything is collected
+        if: steps.p.outputs.done == 'true'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh workflow disable tn-gv-collect.yml -R "$GITHUB_REPOSITORY" || true
+
+  collect:
+    needs: check
+    if: needs.check.outputs.done != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 310
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
+    concurrency:
+      group: tn-gv-collect-${{ matrix.shard }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install --quiet requests pysocks
+      - name: Collect (shard ${{ matrix.shard }}/3)
+        run: |
+          python bhoomi-lens/scripts/tn_gv_collect.py \
+            --shard ${{ matrix.shard }}/3 --minutes ${{ github.event.inputs.minutes || '285' }} \
+            --workers 24 --sync-minutes 25 --label "actions shard ${{ matrix.shard }}"
+      - name: Disable when finished
+        if: always()
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          git fetch -q --depth=1 origin main && git reset -q --hard FETCH_HEAD || true
+          if python3 -c "import json,sys; sys.exit(0 if json.load(open('bhoomi-lens/data/tn_gv/progress.json')).get('all_done') else 1)"; then
+            gh workflow disable tn-gv-collect.yml -R "$GITHUB_REPOSITORY" || true
+          fi
