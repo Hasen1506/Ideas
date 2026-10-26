@@ -95,7 +95,7 @@
   },
   "Kancheepuram": {
    "2002": "0/11 sro, 0/0 vil, 0 rows",
-   "2003": "6/11 sro, 333/560 vil, 1605 rows",
+   "2003": "11/11 sro, 560/560 vil, 1993 rows",
    "2007": "11/11 sro, 590/590 vil, 3941 rows",
    "2012": "11/11 sro, 524/524 vil, 7710 rows",
    "2017": "11/11 sro, 575/575 vil, 8733 rows",
@@ -125,7 +125,7 @@
   },
   "Krishnagiri": {
    "2002": "0/14 sro, 0/0 vil, 0 rows",
-   "2003": "0/14 sro, 0/0 vil, 0 rows",
+   "2003": "14/14 sro, 799/799 vil, 754 rows",
    "2007": "14/14 sro, 653/653 vil, 1325 rows",
    "2012": "14/14 sro, 653/653 vil, 756 rows",
    "2017": "14/14 sro, 680/680 vil, 849 rows",
@@ -155,7 +155,7 @@
   },
   "Nagapattinam": {
    "2002": "0/6 sro, 0/0 vil, 0 rows",
-   "2003": "0/6 sro, 0/0 vil, 0 rows",
+   "2003": "6/6 sro, 213/213 vil, 736 rows",
    "2007": "6/6 sro, 211/211 vil, 944 rows",
    "2012": "6/6 sro, 203/203 vil, 1278 rows",
    "2017": "6/6 sro, 264/264 vil, 1992 rows",
@@ -185,7 +185,7 @@
   },
   "Perambalur": {
    "2002": "0/6 sro, 0/0 vil, 0 rows",
-   "2003": "0/6 sro, 0/0 vil, 0 rows",
+   "2003": "6/6 sro, 132/132 vil, 578 rows",
    "2007": "6/6 sro, 146/146 vil, 127 rows",
    "2012": "6/6 sro, 147/147 vil, 277 rows",
    "2017": "6/6 sro, 154/154 vil, 297 rows",
@@ -215,7 +215,7 @@
   },
   "Ranipet": {
    "2002": "0/8 sro, 0/0 vil, 0 rows",
-   "2003": "0/8 sro, 0/0 vil, 0 rows",
+   "2003": "8/8 sro, 285/285 vil, 896 rows",
    "2007": "8/8 sro, 277/277 vil, 1131 rows",
    "2012": "8/8 sro, 430/430 vil, 1238 rows",
    "2017": "8/8 sro, 464/464 vil, 1825 rows",
@@ -245,7 +245,7 @@
   },
   "Tenkasi": {
    "2002": "0/18 sro, 0/0 vil, 0 rows",
-   "2003": "0/18 sro, 0/0 vil, 0 rows",
+   "2003": "18/18 sro, 196/196 vil, 262 rows",
    "2007": "18/18 sro, 256/256 vil, 2855 rows",
    "2012": "18/18 sro, 231/231 vil, 2768 rows",
    "2017": "18/18 sro, 237/237 vil, 2848 rows",
@@ -275,7 +275,7 @@
   },
   "Thoothukkudi": {
    "2002": "0/24 sro, 0/0 vil, 0 rows",
-   "2003": "0/24 sro, 0/0 vil, 0 rows",
+   "2003": "0/24 sro, 20/469 vil, 0 rows",
    "2007": "24/24 sro, 517/517 vil, 1226 rows",
    "2012": "24/24 sro, 514/514 vil, 2262 rows",
    "2017": "24/24 sro, 524/524 vil, 2312 rows",
@@ -410,11 +410,11 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 15487,
+   "rows": 19101,
    "sros": 595,
-   "sros_done": 59,
-   "villages": 1406,
-   "villages_done": 1179,
+   "sros_done": 116,
+   "villages": 3500,
+   "villages_done": 3051,
    "villages_failed_attempts": 0
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T12:29:59Z"
+ "updated": "2026-10-26T12:30:13Z"
 }
