@@ -25,7 +25,7 @@
   },
   "Chennai": {
    "2002": "0/27 sro, 0/0 vil, 0 rows",
-   "2003": "4/27 sro, 59/199 vil, 4865 rows",
+   "2003": "27/27 sro, 199/199 vil, 24003 rows",
    "2007": "27/27 sro, 194/194 vil, 31705 rows",
    "2012": "27/27 sro, 193/193 vil, 41075 rows",
    "2017": "27/27 sro, 206/206 vil, 41226 rows",
@@ -55,7 +55,7 @@
   },
   "Dharmapuri": {
    "2002": "0/12 sro, 0/0 vil, 0 rows",
-   "2003": "0/12 sro, 0/0 vil, 0 rows",
+   "2003": "12/12 sro, 581/581 vil, 647 rows",
    "2007": "12/12 sro, 466/466 vil, 711 rows",
    "2012": "12/12 sro, 466/466 vil, 843 rows",
    "2017": "12/12 sro, 467/467 vil, 847 rows",
@@ -85,7 +85,7 @@
   },
   "Kallakurichi": {
    "2002": "0/15 sro, 0/0 vil, 0 rows",
-   "2003": "0/15 sro, 0/0 vil, 0 rows",
+   "2003": "15/15 sro, 702/702 vil, 6062 rows",
    "2007": "15/15 sro, 543/543 vil, 6290 rows",
    "2012": "15/15 sro, 543/543 vil, 8618 rows",
    "2017": "15/15 sro, 552/552 vil, 8909 rows",
@@ -115,7 +115,7 @@
   },
   "Karur": {
    "2002": "0/11 sro, 0/0 vil, 0 rows",
-   "2003": "0/11 sro, 0/0 vil, 0 rows",
+   "2003": "10/11 sro, 288/289 vil, 1251 rows",
    "2007": "11/11 sro, 194/194 vil, 1503 rows",
    "2012": "11/11 sro, 193/193 vil, 2713 rows",
    "2017": "11/11 sro, 204/204 vil, 3066 rows",
@@ -410,11 +410,11 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 35720,
+   "rows": 62818,
    "sros": 595,
-   "sros_done": 193,
-   "villages": 6253,
-   "villages_done": 6113,
+   "sros_done": 253,
+   "villages": 7825,
+   "villages_done": 7824,
    "villages_failed_attempts": 0
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T16:57:11Z"
+ "updated": "2026-10-26T17:22:25Z"
 }
