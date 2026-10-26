@@ -97,7 +97,7 @@
    "2002": "0/11 sro, 0/0 vil, 0 rows",
    "2003": "0/11 sro, 0/0 vil, 0 rows",
    "2007": "0/11 sro, 0/0 vil, 0 rows",
-   "2012": "3/11 sro, 182/524 vil, 3662 rows",
+   "2012": "11/11 sro, 524/524 vil, 7710 rows",
    "2017": "11/11 sro, 575/575 vil, 8733 rows",
    "2023": "11/11 sro, 557/557 vil, 9063 rows",
    "2024": "11/11 sro, 554/554 vil, 9947 rows",
@@ -127,7 +127,7 @@
    "2002": "0/14 sro, 0/0 vil, 0 rows",
    "2003": "0/14 sro, 0/0 vil, 0 rows",
    "2007": "0/14 sro, 0/0 vil, 0 rows",
-   "2012": "0/14 sro, 0/0 vil, 0 rows",
+   "2012": "14/14 sro, 653/653 vil, 756 rows",
    "2017": "14/14 sro, 680/680 vil, 849 rows",
    "2023": "14/14 sro, 680/680 vil, 1170 rows",
    "2024": "14/14 sro, 679/679 vil, 1953 rows",
@@ -157,7 +157,7 @@
    "2002": "0/6 sro, 0/0 vil, 0 rows",
    "2003": "0/6 sro, 0/0 vil, 0 rows",
    "2007": "0/6 sro, 0/0 vil, 0 rows",
-   "2012": "0/6 sro, 0/0 vil, 0 rows",
+   "2012": "6/6 sro, 203/203 vil, 1278 rows",
    "2017": "6/6 sro, 264/264 vil, 1992 rows",
    "2023": "6/6 sro, 264/264 vil, 2019 rows",
    "2024": "6/6 sro, 263/263 vil, 2187 rows",
@@ -187,7 +187,7 @@
    "2002": "0/6 sro, 0/0 vil, 0 rows",
    "2003": "0/6 sro, 0/0 vil, 0 rows",
    "2007": "0/6 sro, 0/0 vil, 0 rows",
-   "2012": "0/6 sro, 0/0 vil, 0 rows",
+   "2012": "6/6 sro, 147/147 vil, 277 rows",
    "2017": "6/6 sro, 154/154 vil, 297 rows",
    "2023": "6/6 sro, 153/153 vil, 333 rows",
    "2024": "6/6 sro, 153/153 vil, 579 rows",
@@ -217,7 +217,7 @@
    "2002": "0/8 sro, 0/0 vil, 0 rows",
    "2003": "0/8 sro, 0/0 vil, 0 rows",
    "2007": "0/8 sro, 0/0 vil, 0 rows",
-   "2012": "0/8 sro, 0/0 vil, 0 rows",
+   "2012": "8/8 sro, 430/430 vil, 1238 rows",
    "2017": "8/8 sro, 464/464 vil, 1825 rows",
    "2023": "8/8 sro, 465/465 vil, 1830 rows",
    "2024": "8/8 sro, 465/465 vil, 2276 rows",
@@ -247,7 +247,7 @@
    "2002": "0/18 sro, 0/0 vil, 0 rows",
    "2003": "0/18 sro, 0/0 vil, 0 rows",
    "2007": "0/18 sro, 0/0 vil, 0 rows",
-   "2012": "0/18 sro, 0/0 vil, 0 rows",
+   "2012": "18/18 sro, 231/231 vil, 2768 rows",
    "2017": "18/18 sro, 237/237 vil, 2848 rows",
    "2023": "18/18 sro, 237/237 vil, 2828 rows",
    "2024": "18/18 sro, 237/237 vil, 3013 rows",
@@ -277,7 +277,7 @@
    "2002": "0/24 sro, 0/0 vil, 0 rows",
    "2003": "0/24 sro, 0/0 vil, 0 rows",
    "2007": "0/24 sro, 0/0 vil, 0 rows",
-   "2012": "0/24 sro, 0/0 vil, 0 rows",
+   "2012": "3/24 sro, 225/514 vil, 421 rows",
    "2017": "24/24 sro, 524/524 vil, 2312 rows",
    "2023": "24/24 sro, 524/524 vil, 2372 rows",
    "2024": "24/24 sro, 518/518 vil, 2397 rows",
@@ -430,11 +430,11 @@
   "2012": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 21326,
+   "rows": 32112,
    "sros": 595,
-   "sros_done": 56,
-   "villages": 1432,
-   "villages_done": 1090,
+   "sros_done": 119,
+   "villages": 3610,
+   "villages_done": 3321,
    "villages_failed_attempts": 0
   },
   "2017": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T09:07:36Z"
+ "updated": "2026-10-26T09:07:42Z"
 }
