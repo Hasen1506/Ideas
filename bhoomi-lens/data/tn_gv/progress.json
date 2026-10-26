@@ -24,7 +24,7 @@
    "sros": 15
   },
   "Chennai": {
-   "2002": "0/27 sro, 0/0 vil, 0 rows",
+   "2002": "23/27 sro, 193/198 vil, 19326 rows",
    "2003": "27/27 sro, 199/199 vil, 24003 rows",
    "2007": "27/27 sro, 194/194 vil, 31705 rows",
    "2012": "27/27 sro, 193/193 vil, 41075 rows",
@@ -295,7 +295,7 @@
   },
   "Tirunelveli": {
    "2002": "0/22 sro, 0/0 vil, 0 rows",
-   "2003": "11/22 sro, 211/340 vil, 1966 rows",
+   "2003": "22/22 sro, 340/340 vil, 4243 rows",
    "2007": "22/22 sro, 412/412 vil, 5897 rows",
    "2012": "22/22 sro, 383/383 vil, 4870 rows",
    "2017": "22/22 sro, 404/404 vil, 5743 rows",
@@ -325,7 +325,7 @@
   },
   "Tiruvallur": {
    "2002": "0/14 sro, 0/0 vil, 0 rows",
-   "2003": "0/14 sro, 0/0 vil, 0 rows",
+   "2003": "14/14 sro, 722/722 vil, 2283 rows",
    "2007": "14/14 sro, 710/710 vil, 2751 rows",
    "2012": "14/14 sro, 710/710 vil, 4657 rows",
    "2017": "14/14 sro, 783/783 vil, 5599 rows",
@@ -355,7 +355,7 @@
   },
   "Vellore": {
    "2002": "0/8 sro, 0/0 vil, 0 rows",
-   "2003": "0/8 sro, 0/0 vil, 0 rows",
+   "2003": "8/8 sro, 316/316 vil, 1832 rows",
    "2007": "8/8 sro, 306/306 vil, 4318 rows",
    "2012": "8/8 sro, 318/318 vil, 2887 rows",
    "2017": "8/8 sro, 328/328 vil, 2910 rows",
@@ -400,21 +400,21 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 25145,
+   "rows": 44471,
    "sros": 595,
-   "sros_done": 189,
-   "villages": 5838,
-   "villages_done": 5838,
+   "sros_done": 212,
+   "villages": 6036,
+   "villages_done": 6031,
    "villages_failed_attempts": 0
   },
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 77494,
+   "rows": 83886,
    "sros": 595,
-   "sros_done": 316,
-   "villages": 10070,
-   "villages_done": 9941,
+   "sros_done": 349,
+   "villages": 11108,
+   "villages_done": 11108,
    "villages_failed_attempts": 0
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-26T17:47:36Z"
+ "updated": "2026-10-26T18:12:51Z"
 }
