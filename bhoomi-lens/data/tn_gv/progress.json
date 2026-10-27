@@ -255,7 +255,7 @@
   },
   "Thanjavur": {
    "2002": "0/24 sro, 0/0 vil, 0 rows",
-   "2003": "17/24 sro, 558/680 vil, 2238 rows",
+   "2003": "21/24 sro, 633/680 vil, 3532 rows",
    "2007": "24/24 sro, 832/832 vil, 6446 rows",
    "2012": "24/24 sro, 801/801 vil, 8906 rows",
    "2017": "24/24 sro, 900/900 vil, 9624 rows",
@@ -410,11 +410,11 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 113847,
+   "rows": 115141,
    "sros": 595,
-   "sros_done": 526,
+   "sros_done": 530,
    "villages": 16752,
-   "villages_done": 16629,
+   "villages_done": 16704,
    "villages_failed_attempts": 2
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T12:40:42Z"
+ "updated": "2026-10-27T12:43:32Z"
 }
