@@ -14,7 +14,7 @@
    "sros": 10
   },
   "Chengalpattu": {
-   "2002": "1/15 sro, 22/22 vil, 1163 rows",
+   "2002": "15/15 sro, 724/724 vil, 4623 rows",
    "2003": "15/15 sro, 729/729 vil, 5030 rows",
    "2007": "15/15 sro, 791/791 vil, 8447 rows",
    "2012": "14/15 sro, 667/667 vil, 13923 rows",
@@ -44,7 +44,7 @@
    "sros": 20
   },
   "Cuddalore": {
-   "2002": "0/26 sro, 0/0 vil, 0 rows",
+   "2002": "0/26 sro, 14/1082 vil, 10 rows",
    "2003": "26/26 sro, 899/899 vil, 6920 rows",
    "2007": "26/26 sro, 1269/1269 vil, 9869 rows",
    "2012": "26/26 sro, 1234/1234 vil, 14775 rows",
@@ -345,7 +345,7 @@
   },
   "Tiruvarur": {
    "2002": "0/11 sro, 0/0 vil, 0 rows",
-   "2003": "6/11 sro, 335/596 vil, 2099 rows",
+   "2003": "11/11 sro, 596/596 vil, 2398 rows",
    "2007": "11/11 sro, 612/612 vil, 4508 rows",
    "2012": "11/11 sro, 593/593 vil, 5649 rows",
    "2017": "11/11 sro, 559/559 vil, 5212 rows",
@@ -375,7 +375,7 @@
   },
   "Virudhunagar": {
    "2002": "0/17 sro, 0/0 vil, 0 rows",
-   "2003": "0/17 sro, 0/0 vil, 0 rows",
+   "2003": "17/17 sro, 649/649 vil, 1798 rows",
    "2007": "17/17 sro, 608/608 vil, 2286 rows",
    "2012": "17/17 sro, 604/604 vil, 2364 rows",
    "2017": "17/17 sro, 621/621 vil, 2489 rows",
@@ -400,21 +400,21 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 70576,
+   "rows": 74046,
    "sros": 595,
-   "sros_done": 349,
-   "villages": 10807,
-   "villages_done": 10807,
+   "sros_done": 363,
+   "villages": 12591,
+   "villages_done": 11523,
    "villages_failed_attempts": 0
   },
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 125209,
+   "rows": 127306,
    "sros": 595,
-   "sros_done": 571,
-   "villages": 18234,
-   "villages_done": 17971,
+   "sros_done": 593,
+   "villages": 18883,
+   "villages_done": 18881,
    "villages_failed_attempts": 2
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T18:28:59Z"
+ "updated": "2026-10-27T18:54:55Z"
 }
