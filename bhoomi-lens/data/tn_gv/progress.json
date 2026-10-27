@@ -136,7 +136,7 @@
   "Madurai": {
    "2002": "0/26 sro, 0/0 vil, 0 rows",
    "2003": "0/26 sro, 0/0 vil, 0 rows",
-   "2007": "15/26 sro, 335/618 vil, 3325 rows",
+   "2007": "15/26 sro, 338/618 vil, 3325 rows",
    "2012": "26/26 sro, 621/621 vil, 6037 rows",
    "2017": "26/26 sro, 955/955 vil, 7673 rows",
    "2023": "26/26 sro, 947/947 vil, 7684 rows",
@@ -424,7 +424,7 @@
    "sros": 595,
    "sros_done": 444,
    "villages": 13243,
-   "villages_done": 12960,
+   "villages_done": 12963,
    "villages_failed_attempts": 0
   },
   "2012": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T01:50:18Z"
+ "updated": "2026-10-27T05:16:43Z"
 }
