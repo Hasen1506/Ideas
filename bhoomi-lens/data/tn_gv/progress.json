@@ -44,7 +44,7 @@
    "sros": 20
   },
   "Cuddalore": {
-   "2002": "0/26 sro, 14/1082 vil, 10 rows",
+   "2002": "26/26 sro, 1082/1082 vil, 5768 rows",
    "2003": "26/26 sro, 899/899 vil, 6920 rows",
    "2007": "26/26 sro, 1269/1269 vil, 9869 rows",
    "2012": "26/26 sro, 1234/1234 vil, 14775 rows",
@@ -74,7 +74,7 @@
    "sros": 22
   },
   "Erode": {
-   "2002": "0/19 sro, 0/0 vil, 0 rows",
+   "2002": "19/19 sro, 564/564 vil, 4915 rows",
    "2003": "19/19 sro, 544/544 vil, 5343 rows",
    "2007": "19/19 sro, 476/476 vil, 5323 rows",
    "2012": "19/19 sro, 575/575 vil, 4834 rows",
@@ -104,7 +104,7 @@
    "sros": 11
   },
   "Kanniyakumari": {
-   "2002": "0/21 sro, 0/0 vil, 0 rows",
+   "2002": "17/21 sro, 77/82 vil, 41 rows",
    "2003": "21/21 sro, 83/83 vil, 0 rows",
    "2007": "21/21 sro, 85/85 vil, 1399 rows",
    "2012": "21/21 sro, 85/85 vil, 1593 rows",
@@ -400,11 +400,11 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 74046,
+   "rows": 84760,
    "sros": 595,
-   "sros_done": 363,
-   "villages": 12591,
-   "villages_done": 11523,
+   "sros_done": 425,
+   "villages": 13237,
+   "villages_done": 13232,
    "villages_failed_attempts": 0
   },
   "2003": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T18:54:55Z"
+ "updated": "2026-10-27T19:20:13Z"
 }
