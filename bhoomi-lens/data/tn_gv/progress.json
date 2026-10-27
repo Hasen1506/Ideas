@@ -255,7 +255,7 @@
   },
   "Thanjavur": {
    "2002": "0/24 sro, 0/0 vil, 0 rows",
-   "2003": "21/24 sro, 633/680 vil, 3532 rows",
+   "2003": "23/24 sro, 679/680 vil, 3802 rows",
    "2007": "24/24 sro, 832/832 vil, 6446 rows",
    "2012": "24/24 sro, 801/801 vil, 8906 rows",
    "2017": "24/24 sro, 900/900 vil, 9624 rows",
@@ -285,7 +285,7 @@
   },
   "Tiruchirappalli": {
    "2002": "0/18 sro, 0/0 vil, 0 rows",
-   "2003": "0/18 sro, 0/0 vil, 0 rows",
+   "2003": "18/18 sro, 497/497 vil, 4574 rows",
    "2007": "18/18 sro, 511/511 vil, 4384 rows",
    "2012": "18/18 sro, 535/535 vil, 5328 rows",
    "2017": "18/18 sro, 557/557 vil, 5720 rows",
@@ -315,7 +315,7 @@
   },
   "Tiruppur": {
    "2002": "0/15 sro, 0/0 vil, 0 rows",
-   "2003": "0/15 sro, 0/0 vil, 0 rows",
+   "2003": "15/15 sro, 389/389 vil, 3125 rows",
    "2007": "15/15 sro, 355/355 vil, 4503 rows",
    "2012": "15/15 sro, 361/361 vil, 6063 rows",
    "2017": "15/15 sro, 363/363 vil, 6201 rows",
@@ -345,7 +345,7 @@
   },
   "Tiruvarur": {
    "2002": "0/11 sro, 0/0 vil, 0 rows",
-   "2003": "0/11 sro, 0/0 vil, 0 rows",
+   "2003": "6/11 sro, 335/596 vil, 2099 rows",
    "2007": "11/11 sro, 612/612 vil, 4508 rows",
    "2012": "11/11 sro, 593/593 vil, 5649 rows",
    "2017": "11/11 sro, 559/559 vil, 5212 rows",
@@ -410,11 +410,11 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 115141,
+   "rows": 125209,
    "sros": 595,
-   "sros_done": 530,
-   "villages": 16752,
-   "villages_done": 16704,
+   "sros_done": 571,
+   "villages": 18234,
+   "villages_done": 17971,
    "villages_failed_attempts": 2
   },
   "2007": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T18:03:48Z"
+ "updated": "2026-10-27T18:28:59Z"
 }
