@@ -16,7 +16,7 @@
   "Chengalpattu": {
    "2002": "1/15 sro, 22/22 vil, 1163 rows",
    "2003": "1/15 sro, 17/17 vil, 1427 rows",
-   "2007": "1/15 sro, 14/14 vil, 1304 rows",
+   "2007": "14/15 sro, 787/791 vil, 6769 rows",
    "2012": "14/15 sro, 667/667 vil, 13923 rows",
    "2017": "15/15 sro, 789/789 vil, 16993 rows",
    "2023": "15/15 sro, 712/712 vil, 17970 rows",
@@ -347,7 +347,7 @@
    "2002": "0/11 sro, 0/0 vil, 0 rows",
    "2003": "0/11 sro, 0/0 vil, 0 rows",
    "2007": "0/11 sro, 0/0 vil, 0 rows",
-   "2012": "0/11 sro, 26/593 vil, 467 rows",
+   "2012": "11/11 sro, 593/593 vil, 5649 rows",
    "2017": "11/11 sro, 559/559 vil, 5212 rows",
    "2023": "11/11 sro, 559/559 vil, 5474 rows",
    "2024": "11/11 sro, 555/555 vil, 6408 rows",
@@ -377,7 +377,7 @@
    "2002": "0/17 sro, 0/0 vil, 0 rows",
    "2003": "0/17 sro, 0/0 vil, 0 rows",
    "2007": "0/17 sro, 0/0 vil, 0 rows",
-   "2012": "0/17 sro, 0/0 vil, 0 rows",
+   "2012": "17/17 sro, 604/604 vil, 2364 rows",
    "2017": "17/17 sro, 621/621 vil, 2489 rows",
    "2023": "17/17 sro, 618/618 vil, 2749 rows",
    "2024": "17/17 sro, 619/619 vil, 3001 rows",
@@ -420,21 +420,21 @@
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 108402,
+   "rows": 113867,
    "sros": 595,
-   "sros_done": 349,
-   "villages": 10018,
-   "villages_done": 10018,
+   "sros_done": 362,
+   "villages": 10795,
+   "villages_done": 10791,
    "villages_failed_attempts": 0
   },
   "2012": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 207180,
+   "rows": 214726,
    "sros": 595,
-   "sros_done": 566,
-   "villages": 17966,
-   "villages_done": 17399,
+   "sros_done": 594,
+   "villages": 18570,
+   "villages_done": 18570,
    "villages_failed_attempts": 0
   },
   "2017": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T00:44:09Z"
+ "updated": "2026-10-27T01:09:25Z"
 }
