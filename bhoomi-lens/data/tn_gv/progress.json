@@ -195,7 +195,7 @@
   },
   "Pudukkottai": {
    "2002": "0/17 sro, 0/0 vil, 0 rows",
-   "2003": "9/17 sro, 554/961 vil, 556 rows",
+   "2003": "17/17 sro, 961/961 vil, 1182 rows",
    "2007": "17/17 sro, 822/822 vil, 2124 rows",
    "2012": "17/17 sro, 797/797 vil, 1553 rows",
    "2017": "17/17 sro, 830/830 vil, 1595 rows",
@@ -225,7 +225,7 @@
   },
   "Salem": {
    "2002": "0/23 sro, 0/0 vil, 0 rows",
-   "2003": "0/23 sro, 0/0 vil, 0 rows",
+   "2003": "23/23 sro, 666/666 vil, 4090 rows",
    "2007": "23/23 sro, 650/650 vil, 5672 rows",
    "2012": "23/23 sro, 781/781 vil, 6067 rows",
    "2017": "23/23 sro, 794/794 vil, 6388 rows",
@@ -255,7 +255,7 @@
   },
   "Thanjavur": {
    "2002": "0/24 sro, 0/0 vil, 0 rows",
-   "2003": "0/24 sro, 0/0 vil, 0 rows",
+   "2003": "17/24 sro, 558/680 vil, 2238 rows",
    "2007": "24/24 sro, 832/832 vil, 6446 rows",
    "2012": "24/24 sro, 801/801 vil, 8906 rows",
    "2017": "24/24 sro, 900/900 vil, 9624 rows",
@@ -410,12 +410,12 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 106893,
+   "rows": 113847,
    "sros": 595,
-   "sros_done": 478,
-   "villages": 15406,
-   "villages_done": 14998,
-   "villages_failed_attempts": 1
+   "sros_done": 526,
+   "villages": 16752,
+   "villages_done": 16629,
+   "villages_failed_attempts": 2
   },
   "2007": {
    "complete": false,
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T12:15:25Z"
+ "updated": "2026-10-27T12:40:42Z"
 }
