@@ -15,7 +15,7 @@
   },
   "Chengalpattu": {
    "2002": "1/15 sro, 22/22 vil, 1163 rows",
-   "2003": "1/15 sro, 17/17 vil, 1427 rows",
+   "2003": "10/15 sro, 379/729 vil, 4035 rows",
    "2007": "15/15 sro, 791/791 vil, 8447 rows",
    "2012": "14/15 sro, 667/667 vil, 13923 rows",
    "2017": "15/15 sro, 789/789 vil, 16993 rows",
@@ -316,7 +316,7 @@
   "Tiruppur": {
    "2002": "0/15 sro, 0/0 vil, 0 rows",
    "2003": "0/15 sro, 0/0 vil, 0 rows",
-   "2007": "3/15 sro, 121/355 vil, 699 rows",
+   "2007": "15/15 sro, 355/355 vil, 4503 rows",
    "2012": "15/15 sro, 361/361 vil, 6063 rows",
    "2017": "15/15 sro, 363/363 vil, 6201 rows",
    "2023": "15/15 sro, 363/363 vil, 6239 rows",
@@ -346,7 +346,7 @@
   "Tiruvarur": {
    "2002": "0/11 sro, 0/0 vil, 0 rows",
    "2003": "0/11 sro, 0/0 vil, 0 rows",
-   "2007": "0/11 sro, 0/0 vil, 0 rows",
+   "2007": "11/11 sro, 612/612 vil, 4508 rows",
    "2012": "11/11 sro, 593/593 vil, 5649 rows",
    "2017": "11/11 sro, 559/559 vil, 5212 rows",
    "2023": "11/11 sro, 559/559 vil, 5474 rows",
@@ -376,7 +376,7 @@
   "Virudhunagar": {
    "2002": "0/17 sro, 0/0 vil, 0 rows",
    "2003": "0/17 sro, 0/0 vil, 0 rows",
-   "2007": "0/17 sro, 0/0 vil, 0 rows",
+   "2007": "17/17 sro, 608/608 vil, 2286 rows",
    "2012": "17/17 sro, 604/604 vil, 2364 rows",
    "2017": "17/17 sro, 621/621 vil, 2489 rows",
    "2023": "17/17 sro, 618/618 vil, 2749 rows",
@@ -410,21 +410,21 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 83886,
+   "rows": 86494,
    "sros": 595,
-   "sros_done": 349,
-   "villages": 11108,
-   "villages_done": 11108,
+   "sros_done": 358,
+   "villages": 11820,
+   "villages_done": 11470,
    "villages_failed_attempts": 0
   },
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 159073,
+   "rows": 169671,
    "sros": 595,
-   "sros_done": 554,
-   "villages": 16868,
-   "villages_done": 16633,
+   "sros_done": 594,
+   "villages": 18088,
+   "villages_done": 18087,
    "villages_failed_attempts": 1
   },
   "2012": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T06:07:02Z"
+ "updated": "2026-10-27T06:32:11Z"
 }
