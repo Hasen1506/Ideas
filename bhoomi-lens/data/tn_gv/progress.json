@@ -104,7 +104,7 @@
    "sros": 11
   },
   "Kanniyakumari": {
-   "2002": "17/21 sro, 77/82 vil, 41 rows",
+   "2002": "21/21 sro, 82/82 vil, 1384 rows",
    "2003": "21/21 sro, 83/83 vil, 0 rows",
    "2007": "21/21 sro, 85/85 vil, 1399 rows",
    "2012": "21/21 sro, 85/85 vil, 1593 rows",
@@ -400,11 +400,11 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 84760,
+   "rows": 86103,
    "sros": 595,
-   "sros_done": 425,
+   "sros_done": 429,
    "villages": 13237,
-   "villages_done": 13232,
+   "villages_done": 13237,
    "villages_failed_attempts": 0
   },
   "2003": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T19:20:13Z"
+ "updated": "2026-10-27T19:22:03Z"
 }
