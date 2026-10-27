@@ -226,7 +226,7 @@
   "Salem": {
    "2002": "0/23 sro, 0/0 vil, 0 rows",
    "2003": "0/23 sro, 0/0 vil, 0 rows",
-   "2007": "14/23 sro, 512/650 vil, 3688 rows",
+   "2007": "23/23 sro, 650/650 vil, 5672 rows",
    "2012": "23/23 sro, 781/781 vil, 6067 rows",
    "2017": "23/23 sro, 794/794 vil, 6388 rows",
    "2023": "23/23 sro, 795/795 vil, 6466 rows",
@@ -256,7 +256,7 @@
   "Thanjavur": {
    "2002": "0/24 sro, 0/0 vil, 0 rows",
    "2003": "0/24 sro, 0/0 vil, 0 rows",
-   "2007": "0/24 sro, 0/0 vil, 0 rows",
+   "2007": "24/24 sro, 832/832 vil, 6446 rows",
    "2012": "24/24 sro, 801/801 vil, 8906 rows",
    "2017": "24/24 sro, 900/900 vil, 9624 rows",
    "2023": "24/24 sro, 900/900 vil, 9809 rows",
@@ -286,7 +286,7 @@
   "Tiruchirappalli": {
    "2002": "0/18 sro, 0/0 vil, 0 rows",
    "2003": "0/18 sro, 0/0 vil, 0 rows",
-   "2007": "0/18 sro, 0/0 vil, 0 rows",
+   "2007": "18/18 sro, 511/511 vil, 4384 rows",
    "2012": "18/18 sro, 535/535 vil, 5328 rows",
    "2017": "18/18 sro, 557/557 vil, 5720 rows",
    "2023": "18/18 sro, 590/590 vil, 7939 rows",
@@ -316,7 +316,7 @@
   "Tiruppur": {
    "2002": "0/15 sro, 0/0 vil, 0 rows",
    "2003": "0/15 sro, 0/0 vil, 0 rows",
-   "2007": "0/15 sro, 0/0 vil, 0 rows",
+   "2007": "3/15 sro, 121/355 vil, 699 rows",
    "2012": "15/15 sro, 361/361 vil, 6063 rows",
    "2017": "15/15 sro, 363/363 vil, 6201 rows",
    "2023": "15/15 sro, 363/363 vil, 6239 rows",
@@ -420,11 +420,11 @@
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 145560,
+   "rows": 159073,
    "sros": 595,
-   "sros_done": 500,
-   "villages": 15170,
-   "villages_done": 15031,
+   "sros_done": 554,
+   "villages": 16868,
+   "villages_done": 16633,
    "villages_failed_attempts": 1
   },
   "2012": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T05:41:50Z"
+ "updated": "2026-10-27T06:07:02Z"
 }
