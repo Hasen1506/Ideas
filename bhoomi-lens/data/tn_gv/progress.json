@@ -16,7 +16,7 @@
   "Chengalpattu": {
    "2002": "1/15 sro, 22/22 vil, 1163 rows",
    "2003": "1/15 sro, 17/17 vil, 1427 rows",
-   "2007": "14/15 sro, 787/791 vil, 6769 rows",
+   "2007": "15/15 sro, 791/791 vil, 8447 rows",
    "2012": "14/15 sro, 667/667 vil, 13923 rows",
    "2017": "15/15 sro, 789/789 vil, 16993 rows",
    "2023": "15/15 sro, 712/712 vil, 17970 rows",
@@ -46,7 +46,7 @@
   "Cuddalore": {
    "2002": "0/26 sro, 0/0 vil, 0 rows",
    "2003": "0/26 sro, 0/0 vil, 0 rows",
-   "2007": "0/26 sro, 0/0 vil, 0 rows",
+   "2007": "26/26 sro, 1269/1269 vil, 9869 rows",
    "2012": "26/26 sro, 1234/1234 vil, 14775 rows",
    "2017": "26/26 sro, 1286/1286 vil, 16336 rows",
    "2023": "26/26 sro, 1286/1286 vil, 16758 rows",
@@ -76,7 +76,7 @@
   "Erode": {
    "2002": "0/19 sro, 0/0 vil, 0 rows",
    "2003": "0/19 sro, 0/0 vil, 0 rows",
-   "2007": "0/19 sro, 0/0 vil, 0 rows",
+   "2007": "7/19 sro, 264/476 vil, 2839 rows",
    "2012": "19/19 sro, 575/575 vil, 4834 rows",
    "2017": "19/19 sro, 638/638 vil, 5276 rows",
    "2023": "19/19 sro, 638/638 vil, 5308 rows",
@@ -420,11 +420,11 @@
   "2007": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 113867,
+   "rows": 128253,
    "sros": 595,
-   "sros_done": 362,
-   "villages": 10795,
-   "villages_done": 10791,
+   "sros_done": 396,
+   "villages": 12540,
+   "villages_done": 12328,
    "villages_failed_attempts": 0
   },
   "2012": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T01:31:17Z"
+ "updated": "2026-10-27T01:34:38Z"
 }
