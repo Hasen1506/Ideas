@@ -105,7 +105,7 @@
   },
   "Kanniyakumari": {
    "2002": "0/21 sro, 0/0 vil, 0 rows",
-   "2003": "20/21 sro, 82/83 vil, 0 rows",
+   "2003": "21/21 sro, 83/83 vil, 0 rows",
    "2007": "21/21 sro, 85/85 vil, 1399 rows",
    "2012": "21/21 sro, 85/85 vil, 1593 rows",
    "2017": "21/21 sro, 191/191 vil, 5030 rows",
@@ -135,7 +135,7 @@
   },
   "Madurai": {
    "2002": "0/26 sro, 0/0 vil, 0 rows",
-   "2003": "0/26 sro, 0/0 vil, 0 rows",
+   "2003": "26/26 sro, 672/672 vil, 4873 rows",
    "2007": "26/26 sro, 618/618 vil, 5178 rows",
    "2012": "26/26 sro, 621/621 vil, 6037 rows",
    "2017": "26/26 sro, 955/955 vil, 7673 rows",
@@ -165,7 +165,7 @@
   },
   "Namakkal": {
    "2002": "0/15 sro, 0/0 vil, 0 rows",
-   "2003": "0/15 sro, 0/0 vil, 0 rows",
+   "2003": "14/15 sro, 426/427 vil, 1712 rows",
    "2007": "14/15 sro, 454/455 vil, 2434 rows",
    "2012": "15/15 sro, 441/441 vil, 5315 rows",
    "2017": "15/15 sro, 447/447 vil, 4135 rows",
@@ -195,7 +195,7 @@
   },
   "Pudukkottai": {
    "2002": "0/17 sro, 0/0 vil, 0 rows",
-   "2003": "0/17 sro, 0/0 vil, 0 rows",
+   "2003": "9/17 sro, 554/961 vil, 556 rows",
    "2007": "17/17 sro, 822/822 vil, 2124 rows",
    "2012": "17/17 sro, 797/797 vil, 1553 rows",
    "2017": "17/17 sro, 830/830 vil, 1595 rows",
@@ -410,12 +410,12 @@
   "2003": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 99752,
+   "rows": 106893,
    "sros": 595,
-   "sros_done": 428,
-   "villages": 13346,
-   "villages_done": 13345,
-   "villages_failed_attempts": 0
+   "sros_done": 478,
+   "villages": 15406,
+   "villages_done": 14998,
+   "villages_failed_attempts": 1
   },
   "2007": {
    "complete": false,
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-27T11:50:13Z"
+ "updated": "2026-10-27T12:15:25Z"
 }
