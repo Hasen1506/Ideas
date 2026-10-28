@@ -224,7 +224,7 @@
    "sros": 8
   },
   "Salem": {
-   "2002": "1/23 sro, 36/663 vil, 6 rows",
+   "2002": "23/23 sro, 663/663 vil, 5197 rows",
    "2003": "23/23 sro, 666/666 vil, 4090 rows",
    "2007": "23/23 sro, 650/650 vil, 5672 rows",
    "2012": "23/23 sro, 781/781 vil, 6067 rows",
@@ -254,7 +254,7 @@
    "sros": 18
   },
   "Thanjavur": {
-   "2002": "0/24 sro, 0/0 vil, 0 rows",
+   "2002": "24/24 sro, 676/676 vil, 3494 rows",
    "2003": "23/24 sro, 679/680 vil, 3802 rows",
    "2007": "24/24 sro, 832/832 vil, 6446 rows",
    "2012": "24/24 sro, 801/801 vil, 8906 rows",
@@ -284,7 +284,7 @@
    "sros": 24
   },
   "Tiruchirappalli": {
-   "2002": "0/18 sro, 0/0 vil, 0 rows",
+   "2002": "11/18 sro, 547/673 vil, 2457 rows",
    "2003": "18/18 sro, 497/497 vil, 4574 rows",
    "2007": "18/18 sro, 511/511 vil, 4384 rows",
    "2012": "18/18 sro, 535/535 vil, 5328 rows",
@@ -400,11 +400,11 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 92141,
+   "rows": 103283,
    "sros": 595,
-   "sros_done": 487,
-   "villages": 15862,
-   "villages_done": 15234,
+   "sros_done": 544,
+   "villages": 17211,
+   "villages_done": 17084,
    "villages_failed_attempts": 1
   },
   "2003": {
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-28T00:41:06Z"
+ "updated": "2026-10-28T01:06:17Z"
 }
