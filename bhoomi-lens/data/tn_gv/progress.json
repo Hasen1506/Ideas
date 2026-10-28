@@ -284,7 +284,7 @@
    "sros": 24
   },
   "Tiruchirappalli": {
-   "2002": "11/18 sro, 547/673 vil, 2457 rows",
+   "2002": "17/18 sro, 672/673 vil, 3871 rows",
    "2003": "18/18 sro, 497/497 vil, 4574 rows",
    "2007": "18/18 sro, 511/511 vil, 4384 rows",
    "2012": "18/18 sro, 535/535 vil, 5328 rows",
@@ -314,7 +314,7 @@
    "sros": 6
   },
   "Tiruppur": {
-   "2002": "0/15 sro, 0/0 vil, 0 rows",
+   "2002": "15/15 sro, 348/348 vil, 2860 rows",
    "2003": "15/15 sro, 389/389 vil, 3125 rows",
    "2007": "15/15 sro, 355/355 vil, 4503 rows",
    "2012": "15/15 sro, 361/361 vil, 6063 rows",
@@ -344,7 +344,7 @@
    "sros": 23
   },
   "Tiruvarur": {
-   "2002": "0/11 sro, 0/0 vil, 0 rows",
+   "2002": "11/11 sro, 626/626 vil, 1737 rows",
    "2003": "11/11 sro, 596/596 vil, 2398 rows",
    "2007": "11/11 sro, 612/612 vil, 4508 rows",
    "2012": "11/11 sro, 593/593 vil, 5649 rows",
@@ -374,7 +374,7 @@
    "sros": 20
   },
   "Virudhunagar": {
-   "2002": "0/17 sro, 0/0 vil, 0 rows",
+   "2002": "17/17 sro, 628/628 vil, 2181 rows",
    "2003": "17/17 sro, 649/649 vil, 1798 rows",
    "2007": "17/17 sro, 608/608 vil, 2286 rows",
    "2012": "17/17 sro, 604/604 vil, 2364 rows",
@@ -400,12 +400,12 @@
   "2002": {
    "complete": false,
    "items_mismatch": 0,
-   "rows": 103283,
+   "rows": 111475,
    "sros": 595,
-   "sros_done": 544,
-   "villages": 17211,
-   "villages_done": 17084,
-   "villages_failed_attempts": 1
+   "sros_done": 593,
+   "villages": 18813,
+   "villages_done": 18811,
+   "villages_failed_attempts": 2
   },
   "2003": {
    "complete": false,
@@ -468,5 +468,5 @@
    "villages_failed_attempts": 0
   }
  },
- "updated": "2026-10-28T01:27:13Z"
+ "updated": "2026-10-28T01:28:51Z"
 }
