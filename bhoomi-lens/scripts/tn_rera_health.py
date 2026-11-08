@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check two official TNRERA pages; this does not collect project records."""
+import os
 import re
 import urllib.error
 import urllib.request
@@ -32,6 +33,8 @@ def main():
         except (urllib.error.URLError, OSError, ValueError) as exc:
             result = f'unavailable ({type(exc).__name__})'
         print(f'{label}: {result}', flush=True)
+        if os.environ.get('GITHUB_ACTIONS') == 'true' and not result.startswith('registration identifier found'):
+            print(f'::warning::TNRERA {label}: {result}', flush=True)
     print('A successful page alone does not establish a complete historical dataset.', flush=True)
 
 

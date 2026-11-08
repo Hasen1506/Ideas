@@ -8,6 +8,7 @@ import argparse
 from collections import Counter
 import datetime as dt
 import hashlib
+import os
 import time
 import urllib.error
 
@@ -74,6 +75,8 @@ def main():
             print(f'{revision} {district}, SRO {sid}, village {vid}: unavailable ({type(exc).__name__})', flush=True)
         time.sleep(0.2)
     print(f'Matched {counts["matched"]}; different {counts["different: requires review"]}; unavailable {counts["unavailable"]}. Read-only, small-result sample, not a statewide accuracy estimate.', flush=True)
+    if os.environ.get('GITHUB_ACTIONS') == 'true' and (counts['different: requires review'] or counts['unavailable']):
+        print('::warning::Some TN guideline spot-checks differed or could not be completed; review the run summary.', flush=True)
 
 
 if __name__ == '__main__':
