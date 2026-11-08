@@ -20,6 +20,14 @@ E.calibrateDistricts(models, GEO.features, BL.CATALYSTS);
 E.evaluate(models, {});
 let pass = 0, fail = 0; const fails = [];
 const ok = (c, msg) => { if (c) pass++; else { fail++; if (fails.length < 40) fails.push(msg); } };
+{
+  const a = E.buildModel("a", "13.080,80.260", "Tamil Nadu", 13.08015, 80.26050, 0, [], true);
+  const b = E.buildModel("b", "13.080,80.261", "Tamil Nadu", 13.08015, 80.26050, 0, [], true);
+  ok(a.basePrice === b.basePrice && a.g === b.g, "changing only a location label must not change its price or growth prior");
+  const left = E.pointModel(13.08015, 80.26049, BL.CATALYSTS, models);
+  const right = E.pointModel(13.08015, 80.26051, BL.CATALYSTS, models);
+  ok(left && right && Math.abs(left.basePrice / right.basePrice - 1) < 0.001, "near-identical points must not jump due to coordinate rounding");
+}
 // deterministic RNG
 let seed = 42; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
 function randomPoint() {
@@ -146,6 +154,7 @@ console.log(`Reference leave-one-out median multiplicative error factor (${sampl
 {
   const W = global.window || (global.window = {});
   global.localStorage = global.localStorage || { getItem: () => null, setItem() {} };
+  W.BL_BACKTEST = global.BL_BACKTEST;
   require("../data/infra.js"); require("../js/infra.js");
   const I = W.BL.Infra, D = W.BL_INFRA;
   ok(D.exits.length > 2000, "exits loaded");
@@ -160,7 +169,10 @@ console.log(`Reference leave-one-out median multiplicative error factor (${sampl
   ok(/Height-clearance requirements depend on the site/.test(I.checks(12.99, 80.17)), "airport screening directs users to site-specific clearance");
   ok(!/outside the 20 km height-rule zone/.test(I.checks(11.0, 78.0)), "airport screening does not assert blanket clearance");
   const a0 = D.acq[0]; ok(/Land-acquisition notice nearby/.test(I.checks(a0.ll[1], a0.ll[0])) && /notice<\/a>/.test(I.checks(a0.ll[1], a0.ll[0])), "notified village flagged with source link");
-  ok((I.trackPanel().match(/source<\/a>/g) || []).length === (W.BL_BACKTEST || global.BL_BACKTEST || { rows: [] }).rows.length || true, "track rows have sources");
+  const track = I.trackPanel();
+  ok((track.match(/source<\/a>/g) || []).length === W.BL_BACKTEST.rows.length, "track rows have sources");
+  ok(/Raw reported change; no comparison benchmark/.test(track) && /Comparison benchmark not recorded/.test(track), "track distinguishes raw changes and missing benchmarks");
+  ok(!/more than their city/.test(I.premiumFor(12.99, 80.17)), "mixed historical cases are not presented as city-relative premiums");
   ok(Object.keys(I.LAYERS).every((k) => !I.isOn(k)), "all infra layers off by default");
 }
 console.log(`PASS ${pass}  FAIL ${fail}`);

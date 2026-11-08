@@ -157,7 +157,7 @@
   }
   function premiumFor(lat, lon) {
     const ex = nearestExit(lat, lon), ap = nearestAirport(lat, lon), T = premiumTable(), parts = [];
-    const say = (kind, d, label) => { const rows = T[kind + "|" + band(d)] || []; if (rows.length >= 5) { const v = rows.map((r) => r.obs).sort((a, b) => a - b), med = v[Math.floor(v.length / 2)]; parts.push(`${label} ${band(d)}: past cases rose a median ${med.toFixed(2)}x more than their city (n=${rows.length}).`); } else parts.push(`${label} ${band(d)}: not enough history yet (${rows.length} case${rows.length === 1 ? "" : "s"}), so no premium is claimed.`); };
+    const say = (kind, d, label) => { const rows = T[kind + "|" + band(d)] || []; parts.push(`${label} ${band(d)}: ${rows.length} selected historical case${rows.length === 1 ? "" : "s"}. Dates, places and benchmarks differ, so these cases do not establish a local premium.`); };
     if (ex && ex.d <= 10) say("road", ex.d, "Road corridor,");
     if (ap && ap.d <= 10) say("airport", ap.d, "Airport,");
     return parts.length ? parts.join("<br>") + ` <span class="muted">Selected calibration cases, not a causal estimate or independent test. Source: Track record panel.</span>` : "";
@@ -167,8 +167,9 @@
     const B = window.BL_BACKTEST || { rows: [] };
     const rows = B.rows.slice().sort((a, b) => b.obs - a.obs);
     const x = (v) => (v == null ? "-" : v.toFixed(2) + "x");
-    return `<div class="muted" style="font-size:12px;margin-bottom:8px">${rows.length} selected historical cases. "Seen" is the reported multiple over the city's general market change; "Model" is the fitted formula for the same spot and years. These cases informed calibration and are not an independent or causal test. Each row links to its source.</div>
-      <div class="card" style="padding:4px 12px">${rows.map((r) => `<div class="cat-row"><div class="grow"><b>${esc(r.project)}</b><div class="muted" style="font-size:12px">${esc(r.loc)} | ${r.dist} km | ${r.y0}-${r.y1} | <a href="${esc(r.src)}" target="_blank" rel="noopener">source</a></div></div><div style="text-align:right;font-size:12px;white-space:nowrap">Seen <b>${x(r.obs)}</b><br><span class="muted">Model ${x(r.now)}</span></div></div>`).join("")}</div>
+    const benchmark = (r) => r.bench === "raw" ? "Raw reported change; no comparison benchmark" : r.bench ? `Comparison: ${r.bench}` : "Comparison benchmark not recorded";
+    return `<div class="muted" style="font-size:12px;margin-bottom:8px">${rows.length} selected historical cases. Reported multiples use different places, dates and benchmarks; some have no recorded comparison. Some cases informed calibration, so they are not an independent or causal test. Each row links to its source.</div>
+      <div class="card" style="padding:4px 12px">${rows.map((r) => `<div class="cat-row"><div class="grow"><b>${esc(r.project)}</b><div class="muted" style="font-size:12px">${esc(r.loc)} | ${r.dist} km | ${r.y0}-${r.y1} | <a href="${esc(r.src)}" target="_blank" rel="noopener">source</a><br>${esc(benchmark(r))}</div></div><div style="text-align:right;font-size:12px;white-space:nowrap">Reported <b>${x(r.obs)}</b><br><span class="muted">Model ${x(r.now)}</span></div></div>`).join("")}</div>
       <div class="muted" style="font-size:12px;margin-top:8px">Average error (log scale): ${B.oldLoss != null ? B.oldLoss.toFixed(3) : "-"} before recalibration, ${B.newLoss != null ? B.newLoss.toFixed(3) : "-"} now. Small sample; read as direction, not guarantee.</div>`;
   }
   function unplacedHtml() { return D.acqUnplaced.length ? `<details style="margin-top:8px"><summary class="muted">${D.acqUnplaced.length} notified villages not on the map (name not found)</summary><div class="muted" style="font-size:12px">${D.acqUnplaced.map((a) => `${esc(a.v)} (${esc(a.p.split("(")[0].trim())})${a.u ? ` <a href="${esc(a.u)}" target="_blank" rel="noopener">notice</a>` : ""}`).join("; ")}</div></details>` : ""; }
