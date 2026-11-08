@@ -3,6 +3,7 @@
 2) place villages on Census 2011 village points: Tamil name transliterated, phonetic key, fuzzy match within district (rapidfuzz ratio >= 86; near-ties dropped)
 3) write window.BL_TN_GV.  Needs: pip install pandas pyarrow rapidfuzz ; Census parquet path in CENSUS_PARQUET (ramSeraph indian_admin_boundaries census-2011 villages)."""
 import os,json
+from tn_gv_units import farm_per_acre
 HERE=os.path.dirname(os.path.abspath(__file__)); TMP=os.environ.get('TMPDIR','/tmp')
 def load_census():
   import pandas as pd
@@ -11,7 +12,7 @@ def load_census():
 
 import json,glob,os,statistics as st,re
 B=os.path.join(HERE,'..','data','tn_gv')
-CONV={'ft2':1,'m2':1/10.7639,'ac':1/43560,'ha':1/107639}
+CONV={'ft2':1,'m2':1/10.7639}
 REVS=['2024','2023','2017','2012','2007','2003','2002']
 def norm(n): return re.sub(r'[\s\.\-\(\)]+','',n or '')
 out={}  # key (dist,sroid,normname) -> {name, sro, rev: [median, n, agri_median]}
@@ -27,10 +28,10 @@ for rev in REVS:
         rows=e.get('rows') or []
         if not rows: continue
         ft=[x[1]*CONV[x[2]] for x in rows if x[2] in ('ft2','m2') and x[1]]
-        ag=[x[1]*CONV[x[2]] for x in rows if x[2] in ('ac','ha') and x[1]]
+        ag=[farm_per_acre(x[1],x[2]) for x in rows if x[2] in ('ac','ha') and x[1]]
         k=f"{dist}|{sid}|{norm(e['n'])}"
         o=out.setdefault(k,{'n':e['n'],'sro':s['name'],'d':dist,'r':{}})
-        o['r'][rev]=[round(st.median(ft),1) if ft else None,len(rows),round(st.median(ag),2) if ag else None]
+        o['r'][rev]=[round(st.median(ft),1) if ft else None,len(rows),st.median(ag) if ag else None]
 json.dump(out,open(os.path.join(TMP,'vill.json'),'w'),ensure_ascii=False)
 from collections import Counter
 c=Counter(len(o['r']) for o in out.values()); print(len(out),sorted(c.items()))
