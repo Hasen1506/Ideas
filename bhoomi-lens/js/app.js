@@ -1301,6 +1301,7 @@
     const datedYears = Object.keys(years).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
     const yearSummary = datedYears.slice(0, 2).map((y) => `${n(years[y])} rows have a ${esc(y)} date`).join(", ");
     const gv = window.BL_TN_GV || { rows: [] }, updates = window.BL_UPDATES || {}, gazette = window.BL_GAZETTE || {};
+    const coverage = updates.coverage;
     return `<p class="lead">See what the map is built from and when each source was last captured. Coverage is uneven and these counts do not establish accuracy.</p>
       <h3>Market-related references</h3><div class="card small" style="line-height:1.6">
         <div class="row sb"><span>Priced references</span><b>${n(market.length)}</b></div>
@@ -1315,6 +1316,7 @@
         <div class="row sb"><span>Tracked projects, snapshot</span><b>${n(BL.CATALYSTS.length)} · ${esc(BL.DATA_ASOF)}</b></div>
         <div class="row sb"><span>Weekly re-check, last generated</span><b>${esc(updates.gen || "Unavailable")}</b></div>
         <div class="row sb"><span>Gazette data, last generated</span><b>${esc(gazette.gen || "Unavailable")}</b></div>
+        <p class="muted">${coverage ? `Latest re-check: ${n(coverage.news_ok)} of ${n(coverage.news_attempted)} news searches and ${n(coverage.sources_ok)} of ${n(coverage.sources_attempted)} source pages succeeded.` : "This older re-check did not record how many source requests succeeded."}</p>
         <p class="muted">Guideline values are official reference rates, not market transactions. Village locations can be approximate name matches. Some TN history was collected without HTTPS certificate verification; check the official records before relying on it. <a href="https://github.com/Hasen1506/Ideas/blob/main/bhoomi-lens/docs/SOURCE_AUDIT.md" target="_blank" rel="noopener">Source audit</a>. News leads are unconfirmed; project statuses do not update automatically.</p></div>
       <h3>Earth observation</h3><div class="card small" style="line-height:1.6">
         <p><b>Satellite:</b> <a href="https://maps.eox.at/" target="_blank" rel="noopener">2025 cloudless mosaic</a>. Recent scene mode searches for a dated Sentinel-2 observation at the map center; clouds may remain.</p>
