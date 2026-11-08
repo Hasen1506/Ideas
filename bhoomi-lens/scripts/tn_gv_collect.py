@@ -472,7 +472,8 @@ class Store:
                 rows = sum(len(e.get("rows", [])) for e in d.values())
                 mism = sum(1 for e in d.values() if "items" in e and e["items"] != len(e["rows"]))
                 fails = sum(1 for vid, _ in (v or []) if "err" in d.get(vid, {}))
-                sdone = v is not None and done == len(v)
+                parked = sum(1 for vid, _ in (v or []) if d.get(vid, {}).get("err", 0) >= PARK_ERR)
+                sdone = v is not None and done + parked == len(v)   # villages the site keeps failing on (>= PARK_ERR tries) count as settled
                 x = dd["revs"].setdefault(rev, {"sros_done": 0, "villages": 0, "villages_done": 0, "rows": 0})
                 x["sros_done"] += int(sdone); x["villages"] += len(v or []); x["villages_done"] += done; x["rows"] += rows
                 t = tot[rev]
@@ -492,6 +493,9 @@ class Store:
                 "districts_discovered": len([k for k in dists if k != UNMAPPED]), "sros_discovered": len(sro_map),
                 "discovery_complete": discovered, "current_revision": cur,
                 "all_done": discovered and cur is None, "totals": tot, "districts": compact}
+
+
+PARK_ERR = int(os.environ.get("TN_GV_PARK_ERR", "6"))  # same default as --max-err
 
 
 def rev_path(district, rev):
