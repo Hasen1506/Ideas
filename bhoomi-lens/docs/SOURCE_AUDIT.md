@@ -31,6 +31,8 @@ The strongest next source is a properly permitted, dated and de-identified trans
 
 The historical guideline collector previously used public proxies with HTTPS certificate verification disabled. That means the existing records were not protected against modification by an intermediary in transit; their integrity cannot be established solely from the collector. Independently check a sample against the official portal before relying on them. The collector now verifies TLS certificates and rejects responses when verification fails; access through some proxies may consequently stop working.
 
+A direct, certificate-verified spot check on 8 November 2026 matched 14 small saved searches (60 street rows), two per revision from 2002 through 2024. The reproducible seed was `2026-W45`; the sample excludes searches with more than ten rows and does not validate all records or geographic matches. See [Tamil Nadu data operations](TAMIL_NADU_DATA_OPERATIONS.md).
+
 The historical backfill has five village-and-revision entries parked after repeated failures. They remain incomplete, not collected: the progress report distinguishes fully collected data from work where automatic retries have stopped. The current app history is a separately built, fuzzy-matched snapshot; it does not update automatically as the raw backfill changes.
 
 ## Project updates
