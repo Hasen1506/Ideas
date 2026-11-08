@@ -31,13 +31,15 @@ The strongest next source is a properly permitted, dated and de-identified trans
 
 The historical guideline collector previously used public proxies with HTTPS certificate verification disabled. That means the existing records were not protected against modification by an intermediary in transit; their integrity cannot be established solely from the collector. Independently check a sample against the official portal before relying on them. The collector now verifies TLS certificates and rejects responses when verification fails; access through some proxies may consequently stop working.
 
-A direct, certificate-verified spot check on 8 November 2026 matched 14 small saved searches (60 street rows), two per revision from 2002 through 2024. The reproducible seed was `2026-W45`; the sample excludes searches with more than ten rows and does not validate all records or geographic matches. See [Tamil Nadu data operations](TAMIL_NADU_DATA_OPERATIONS.md).
+Two direct, certificate-verified spot checks on 8 November 2026 matched 28 distinct small saved searches (118 street rows) across revisions from 2002 through 2024. The reproducible seeds were `2026-W45` and `2026-W45-B`; the samples exclude searches with more than ten rows and do not validate all records or geographic matches. See [Tamil Nadu data operations](TAMIL_NADU_DATA_OPERATIONS.md).
 
 The historical backfill has five village-and-revision entries parked after repeated failures. They remain incomplete, not collected: the progress report distinguishes fully collected data from work where automatic retries have stopped. The current app history is a separately built, fuzzy-matched snapshot; it does not update automatically as the raw backfill changes.
 
 ## Project updates
 
 The weekly re-check finds news leads and page changes for human review; it does not verify a project status or change the model automatically. New runs record the number of successful news and source-page requests. If every news request fails, the job fails and retains the previous snapshot rather than presenting an unsuccessful check as a fresh one. A successful request or absence of a headline does not establish that there has been no project change.
+
+The separate Gazette extractor gets records from Gazette Tracker, not directly from the official e-Gazette. [Gazette Tracker's terms](https://gazettetracker.com/terms-of-use) say government Gazette notifications are public records but also restrict redistributing the service or its content without prior written permission. The repository does not establish the necessary permission for its existing derived dataset. Scheduled and manual Gazette collection are paused pending a rights review or a verified official-source replacement; the existing data have not been independently cleared by this pause. On 8 November 2026 the official [e-Gazette](https://egazette.gov.in/) returned HTTP 503 from this workspace, so a working official collector has not been established.
 
 The 71 selected historical project/price cases include repeated cases for the same project and a mixture of raw changes, stated benchmarks and cases with no benchmark recorded. They cannot be pooled as independent, city-relative premiums. Some informed model adjustments, and a subset has no model result recorded; use the source and benchmark on each case when reviewing it.
 

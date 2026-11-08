@@ -17,7 +17,7 @@
       return { type: "Feature", properties: { id, n: p.n || b.name, osm: b.name, cancelled: p.cancelled ? 1 : 0 }, geometry: { type: "Polygon", coordinates: [ring] } };
     }) };
   }
-  // Weekly Gazette notices (scripts/gazette_job.py -> data/gazette.js): villages placed on Census 2011 points join the notified-villages layer.
+  // Previously collected Gazette notices (refresh paused): villages placed on Census 2011 points join the notified-villages layer.
   (() => { const G = window.BL_GAZETTE || (window.BL_UPDATES || {}).gazette; if (!G || !G.villages) return; const seen = new Set(D.acq.map((a) => (a.v + "|" + a.s).toLowerCase()));
     G.villages.forEach((g) => { const k = (g.v + "|" + g.s).toLowerCase(); if (!g.ll || seen.has(k)) return; seen.add(k);
       D.acq.push({ g: 1, p: g.p || "National highway land acquisition", v: g.v, tk: g.tk, d: g.d, s: g.s, sv: g.sv, nt: g.nt, dt: g.dt, au: (g.so || "") + (g.km ? ", Km " + g.km : ""), u: g.u, ll: g.ll, geo: "Census 2011 village point (approximate)" }); }); })();
@@ -31,8 +31,8 @@
     water: { label: "Water history", desc: "Where surface water has stood at any time 1984-2024 (satellite, EC JRC/Google). Useful for spotting filled-in tanks and lake beds.", ids: ["ix-water"] },
     bounds: { label: "Airport boundaries", desc: "Mapped airport land from OpenStreetMap and a 20 km reference ring, not a regulatory boundary or clearance.", ids: ["ix-air-fill", "ix-air-line", "ix-aai"] },
     exits: { label: "Expressway exits", desc: "Existing interchanges from OpenStreetMap. Proposed exits are only shown where officially mapped.", ids: ["ix-exits"] },
-    acq: { label: "Notified villages", desc: "Villages named in official land-acquisition notices. Dot = village centre (approximate), not the acquired parcel.", ids: ["ix-acq", "ix-acq-ring"] },
-    rera: { label: "New real-estate projects (TN RERA)", desc: "Building projects registered with TNRERA 2024-2026, at the coordinates the builder filed. A cluster of new registrations is an early sign of demand.", ids: ["ix-rera"] },
+    acq: { label: "Notified villages", desc: "Snapshot of villages named in land-acquisition notices, including notices collected through a third party. The dot is an approximate village centre, not the acquired parcel. Gazette refresh is paused.", ids: ["ix-acq", "ix-acq-ring"] },
+    rera: { label: "New real-estate projects (TN RERA)", desc: "Available TNRERA registrations from 2024–2026. Coverage and coordinates have not been independently verified; a registration is not a completed sale.", ids: ["ix-rera"] },
     inv: { label: "Big company investments", desc: "71 sourced factories, data centres and parks (Rs crore, jobs, status) in 5 southern states. Pin = park or town centre, not the exact plot.", ids: ["ix-inv", "ix-inv-ring"] },
     gv: { label: "Official rates history (TN)", desc: "Government guideline value per village, 2002-2024 (median street rate, Rs per sq ft). 5,400 villages placed on Census points. A floor for stamp duty, not the market price; it moves in statewide revisions.", ids: ["ix-gv"] },
     routes: { label: "Expressway routes (live)", desc: "Motorways under construction or proposed, loaded from OpenStreetMap for the area on screen (zoom in to 8+).", ids: ["ix-routes"] },
