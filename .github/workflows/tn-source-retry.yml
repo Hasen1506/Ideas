@@ -10,6 +10,11 @@ on:
         type: choice
         options: [hosted, portal]
         default: hosted
+      sample_seed:
+        description: "Optional reproducible sample seed (letters, numbers, hyphens, underscores)"
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -44,10 +49,14 @@ jobs:
           python -u bhoomi-lens/scripts/tn_retry_gaps.py --apply --max-records 5 | tee -a "$GITHUB_STEP_SUMMARY"
         shell: bash
       - name: Independently sample historical guideline rows
+        env:
+          SAMPLE_SEED: ${{ inputs.sample_seed }}
         run: |
           set -o pipefail
           echo '## Historical guideline spot-check' >> "$GITHUB_STEP_SUMMARY"
-          python -u bhoomi-lens/scripts/tn_verify_sample.py --per-revision 2 | tee -a "$GITHUB_STEP_SUMMARY"
+          set -- --per-revision 2
+          if [ -n "$SAMPLE_SEED" ]; then set -- "$@" --seed "$SAMPLE_SEED"; fi
+          python -u bhoomi-lens/scripts/tn_verify_sample.py "$@" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Detect verified changes
         id: changes
         run: |
