@@ -4,13 +4,13 @@
 
 [`bhoomi-lens/`](bhoomi-lens) is an interactive map of India that does four things:
 
-- Prices land in all 820 districts.
-- Forecasts how infrastructure projects will move those prices.
-- Scores risk and opportunity for each district.
+- Shows indicative modelled prices across 820 districts.
+- Explores assumed infrastructure scenarios and price paths.
+- Displays heuristic risk and opportunity scores for each district.
 - Lets you draw any area or simulate a new airport, metro or expressway.
 
-It runs entirely in the browser: open `bhoomi-lens/index.html` and it works.
+It runs in the browser with an internet connection for the map. From this directory, run `python3 -m http.server 8000 --directory bhoomi-lens` and open `http://localhost:8000/`. Estimates, forecast bands and scores have not been validated for plot-level decisions.
 
-**Publish it:** go to **Settings > Pages**, set **Source** to **Deploy from a branch**, and choose `main` and `/ (root)`. It goes live at https://hasen1506.github.io/Ideas/bhoomi-lens/
+**App:** https://hasen1506.github.io/Ideas/bhoomi-lens/ — deployed with GitHub Pages from `main` and `/ (root)`.
 
 See [bhoomi-lens/README.md](bhoomi-lens/README.md) for the full feature list and how the model works.

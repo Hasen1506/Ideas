@@ -29,7 +29,7 @@
   /* ---------- Layers (all hidden until toggled) ---------- */
   const LAYERS = {
     water: { label: "Water history", desc: "Where surface water has stood at any time 1984-2024 (satellite, EC JRC/Google). Useful for spotting filled-in tanks and lake beds.", ids: ["ix-water"] },
-    bounds: { label: "Airport boundaries", desc: "Mapped airport land from OpenStreetMap, plus the 20 km height-rule ring around operational airports.", ids: ["ix-air-fill", "ix-air-line", "ix-aai"] },
+    bounds: { label: "Airport boundaries", desc: "Mapped airport land from OpenStreetMap and a 20 km reference ring, not a regulatory boundary or clearance.", ids: ["ix-air-fill", "ix-air-line", "ix-aai"] },
     exits: { label: "Expressway exits", desc: "Existing interchanges from OpenStreetMap. Proposed exits are only shown where officially mapped.", ids: ["ix-exits"] },
     acq: { label: "Notified villages", desc: "Villages named in official land-acquisition notices. Dot = village centre (approximate), not the acquired parcel.", ids: ["ix-acq", "ix-acq-ring"] },
     rera: { label: "New real-estate projects (TN RERA)", desc: "Building projects registered with TNRERA 2024-2026, at the coordinates the builder filed. A cluster of new registrations is an early sign of demand.", ids: ["ix-rera"] },
@@ -44,7 +44,7 @@
   }
   function addLayers(map, before) {
     const none = { visibility: "none" };
-    map.addSource("ix-water", { type: "raster", tiles: ["https://storage.googleapis.com/global-surface-water/tiles2021/occurrence/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 13, attribution: "Surface water: EC JRC/Google" });
+    map.addSource("ix-water", { type: "raster", tiles: ["https://storage.googleapis.com/water-world/tiles2024/occurrence/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 13, attribution: "Source: EC JRC/Google, Global Surface Water 1984–2024" });
     map.addLayer({ id: "ix-water", type: "raster", source: "ix-water", layout: none, paint: { "raster-opacity": 0.95, "raster-contrast": 0.3 } }, before);
     map.addSource("ix-air", { type: "geojson", data: boundsFC() });
     map.addLayer({ id: "ix-air-fill", type: "fill", source: "ix-air", layout: none, paint: { "fill-color": ["case", ["==", ["get", "cancelled"], 1], "#7f8aa3", "#7cc4ff"], "fill-opacity": 0.22 } });
@@ -83,7 +83,7 @@
   function gvHtml(r) {
     const R = (window.BL_TN_GV || {}).rev || [];
     const cells = R.map((y, k) => r[6 + k] != null ? `<tr><td>${y}</td><td style="text-align:right">Rs ${Number(r[6 + k]).toLocaleString("en-IN")}</td></tr>` : "").join("");
-    return `<b>${esc(r[0])}</b> <span class="muted">${esc(r[1])}</span><div class="small">${esc(r[2])} SRO, ${esc(r[3])}</div><table class="small">${cells}</table>${r[12 + 1] ? `<div class="small">Farm land 2024: Rs ${Number(r[13]).toLocaleString("en-IN")} per acre</div>` : ""}<div class="small muted">Official guideline value (median street rate, Rs per sq ft), Registration Dept, Tamil Nadu. A stamp-duty floor, not the market price. Revisions are mostly statewide: 2017 cut most rates to 0.67x, 2023 raised most by 1.5x.</div>`;
+    return `<b>${esc(r[0])}</b> <span class="muted">${esc(r[1])}</span><div class="small">${esc(r[2])} SRO, ${esc(r[3])}</div><table class="small">${cells}</table>${r[13] != null ? `<div class="small">Farm land 2024: Rs ${Number(r[13]).toLocaleString("en-IN")} per acre</div>` : ""}<div class="small muted">Official guideline values (median street rate, Rs per sq ft), Registration Dept, Tamil Nadu; not market sale prices. Village location is an approximate automatic name match. Streets and land types included may differ between revisions; verify the original register before comparing years or plots.</div>`;
   }
   function setLayer(map, k, v) {
     on[k] = v; LAYERS[k].ids.forEach((id) => { try { map.setLayoutProperty(id, "visibility", v ? "visible" : "none"); } catch (e) {} });
@@ -127,11 +127,11 @@
     out.push(row("Nearest expressway exit", ex ? `${ex.d.toFixed(1)} km (${band(ex.d)}) - ${esc(ex.n || "unnamed")}. Straight-line distance; existing exits only (OpenStreetMap).` : "No mapped expressway exit within about 100 km.", ex && ex.d <= 5 ? "s" : ""));
     if (aq.length) { const a = aq[0].a, dropped = a.pid && P[a.pid] && P[a.pid].cancelled; out.push(row("Land-acquisition notice nearby", `${esc(a.v)} village centre is ${aq[0].d.toFixed(1)} km away: ${esc(a.p)}${a.dt ? ", notified " + esc(a.dt) : ""}${dropped ? " (project since dropped)" : ""}. Village centre is approximate; check the survey numbers in the <a href="${esc(a.u)}" target="_blank" rel="noopener">notice</a>.`, "r")); }
     else out.push(row("Land-acquisition notice nearby", `None of the ${D.acq.length} mapped notified villages is within 3 km. ${D.acqUnplaced.length} notified villages could not be placed on the map, so this is not a clearance.`, ""));
-    out.push(row("Airport height rule", ap && ap.d <= 20 ? `${ap.d.toFixed(1)} km from ${esc(ap.n)} (${esc(ap.iata)}). Inside the 20 km zone, so a height NOC from AAI may be needed. Check the actual limit on <a href="https://nocas2.aai.aero/nocas/" target="_blank" rel="noopener">AAI NOCAS</a>.` : ap ? `Nearest operational airport ${esc(ap.n)} is ${ap.d.toFixed(0)} km away, outside the 20 km height-rule zone.` : "No airport data.", ap && ap.d <= 20 ? "r" : "s"));
+    out.push(row("Airport height screening", ap ? `${ap.d.toFixed(1)} km in a straight line from mapped airport ${esc(ap.n)} (${esc(ap.iata)}). Height-clearance requirements depend on the site and proposal; check <a href="https://nocas2.aai.aero/nocas/" target="_blank" rel="noopener">AAI NOCAS</a>.` : "No airport data; check the applicable height clearance separately.", ap && ap.d <= 20 ? "r" : ""));
     const cd = coastKm(lat, lon);
-    if (cd != null && cd <= 3) out.push(row("Coastal zone (CRZ)", `About ${cd < 0.5 ? "under 0.5" : cd.toFixed(1)} km from the coastline (approximate map, 200-500 m error). Coastal Regulation Zone rules may restrict building up to 500 m from the high-tide line, and along tidal creeks. The legal map is per survey number: <a href="${lat < 13.6 && lat > 8 && lon > 76.2 ? "https://tnsczma.tn.gov.in/approvedczmpmaps.php" : "https://czmp.ncscm.res.in/"}" target="_blank" rel="noopener">official CZMP maps</a>.`, "r"));
-    const pr = premiumFor(lat, lon); if (pr) out.push(row("What past projects did at this distance", pr, ""));
-    out.push(row("Water history", on.water ? `Water history is on: blue shading at this spot means satellites saw surface water here at some point since 1984 (darker = more often). No shading means no water was seen at 30 m resolution; small tanks can still be missed. Confirm with the revenue record (A-register / adangal).` : `Turn on <a href="#" data-ix="water">Water history</a> to see whether this spot has held water at any time since 1984 (satellite record). A filled-in tank or lake bed is a legal and flood risk; confirm with the revenue record (A-register / adangal).`, ""));
+    if (cd != null && cd <= 3) out.push(row("Coastal zone (CRZ)", `About ${cd < 0.5 ? "under 0.5" : cd.toFixed(1)} km from the mapped coastline. Coastal restrictions depend on the legal high-tide line, tidal features and site classification; consult the <a href="${lat < 13.6 && lat > 8 && lon > 76.2 ? "https://tnsczma.tn.gov.in/approvedczmpmaps.php" : "https://czmp.ncscm.res.in/"}" target="_blank" rel="noopener">official CZMP maps</a>.`, "r"));
+    const pr = premiumFor(lat, lon); if (pr) out.push(row("Selected historical cases at this distance", pr, ""));
+    out.push(row("Water history", on.water ? `The 1984–2024 satellite record is on: blue shading indicates observed surface water, with darker areas observed more often. Missing shading does not prove the land is dry; small or short-lived water bodies can be missed. Confirm with local records.` : `Turn on <a href="#" data-ix="water">Water history</a> to view observed surface water from 1984–2024. The 30 m satellite record can miss small or short-lived water bodies; confirm with local records.`, ""));
     return `<h3>Site checks</h3><div class="card" style="padding:4px 12px">${out.join("")}<div class="muted" style="font-size:11px;padding:6px 0">Checks use public data only and are not legal clearance. The coastal line above is a screening prompt from an approximate coastline, not the legal CRZ boundary; the legal CRZ and master-plan zoning maps exist only as PDFs, so they are linked, not drawn.</div></div>`;
   }
   function acqHtml(a) { return `<b>${esc(a.v)}</b> <span class="muted">${esc(a.tk || "")}${a.tk ? ", " : ""}${esc(a.d || "")}, ${esc(a.s)}</span><div style="margin-top:4px">${esc(a.p)}</div><div class="muted" style="font-size:12px">${esc(a.nt || "Notice")}${a.dt ? ", " + esc(a.dt) : ""}${a.au ? " - " + esc(a.au) : ""}${a.sv ? "<br>Survey nos: " + esc(Array.isArray(a.sv) ? a.sv.join(", ") : a.sv) : ""}${a.c ? "<br>" + esc(a.c) : ""}<br>Dot = village centre from ${esc(a.geo || "OpenStreetMap")}, approximate.</div>${a.u ? `<a href="${esc(a.u)}" target="_blank" rel="noopener">Open the notice</a>` : ""}`; }
@@ -160,14 +160,14 @@
     const say = (kind, d, label) => { const rows = T[kind + "|" + band(d)] || []; if (rows.length >= 5) { const v = rows.map((r) => r.obs).sort((a, b) => a - b), med = v[Math.floor(v.length / 2)]; parts.push(`${label} ${band(d)}: past cases rose a median ${med.toFixed(2)}x more than their city (n=${rows.length}).`); } else parts.push(`${label} ${band(d)}: not enough history yet (${rows.length} case${rows.length === 1 ? "" : "s"}), so no premium is claimed.`); };
     if (ex && ex.d <= 10) say("road", ex.d, "Road corridor,");
     if (ap && ap.d <= 10) say("airport", ap.d, "Airport,");
-    return parts.length ? parts.join("<br>") + ` <span class="muted">Source: Track record panel.</span>` : "";
+    return parts.length ? parts.join("<br>") + ` <span class="muted">Selected calibration cases, not a causal estimate or independent test. Source: Track record panel.</span>` : "";
   }
   /* ---------- Track record panel ---------- */
   function trackPanel() {
     const B = window.BL_BACKTEST || { rows: [] };
     const rows = B.rows.slice().sort((a, b) => b.obs - a.obs);
     const x = (v) => (v == null ? "-" : v.toFixed(2) + "x");
-    return `<div class="muted" style="font-size:12px;margin-bottom:8px">${rows.length} past projects where a land price before and after was documented. "Seen" is the price multiple over the city's general market change; "Model" is what Bhoomi Lens predicts today for the same spot and years. Each row links to its source.</div>
+    return `<div class="muted" style="font-size:12px;margin-bottom:8px">${rows.length} selected historical cases. "Seen" is the reported multiple over the city's general market change; "Model" is the fitted formula for the same spot and years. These cases informed calibration and are not an independent or causal test. Each row links to its source.</div>
       <div class="card" style="padding:4px 12px">${rows.map((r) => `<div class="cat-row"><div class="grow"><b>${esc(r.project)}</b><div class="muted" style="font-size:12px">${esc(r.loc)} | ${r.dist} km | ${r.y0}-${r.y1} | <a href="${esc(r.src)}" target="_blank" rel="noopener">source</a></div></div><div style="text-align:right;font-size:12px;white-space:nowrap">Seen <b>${x(r.obs)}</b><br><span class="muted">Model ${x(r.now)}</span></div></div>`).join("")}</div>
       <div class="muted" style="font-size:12px;margin-top:8px">Average error (log scale): ${B.oldLoss != null ? B.oldLoss.toFixed(3) : "-"} before recalibration, ${B.newLoss != null ? B.newLoss.toFixed(3) : "-"} now. Small sample; read as direction, not guarantee.</div>`;
   }

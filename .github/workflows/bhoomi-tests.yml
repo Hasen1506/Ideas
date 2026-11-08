@@ -1,0 +1,50 @@
+name: Bhoomi Lens checks
+
+on:
+  push:
+    paths:
+      - 'bhoomi-lens/index.html'
+      - 'bhoomi-lens/css/**'
+      - 'bhoomi-lens/js/**'
+      - 'bhoomi-lens/vendor/**'
+      - 'bhoomi-lens/data/*.js'
+      - 'bhoomi-lens/scripts/tn_gv_history.py'
+      - 'bhoomi-lens/scripts/tn_gv_units.py'
+      - 'bhoomi-lens/tests/**'
+      - 'bhoomi-lens/package*.json'
+      - '.github/workflows/bhoomi-tests.yml'
+  pull_request:
+    paths:
+      - 'bhoomi-lens/index.html'
+      - 'bhoomi-lens/css/**'
+      - 'bhoomi-lens/js/**'
+      - 'bhoomi-lens/vendor/**'
+      - 'bhoomi-lens/data/*.js'
+      - 'bhoomi-lens/scripts/tn_gv_history.py'
+      - 'bhoomi-lens/scripts/tn_gv_units.py'
+      - 'bhoomi-lens/tests/**'
+      - 'bhoomi-lens/package*.json'
+      - '.github/workflows/bhoomi-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: bhoomi-lens
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: bhoomi-lens/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run test:browser
