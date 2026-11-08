@@ -19,7 +19,7 @@
     risk: ["#0b1a14", "#123d27", "#2f6b1f", "#7a9a14", "#d6a70d", "#f2771b", "#e2402b", "#b51d3a", "#6e0f2a"],
     liq: ["#0b1220", "#11264a", "#163f77", "#1d5fa6", "#2a85cf", "#43aee6", "#6fd3f4", "#a8ecfb", "#e4fbff"],
     gap: ["#120d1f", "#26184a", "#3f2575", "#5d339f", "#7e45c4", "#a35ddf", "#c47ff0", "#e0a9f8", "#f6dbff"],
-    impact: ["#0b1020", "#0f2440", "#0f3e66", "#08618f", "#0089b8", "#00b3d9", "#2ee6f0", "#9ff8f6", "#ffffff"]
+    impact: ["#b9414c", "#a95454", "#886061", "#655d65", "#444d59", "#386e6f", "#329996", "#2ec1b0", "#79ead0"]
   };
   const LAYERS = {
     price: { label: "Price", title: "Estimated market price", norm: (m) => (Math.log10(Math.max(m.price, 5)) - 1) / 3.5, val: (m) => fmtINR(m.price) + " / sq ft", ll: ["\u20B910", "\u20B9300", "\u20B930k+"] },
@@ -28,7 +28,7 @@
     risk: { label: "Risk", title: "Composite risk", norm: (m) => (m.risk.total - 22) / 36, val: (m) => Math.round(m.risk.total) + " / 100", ll: ["Low", "Medium", "High"] },
     liq: { label: "Liquidity", title: "Modelled liquidity score", norm: (m) => m.liq / 100, val: (m) => Math.round(m.liq) + " / 100", ll: ["Lower score", "", "Higher score"] },
     gap: { label: "Circle gap", title: "Modelled circle-rate gap", norm: (m) => (m.gap - 0.3) / 0.3, val: (m) => "modelled gap " + Math.round(m.gap * 100) + "%", ll: ["30%", "45%", "60%"] },
-    impact: { label: "Sim impact", title: "Uplift from your simulated projects", norm: (m) => Math.pow(clamp(m.delta / 0.35), 0.6), val: (m) => pct(m.delta), ll: ["0%", "+8%", "+35%"] }
+    impact: { label: "Sim impact", title: "Assumed scenario change", norm: (m) => clamp((m.delta + 0.5) / 1.0), val: (m) => pct(m.delta), ll: ["-50%", "0%", "+50%"] }
   };
   const TOOLS = [
     { id: "explore", label: "Explore and insights", icon: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" stroke="currentColor" stroke-width="1.8" fill="none"/>' },
@@ -58,12 +58,13 @@
     tool: null, sel: null, three: false, sat: false, recent: false, imageYear: null, heat: false, zones: false,
     userCats: [], watch: store.get("bl_watch", []), compare: store.get("bl_compare", []),
     playing: false, draw: null, placing: null, area: null, catFilter: "all", catStage: "all",
-    simType: "airport", simStage: 2, simCred: 0.65, hoverId: null, radiusKm: 10, loc: null, real: false, proj: false, tint: true, labels: false,
+    simType: "airport", simEffect: 25, simProbability: 50, simDistance: 20, simPricedIn: 35, simYear: MY + 5, hoverId: null, radiusKm: 10, loc: null, real: false, proj: false, tint: true, labels: false,
     scr: { state: "all", sort: "opp", maxRisk: 100, maxPrice: 0 }
   };
   const opts = () => ({ year: S.year, horizon: S.horizon, scenario: S.scenario });
   const allCats = () => BL.CATALYSTS.concat(S.userCats);
   const catById = (id) => allCats().find((c) => c.id === id);
+  const influenceRadius = (c) => c.user && Number.isFinite(c.assumedDistance) ? c.assumedDistance : BL.TYPES[c.t].r;
 
   const GEO = window.BL_DISTRICTS;
   const STATES_GEO = window.BL_STATES_GEO;
@@ -160,12 +161,12 @@
       if (c.path) coords = c.path;
       else if (c.ring) coords = E.circleRing(c.ring.lon, c.ring.lat, c.ring.rdeg * 111, 96);
       if (!coords) continue;
-      fs.push({ type: "Feature", properties: { id: c.id, t: c.t, color: T.color, rkm: T.r, op: c.stage >= 4 ? 1 : 0, user: c.user ? 1 : 0 }, geometry: { type: "LineString", coordinates: coords } });
+      fs.push({ type: "Feature", properties: { id: c.id, t: c.t, color: T.color, rkm: influenceRadius(c), op: c.stage >= 4 ? 1 : 0, user: c.user ? 1 : 0 }, geometry: { type: "LineString", coordinates: coords } });
     }
     return { type: "FeatureCollection", features: fs };
   }
   function catPtFC() {
-    return { type: "FeatureCollection", features: allCats().filter((c) => c.pt).map((c) => ({ type: "Feature", properties: { id: c.id, t: c.t, color: BL.TYPES[c.t].color, rkm: BL.TYPES[c.t].r }, geometry: { type: "Point", coordinates: c.pt } })) };
+    return { type: "FeatureCollection", features: allCats().filter((c) => c.pt).map((c) => ({ type: "Feature", properties: { id: c.id, t: c.t, color: BL.TYPES[c.t].color, rkm: influenceRadius(c) }, geometry: { type: "Point", coordinates: c.pt } })) };
   }
   function heatFC() {
     const pts = E.hotspotGrid(allCats(), models, { scenario: S.scenario });
@@ -407,10 +408,10 @@
     const p = E.completionP(c, S.scenario), eta = E.effEta(c, S.scenario);
     return `<div style="min-width:240px;max-width:290px">
       <div class="row"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><b>${esc(c.n)}</b><div class="small muted">${esc(T.label)} | ${esc(c.ag || "")}</div></div></div>
-      <div class="row sb" style="margin:10px 0 6px">${c.cancelled ? '<span class="tag down">Cancelled / dropped</span>' : C.stage(c.stage) + `<span class="small muted">${esc(BL.STAGES[c.stage])}</span>`}</div>
-      ${c.path ? '<div class="small muted" style="margin:4px 0">Line drawn from published alignment maps: approximate, not the surveyed route. Turn on Infra layers > Expressway routes (live) for mapped geometry.</div>' : ""}${c.cancelled ? "" : `<div class="row sb small"><span class="muted">Assumed completion probability</span><b>${Math.round(p * 100)}%</b></div><div class="small muted">Heuristic model input; not a validated probability.</div>`}
-      ${c.cancelled ? "" : `<div class="row sb small"><span class="muted">${c.stage >= 4 ? "Opened" : "Expected"} (${esc(BL.SCENARIOS[S.scenario].label)})</span><b>${eta}</b></div>`}
-      <div class="row sb small"><span class="muted">Agency credibility</span><b>${Math.round(c.cred * 100)} / 100</b></div>
+      <div class="row sb" style="margin:10px 0 6px">${c.user ? '<span class="tag">Your hypothetical project</span>' : c.cancelled ? '<span class="tag down">Cancelled / dropped</span>' : C.stage(c.stage) + `<span class="small muted">${esc(BL.STAGES[c.stage])}</span>`}</div>
+      ${c.path ? c.user ? '<div class="small muted" style="margin:4px 0">This route was drawn by you and is not an official alignment.</div>' : '<div class="small muted" style="margin:4px 0">Line drawn from published alignment maps: approximate, not the surveyed route. Turn on Infra layers > Expressway routes (live) for mapped geometry.</div>' : ""}${c.cancelled ? "" : `<div class="row sb small"><span class="muted">Assumed completion probability</span><b>${Math.round(p * 100)}%</b></div><div class="small muted">${c.user ? "Chosen by you for this scenario." : "Heuristic model input; not a validated probability."}</div>`}
+      ${c.cancelled ? "" : `<div class="row sb small"><span class="muted">${c.user ? "Assumed completion year" : `${c.stage >= 4 ? "Opened" : "Expected"} (${esc(BL.SCENARIOS[S.scenario].label)})`}</span><b>${eta}</b></div>`}
+      ${c.user ? `<div class="small muted">Assumed effect at project ${pct(c.assumedEffect)}; distance scale ${c.assumedDistance} km; ${Math.round(c.assumedPricedIn * 100)}% already reflected.</div>` : `<div class="row sb small"><span class="muted">Agency credibility</span><b>${Math.round(c.cred * 100)} / 100</b></div>`}
       ${c.cancelled ? '<div class="small down" style="margin-top:6px"><b>Cancelled / dropped.</b> Any price premium should unwind.</div>' : ""}
       ${c.status ? `<p class="small" style="margin:8px 0 0;line-height:1.5">${esc(c.status)}</p>` : ""}
       <p class="small muted" style="margin:6px 0 0;line-height:1.5">${esc(c.note || "")}</p>
@@ -425,9 +426,9 @@
     if (!S.proj) $("#btnProj").click();
     const T = BL.TYPES[c.t];
     const fs = [];
-    if (c.pt) fs.push({ type: "Feature", properties: { k: "zone" }, geometry: { type: "Polygon", coordinates: [E.circleRing(c.pt[0], c.pt[1], T.r * 1.5, 72)] } });
+    if (c.pt) fs.push({ type: "Feature", properties: { k: "zone" }, geometry: { type: "Polygon", coordinates: [E.circleRing(c.pt[0], c.pt[1], influenceRadius(c) * 1.5, 72)] } });
     const g = c.pt ? { type: "Point", coordinates: c.pt } : { type: "LineString", coordinates: c.path || E.circleRing(c.ring.lon, c.ring.lat, c.ring.rdeg * 111, 96) };
-    fs.push({ type: "Feature", properties: { k: "geom", color: T.color, rkm: T.r * 1.5 }, geometry: g });
+    fs.push({ type: "Feature", properties: { k: "geom", color: T.color, rkm: influenceRadius(c) * 1.5 }, geometry: g });
     if (map.getSource("catFocus")) map.getSource("catFocus").setData({ type: "FeatureCollection", features: fs });
     for (const [cid, mk] of markers) mk.getElement().style.opacity = cid === id ? "1" : "0.35";
     if (map.getLayer("cat-hl-line")) map.setPaintProperty("cat-hl-line", "line-color", T.color);
@@ -452,18 +453,18 @@
   }
   function showProjectCard(c) {
     const T = BL.TYPES[c.t];
-    const hit = models.map((m) => { const L = m.links.find((l) => l.c.id === c.id); return L ? { m, d: L.d, up: L.w * (E.eff(c, MY + S.horizon, S.scenario) - E.eff(c, MY, "base")) } : null; }).filter(Boolean).sort((a, b) => b.up - a.up).slice(0, 8);
-    const pts = (window.BL_VERIFIED || []).map((p, i) => ({ p, i, d: E.distToCatalyst(c, p.lat, p.lon) })).filter((x) => x.d < T.r * 1.5).sort((a, b) => a.d - b.d).slice(0, 8);
+    const hit = models.map((m) => { const L = m.links.find((l) => l.c.id === c.id); return L ? { m, d: L.d, up: L.w * (E.eff(c, MY + S.horizon, S.scenario) - E.eff(c, MY, "base")) } : null; }).filter(Boolean).sort((a, b) => c.user ? Math.abs(b.up) - Math.abs(a.up) : b.up - a.up).slice(0, 8);
+    const pts = (window.BL_VERIFIED || []).map((p, i) => ({ p, i, d: E.distToCatalyst(c, p.lat, p.lon) })).filter((x) => x.d < influenceRadius(c) * 1.5).sort((a, b) => a.d - b.d).slice(0, 8);
     S.sel = null; S.loc = null;
     document.body.classList.add("detail-open"); $("#detail").classList.remove("hidden");
     $("#detailBody").innerHTML = `<div class="d-hero"><div class="kicker">${esc(T.label)} | ${esc(c.ag || "")}</div><h1 style="font-size:20px">${esc(c.n)}</h1>
-      <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">${c.cancelled ? "" : `<span class="tag">${esc(BL.STAGES[c.stage])}</span>`}${c.cancelled ? `<span class="tag down">Cancelled${c.scrapYear ? " " + c.scrapYear : ""}</span>` : `<span class="tag">${Math.round(E.completionP(c, S.scenario) * 100)}% likely by ${E.effEta(c, S.scenario)}</span>`}${c.delays ? `<span class="tag warn">Delayed ${c.delays}x</span>` : ""}<span class="tag">as of ${esc(c.asof || BL.DATA_ASOF)}</span></div>
+      <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">${c.user ? `<span class="tag">Hypothetical | ${Math.round(E.completionP(c, S.scenario) * 100)}% assumed</span>` : `${c.cancelled ? "" : `<span class="tag">${esc(BL.STAGES[c.stage])}</span>`}${c.cancelled ? `<span class="tag down">Cancelled${c.scrapYear ? " " + c.scrapYear : ""}</span>` : `<span class="tag">${Math.round(E.completionP(c, S.scenario) * 100)}% assumed by ${E.effEta(c, S.scenario)}</span>`}${c.delays ? `<span class="tag warn">Delayed ${c.delays}x</span>` : ""}<span class="tag">as of ${esc(c.asof || BL.DATA_ASOF)}</span>`}</div>
       <div class="acts"><button class="icon-btn" data-act="clear-focus" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div></div>
       <div class="d-body">${catPopupHTML(c)}
       ${(() => { const U = ((window.BL_UPDATES || {}).items || []).filter((u) => u.pid === c.id).slice(0, 6); return U.length ? `<h3>Latest leads from the weekly re-check</h3><div class="card small" style="padding:6px 12px">${U.map((u) => `<div style="padding:3px 0"><span class="muted">${esc(u.date || u.found)}</span> <a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a> ${(u.tags || []).map((t) => `<span class="tag" style="padding:0 5px">${esc(t)}</span>`).join("")}</div>`).join("")}<div class="muted" style="margin-top:4px">Automatic news matches, not yet confirmed. Project status only changes after a source is checked. Last run ${esc((window.BL_UPDATES || {}).gen || "")}.</div></div>` : ""; })()}
       <h3>Districts it moves most (next ${S.horizon} yrs)</h3>${hit.length ? hit.map((h, i) => listItem(h.m, i, `<span class="pill ${h.up < 0 ? "r" : ""}">${pct(h.up)}</span>`)).join("") : '<div class="empty">Effect too small at district level. Zoom in on the corridor.</div>'}
       ${pts.length ? `<h3>Reference data inside its reach</h3>${pts.map((x) => `<div class="list-item" data-act="verified" data-i="${x.i}"><div class="grow"><b>${esc(x.p.loc)}</b> <span class="small muted">${x.d.toFixed(1)} km | ${esc(TYPE_LABEL[x.p.type] || x.p.type || "official rate")}</span></div><span class="pill s">${x.p.txn_sqyd ? fmtINR(x.p.txn_sqyd / 9) + "/sq ft" : "govt " + fmtINR((x.p.govt_sqyd || x.p.govt_sqyd_agri) / 9)}</span></div>`).join("")}` : ""}
-      <p class="small muted" style="margin-top:10px">The highlighted band on the map is the project's modelled reach (about ${Math.round(T.r * 1.5)} km).</p></div>`;
+      <p class="small muted" style="margin-top:10px">The highlighted band is a model reference distance (about ${Math.round(influenceRadius(c) * 1.5)} km), not a measured boundary.</p></div>`;
     $("#detail").scrollTop = 0;
   }
 
@@ -637,8 +638,7 @@
     const T = BL.TYPES[S.simType];
     const nameEl = $("#simName");
     const n = (nameEl && nameEl.value.trim()) || `Hypothetical ${T.label.toLowerCase()} #${S.userCats.length + 1}`;
-    const etaGap = [8, 6, 5, 3, 0][S.simStage];
-    const c = Object.assign({ id: "u" + Date.now().toString(36), n, t: S.simType, stage: S.simStage, ann: MY, eta: MY + etaGap, cred: S.simCred, ag: "Your scenario", note: "A project you simulated. Uplift is modelled from comparable Indian projects of this type.", user: true }, geom);
+    const c = Object.assign({ id: "u" + Date.now().toString(36), n, t: S.simType, stage: 1, ann: MY, eta: S.simYear, cred: 0.5, ag: "Your scenario", note: "A hypothetical project using your assumptions. Its effects and completion chance are not measured or validated.", user: true, assumedEffect: S.simEffect / 100, assumedProbability: S.simProbability / 100, assumedDistance: S.simDistance, assumedPricedIn: S.simPricedIn / 100 }, geom);
     S.userCats.push(c);
     cancelPlacement();
     if (nameEl) nameEl.value = "";
@@ -648,7 +648,7 @@
     paint();
     ripple(markerPos(c));
     openTool("simulate", true);
-    toast(`${c.n} added. The map now shows its modelled impact.`);
+    toast(`${c.n} added. The map shows a hypothetical change using your assumptions.`);
   }
   function removeUserCat(id) {
     S.userCats = S.userCats.filter((c) => c.id !== id);
@@ -935,6 +935,21 @@
     return (window.BL_VERIFIED || []).map((p, i) => ({ p, i, d: E.hav(lat, lon, p.lat, p.lon) })).filter((x) => x.d <= maxKm).sort((a, b) => a.d - b.d);
   }
   const TYPE_LABEL = { govt_auction: "Govt auction", registered: "Reported registered sale", reported_deal: "Reported price or deal", listing: "Listing or quoted price", consensus: "Cross-checked listings (asking, -10%)", unverified: "Unverified asking price", govt_allotment: "Govt allotment", bank_auction: "Bank auction reference", compensation: "Acquisition compensation", official: "Official rate", derived_gv: "Derived from govt guideline value" };
+  function sourceEvidenceHTML(nearAll) {
+    const Cmp = BL.Comparables, groups = Cmp.groups(nearAll);
+    const first = Cmp.GROUPS.find((g) => groups[g.id].length);
+    const rowLabel = (r) => r.kind === "asking" ? (r.type === "consensus" ? "Listing aggregate; asking price" : r.type === "unverified" ? "Unverified asking reference" : "Listing or quoted asking reference") : r.kind === "reported" ? "Reported sale or registration" : r.kind === "auction" ? "Auction or allotment; may be a reserve" : r.kind === "official" ? (r.officialKind === "guideline" ? "Reported guideline rate" : "Other reported official rate") : r.kind === "compensation" ? "Acquisition compensation, not a market sale" : "Derived model input, not a sale";
+    const rows = Cmp.GROUPS.filter((g) => groups[g.id].length).map((g) => {
+      const all = groups[g.id], shown = all.slice(0, 6);
+      return `<details class="more" data-evidence-group="${g.id}" ${first && first.id === g.id ? "open" : ""}><summary>${esc(g.label)} (${all.length})</summary>${shown.map((r) => {
+        const dates = r.date ? `Date recorded: ${esc(r.date)}` : "Date not recorded";
+        const retrieved = r.retrieved && r.retrieved !== r.date ? ` | retrieved ${esc(r.retrieved)}` : "";
+        const source = r.source ? `<a href="${esc(r.source)}" target="_blank" rel="noopener noreferrer">Open source</a>` : "Source link unavailable";
+        return `<div class="card small" style="margin-top:8px;line-height:1.5"><div class="row sb"><b>${fmtINR(r.value)} /sq ft</b><span class="muted">${r.distance.toFixed(1)} km away</span></div><div>${esc(rowLabel(r))}</div><div class="muted">${esc(r.loc)}${r.state ? ", " + esc(r.state) : ""} | Land: ${esc(r.land)}</div><div class="muted">${dates}${retrieved}</div>${r.note ? `<div class="muted">${esc(r.note.length > 180 ? r.note.slice(0, 177) + "…" : r.note)}</div>` : ""}<div>${source}${Number.isInteger(r.index) ? ` | <button class="btn sm" data-act="verified" data-i="${r.index}">Details</button>` : ""}</div></div>`;
+      }).join("")}${all.length > shown.length ? `<p class="small muted">Showing the ${shown.length} nearest of ${all.length} reference rows.</p>` : ""}</details>`;
+    }).join("");
+    return `<h3>Nearby price evidence</h3><p class="small muted">References within 12 km are grouped by source type. Dates can be collection dates, locations are approximate, and rows may repeat the same property. Land type and the original source need checking.</p>${rows || '<div class="card small muted">No priced or guideline reference is recorded within 12 km.</div>'}<p class="small muted">A validated comparable-sale range is not available from these mixed references. Guideline-derived inputs are not market sales.</p>`;
+  }
   function renderLocation() {
     const { lon, lat } = S.loc;
     const pm = E.pointModel(lat, lon, allCats(), models, opts());
@@ -959,6 +974,7 @@
         <div class="acts"><button class="icon-btn" data-act="close-detail" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
       </div>
       <div class="d-body">
+        ${sourceEvidenceHTML(nearAll)}
         ${(() => { // Buyer summary first: the 4 things a buyer needs, everything else below or collapsed.
           const ex = BL.Infra ? BL.Infra.nearestExit(lat, lon) : null, ap = BL.Infra ? BL.Infra.nearestAirport(lat, lon) : null, aq = BL.Infra ? BL.Infra.nearAcq(lat, lon, 3) : [];
           const warn = [];
@@ -1153,7 +1169,7 @@
     const gaps = [...models].filter((m) => m.area > 30).sort((a, b) => b.gap - a.gap).slice(0, 5);
     const priced = [...models].sort((a, b) => b.priceNow - a.priceNow).slice(0, 5);
     const nat = models.reduce((s, m) => s + m.cagr, 0) / models.length;
-    return `<p class="lead">Every district in India priced, forecast and scored. Switch lenses at the top, scrub the time machine below, or click any district.</p>
+    return `<p class="lead">Explore mapped districts, source evidence and illustrative model scenarios. Switch lenses at the top, use the time slider, or click a district.</p>
       <div class="kpis">
         <div class="kpi"><div class="k">Districts modelled</div><div class="v">${models.length}</div><div class="s">${Object.keys(BL.STATES).length} states and UTs</div></div>
         <div class="kpi"><div class="k">Projects tracked</div><div class="v">${allCats().length}</div><div class="s">${allCats().filter((c) => c.stage < 4).length} still in the pipeline</div></div>
@@ -1212,19 +1228,22 @@
 
   function pSimulate() {
     const types = Object.entries(BL.TYPES);
-    const imp = S.userCats.length ? [...models].sort((a, b) => b.delta - a.delta).slice(0, 8).filter((m) => m.delta > 0.002) : [];
-    return `<p class="lead">What if a new airport, metro or expressway came here? Place a project and the model re-prices every district, weighted by the chance it actually gets built.</p>
+    const imp = S.userCats.length ? [...models].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 8).filter((m) => Math.abs(m.delta) > 0.002) : [];
+    return `<p class="lead">Explore what could happen under assumptions you choose. The numbers below are editable examples, not measured project effects or validated probabilities.</p>
       <div class="type-grid">${types.map(([k, T]) => `<button class="${S.simType === k ? "on" : ""}" style="--c:${T.color}" data-act="sim-type" data-t="${k}"><i>${esc(T.icon)}</i>${esc(T.label)}</button>`).join("")}</div>
       <div class="field"><label><span>Project name (optional)</span></label><input type="text" id="simName" placeholder="e.g. Third Mumbai airport"/></div>
-      <div class="field"><label><span>Stage</span><span>${esc(BL.STAGES[S.simStage])}</span></label><input type="range" id="simStage" min="0" max="4" step="1" value="${S.simStage}"/></div>
-      <div class="field"><label><span>Agency credibility</span><span>${Math.round(S.simCred * 100)} / 100</span></label><input type="range" id="simCred" min="0.2" max="1" step="0.05" value="${S.simCred}"/></div>
-      <div class="small muted" style="margin:-2px 0 10px">Assumed completion probability: <b style="color:var(--tx)">${Math.round(E.completionP({ stage: S.simStage, cred: S.simCred }, S.scenario) * 100)}%</b> | Reach about ${BL.TYPES[S.simType].r} km | Max uplift ${Math.round(BL.TYPES[S.simType].U * 100)}%. These are model assumptions, not measured project effects.</div>
+      <div class="field"><label><span>Assumed effect if completed, at the project</span><span>${S.simEffect}%</span></label><input type="range" id="simEffect" min="-80" max="300" step="5" value="${S.simEffect}"/></div>
+      <div class="field"><label><span>Assumed chance of completion</span><span>${S.simProbability}%</span></label><input type="range" id="simProbability" min="0" max="100" step="5" value="${S.simProbability}"/></div>
+      <div class="field"><label><span>Distance scale</span><span>${S.simDistance} km</span></label><input type="range" id="simDistance" min="2" max="150" step="1" value="${S.simDistance}"/></div>
+      <div class="field"><label><span>Share of probability-weighted effect already in today's price</span><span>${S.simPricedIn}%</span></label><input type="range" id="simPricedIn" min="0" max="100" step="5" value="${S.simPricedIn}"/></div>
+      <div class="field"><label><span>Assumed completion year</span><span>${S.simYear}</span></label><input type="range" id="simYear" min="${MY + 1}" max="${MY + 20}" step="1" value="${S.simYear}"/></div>
+      <div class="small muted" style="margin:-2px 0 10px">At the distance scale, the assumed effect falls to about 37% of its value at the project; it continues to decay beyond that distance. The model weights the assumed completion effect by your probability. The priced-in share refers to that probability-weighted effect. The assumed chance and year stay fixed across market scenarios. No causal effect has been validated for this project.</div>
       <div class="btn-row">${S.placing ? `<button class="btn primary" data-act="place-cancel">Cancel placing</button>${S.placing.path ? '<button class="btn" data-act="sim-finish">Finish route</button>' : ""}` : `<button class="btn primary" data-act="sim-place">Place on map</button>`}</div>
       ${S.userCats.length ? `
         <h3>Your simulated projects</h3>
-        ${S.userCats.map((c) => `<div class="card row"><span class="cat-ico" style="background:${BL.TYPES[c.t].color}">${esc(BL.TYPES[c.t].icon)}</span><div class="grow"><div style="font-weight:600" class="ellipsis">${esc(c.n)}</div><div class="small muted">${esc(BL.STAGES[c.stage])} | P ${Math.round(E.completionP(c, S.scenario) * 100)}%</div></div><button class="btn sm ghost" data-act="fly-cat" data-id="${esc(c.id)}">View</button><button class="btn sm danger" data-act="sim-remove" data-id="${esc(c.id)}">Remove</button></div>`).join("")}
-        <h3>Most affected districts (${S.horizon}-yr uplift)</h3>
-        ${imp.length ? imp.map((m, i) => listItem(m, i, `<span class="pill">${pct(m.delta)}</span>`)).join("") : '<div class="empty">No district is materially affected. Try a bigger catalyst or a later stage.</div>'}
+        ${S.userCats.map((c) => `<div class="card row"><span class="cat-ico" style="background:${BL.TYPES[c.t].color}">${esc(BL.TYPES[c.t].icon)}</span><div class="grow"><div style="font-weight:600" class="ellipsis">${esc(c.n)}</div><div class="small muted">Assumed ${pct(c.assumedEffect)} at site | ${Math.round(c.assumedProbability * 100)}% chance | ${c.eta}</div></div><button class="btn sm ghost" data-act="fly-cat" data-id="${esc(c.id)}">View</button><button class="btn sm danger" data-act="sim-remove" data-id="${esc(c.id)}">Remove</button></div>`).join("")}
+        <h3>Largest hypothetical district changes (${S.horizon} years)</h3>
+        ${imp.length ? imp.map((m, i) => listItem(m, i, `<span class="pill ${m.delta < 0 ? "r" : ""}">${pct(m.delta)}</span>`)).join("") : '<div class="empty">No district has a material change under these assumptions.</div>'}
         <p class="small muted">These changes illustrate the model's assumptions. A total land value created cannot be estimated without verified affected land, land use and market evidence.</p>
         <div class="btn-row" style="margin-top:10px"><button class="btn sm danger" data-act="sim-clear">Clear all simulations</button></div>` : ""}`;
   }
@@ -1395,8 +1414,11 @@
   /* panel input handlers (delegated) */
   $("#panelBody").addEventListener("input", (e) => {
     const t = e.target;
-    if (t.id === "simStage") { S.simStage = +t.value; keepName(refreshPanel); }
-    else if (t.id === "simCred") { S.simCred = +t.value; keepName(refreshPanel); }
+    if (["simEffect", "simProbability", "simDistance", "simPricedIn", "simYear"].includes(t.id)) {
+      S[t.id] = +t.value;
+      const label = t.parentElement.querySelector("label span:last-child");
+      if (label) label.textContent = t.value + (t.id === "simDistance" ? " km" : t.id === "simYear" ? "" : "%");
+    }
     else if (t.id === "scrRisk") { S.scr.maxRisk = +t.value; refreshPanelKeepScroll(); }
     else if (t.id === "radiusKm") { S.radiusKm = +t.value; const lab = t.parentElement.querySelector("label span:last-child"); if (lab) lab.textContent = S.radiusKm + " km"; }
   });
