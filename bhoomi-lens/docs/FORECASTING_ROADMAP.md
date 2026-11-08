@@ -28,7 +28,7 @@ The existing research also includes 2,127 Tamil Nadu RERA project rows, 71 repor
 
 - Add automated checks for source freshness, units, duplicates, coordinate bounds, match rates and failed collection jobs. Review source changes and project status leads before treating them as facts.
 - Version data, assumptions, model and evaluation results together. Display the relevant dates in the app. Retrain only when new suitable data and a reproducible evaluation justify it; a weekly collector does not make the model weekly validated.
-- Keep deployment reproducible, run browser checks in CI, and verify the public URL after each release. GitHub Actions republishes after successful automated data workflows because commits made with the default automation token do not trigger a branch-based Pages build. The Tamil Nadu collector saves raw records; its fuzzy-matched history output is a separate, reviewable build and is not regenerated automatically.
+- Keep deployment reproducible, run browser checks in CI, and verify the public URL after each release. The news and gazette workflow can republish app data after a successful run. The Tamil Nadu retry saves raw records only and does not redeploy; its location-matched history output is a separate, reviewable build and is not regenerated automatically.
 - If accounts are enabled, configure the backend and verify per-user access controls and recovery. Until then, clearly describe saved items as device-only.
 
 ## Release gate for a market forecast

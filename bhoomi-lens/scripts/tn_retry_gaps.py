@@ -18,12 +18,20 @@ import urllib.request
 import tn_gv_collect as collector
 
 MAX_REQUESTS = 20
+NETWORK_FAILURE_LIMIT = 3
 MAX_BYTES = 2_000_000
 ALLOWED_UNITS = set(collector.UNIT.values())
 
 
 class IncompleteResult(Exception):
     pass
+
+
+def is_transport_failure(error):
+    # A per-record 404 is not proof that the whole portal is unreachable.
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code in (408, 429, 500, 502, 503, 504)
+    return isinstance(error, (urllib.error.URLError, OSError))
 
 
 class Fetcher:
@@ -137,18 +145,27 @@ def main():
     args = parser.parse_args()
     store = collector.Store()
     pending = candidates(store)
+    if pending:
+        offset = int(dt.date.today().strftime('%V')) % len(pending)
+        pending = pending[offset:] + pending[:offset]
     print(f'Parked searches: {len(pending)}; attempting at most {args.max_records}; request limit {MAX_REQUESTS}.', flush=True)
     fetch = Fetcher()
     found = []
+    consecutive_failures = 0
     for key in pending[:args.max_records]:
         district, sid, rev, vid, name = key
         try:
             query = collector.street_query(store, sid, rev, vid, name)
             url, rows = collect_complete(query, rev, fetch)
             found.append((key, url, rows))
+            consecutive_failures = 0
             print(f'{district} {rev} SRO {sid} village {vid}: {len(rows)} checked rows', flush=True)
         except (IncompleteResult, urllib.error.URLError, OSError, ValueError, KeyError) as exc:
+            consecutive_failures = consecutive_failures + 1 if is_transport_failure(exc) else 0
             print(f'{district} {rev} SRO {sid} village {vid}: unresolved ({type(exc).__name__}: {str(exc)[:100]})', flush=True)
+            if consecutive_failures >= NETWORK_FAILURE_LIMIT:
+                print('Repeated connection failures: stopping this run early; remaining searches stay unresolved.', flush=True)
+                break
     if args.apply and found:
         save_recoveries(store, found)
         print('Saved checked results and source URLs; location matching is still required.', flush=True)

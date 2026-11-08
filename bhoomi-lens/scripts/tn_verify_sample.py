@@ -13,7 +13,7 @@ import time
 import urllib.error
 
 import tn_gv_collect as collector
-from tn_retry_gaps import Fetcher, IncompleteResult, collect_complete
+from tn_retry_gaps import Fetcher, IncompleteResult, collect_complete, is_transport_failure, NETWORK_FAILURE_LIMIT
 
 
 def select_samples(store, per_revision, seed):
@@ -59,6 +59,7 @@ def main():
     sample = select_samples(store, args.per_revision, args.seed)
     fetch = Fetcher(limit=14)
     counts = Counter()
+    consecutive_failures = 0
     print(f'Seed {args.seed}; {len(sample)} saved searches selected, at most 14 requests; 1–10 rows only.', flush=True)
     for _, key, entry, classes in sample:
         district, sid, revision, vid, name = key
@@ -69,12 +70,17 @@ def main():
             else:
                 result = 'different: requires review'
             counts[result] += 1
+            consecutive_failures = 0
             print(f'{revision} {district}, SRO {sid}, village {vid}: {result} (saved {entry["items"]}, portal {len(rows)})', flush=True)
         except (IncompleteResult, urllib.error.URLError, OSError, ValueError, KeyError, IndexError) as exc:
             counts['unavailable'] += 1
+            consecutive_failures = consecutive_failures + 1 if is_transport_failure(exc) else 0
             print(f'{revision} {district}, SRO {sid}, village {vid}: unavailable ({type(exc).__name__})', flush=True)
+            if consecutive_failures >= NETWORK_FAILURE_LIMIT:
+                print('Repeated connection failures: stopping this sample early.', flush=True)
+                break
         time.sleep(0.2)
-    print(f'Matched {counts["matched"]}; different {counts["different: requires review"]}; unavailable {counts["unavailable"]}. Read-only, small-result sample, not a statewide accuracy estimate.', flush=True)
+    print(f'Attempted {sum(counts.values())} of {len(sample)}; matched {counts["matched"]}; different {counts["different: requires review"]}; unavailable {counts["unavailable"]}. Read-only, small-result sample, not a statewide accuracy estimate.', flush=True)
     if os.environ.get('GITHUB_ACTIONS') == 'true' and (counts['different: requires review'] or counts['unavailable']):
         print('::warning::Some TN guideline spot-checks differed or could not be completed; review the run summary.', flush=True)
 
