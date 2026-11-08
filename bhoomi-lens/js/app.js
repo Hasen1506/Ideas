@@ -150,6 +150,14 @@
     cols.forEach((c, i) => out.push(i / (cols.length - 1), c));
     return out;
   };
+  // Keep the paint expression zoom-and-feature dependent for every lens.
+  // Changing between composite and source-only expressions while vector tiles
+  // are loading can leave MapLibre with an incompatible render binder.
+  function districtOpacity(layer, base) {
+    const hov = (on, off) => ["case", ["boolean", ["feature-state", "hover"], false], on, off];
+    if (layer === "price" || layer === "growth") return ["interpolate", ["linear"], ["zoom"], 7.2, hov(0.94, base), 8.2, hov(0.12, 0.06), 12, hov(0.04, 0.03), 16, 0];
+    return ["interpolate", ["linear"], ["zoom"], 7.2, hov(0.94, base), 16, hov(0.94, base)];
+  }
   function verifiedFC() {
     return { type: "FeatureCollection", features: (window.BL_VERIFIED || []).map((p, i) => ({ type: "Feature", properties: { i, type: p.price ? p.type : "govt" }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } })) };
   }
@@ -199,7 +207,7 @@
 
     add({ id: "d-fill", type: "fill", source: "districts", paint: {
       "fill-color": ramp("price"),
-      "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.94, 0.74],
+      "fill-opacity": districtOpacity("price", 0.74),
       "fill-opacity-transition": { duration: 200 }
     } });
     add({ id: "d-ext", type: "fill-extrusion", source: "districts", layout: { visibility: "none" }, paint: {
@@ -339,10 +347,8 @@
     map.setPaintProperty("d-fill", "fill-color", ramp(S.layer));
     map.setPaintProperty("d-ext", "fill-extrusion-color", ramp(S.layer));
     const base = S.sat ? 0.42 : S.proj ? 0.5 : 0.74; // dimmer when project lines are on so they stay readable
-    const hov = (on, off) => ["case", ["boolean", ["feature-state", "hover"], false], on, off];
-    // Hover highlight fades with zoom too, so the street-level map never gets a solid colour wash.
-    const op = GRID_LENSES.includes(S.layer) ? ["interpolate", ["linear"], ["zoom"], 7.2, hov(0.94, base), 8.2, hov(0.12, 0.06), 12, hov(0.04, 0.03), 16, 0] : hov(0.94, base);
-    map.setPaintProperty("d-fill", "fill-opacity", op);
+    // Hover highlight fades with zoom for the detailed price and growth grids.
+    map.setPaintProperty("d-fill", "fill-opacity", districtOpacity(S.layer, base));
     if (map.getLayer("grid-fill")) map.setPaintProperty("grid-fill", "fill-color", gridRamp(GRID_LENSES.includes(S.layer) ? S.layer : "price"));
     scheduleGrid();
     renderLegend();
@@ -1349,12 +1355,19 @@
     const yearSummary = datedYears.slice(0, 2).map((y) => `${n(years[y])} rows have a ${esc(y)} date`).join(", ");
     const gv = window.BL_TN_GV || { rows: [] }, updates = window.BL_UPDATES || {}, gazette = window.BL_GAZETTE || {};
     const coverage = updates.coverage;
+    const cpi = window.BL_MACRO_CPI || { series: [] }, wb = window.BL_MACRO_WB || { series: [] };
+    const latestCPI = ["Tamil Nadu", "Maharashtra", "All India"].map((geo) => {
+      const series = cpi.series.find((x) => x.geo === geo && x.base === "2024" && x.series === "Current");
+      const point = series && [...series.points].reverse().find((p) => p[1] != null);
+      return point ? `<div class="row sb"><span>${esc(geo)} · ${esc(point[0])}</span><b>${Number(point[1]).toFixed(2)}${point[2] == null ? "" : ` · ${Number(point[2]).toFixed(2)}% year-on-year`}</b></div>` : "";
+    }).join("");
     return `<p class="lead">See what the map is built from and when each source was last captured. Coverage is uneven and these counts do not establish accuracy.</p>
       <h3>Market-related references</h3><div class="card small" style="line-height:1.6">
         <div class="row sb"><span>Priced references</span><b>${n(market.length)}</b></div>
         <div class="row sb"><span>Listings and cross-checked listing aggregates</span><b>${n(count(["listing", "consensus"]))}</b></div>
         <div class="row sb"><span>Auctions and allotments</span><b>${n(count(["govt_auction", "govt_allotment", "bank_auction"]))}</b></div>
         <div class="row sb"><span>Reported prices, deals and registrations</span><b>${n(count(["reported_deal", "registered"]))}</b></div>
+        <div class="row sb"><span>TN references labelled registered sales</span><b>${n(market.filter((p) => p.state === "Tamil Nadu" && p.type === "registered").length)}</b></div>
         <p class="muted">These are reference rows, not independent completed sales. Some listings use an assumed 10% asking-to-sale adjustment, which is not validated. The same property or source may appear more than once.</p>
         <p class="muted">${yearSummary || "No dated rows"}; ${n(years.unknown)} have no parseable year. Dates may be collection dates. ${n(multi)} exact place names have rows dated in more than one year; that does not establish comparable sales.</p></div>
       <h3>Official rates and project notices</h3><div class="card small" style="line-height:1.6">
@@ -1365,6 +1378,11 @@
         <div class="row sb"><span>Gazette data, last generated</span><b>${esc(gazette.gen || "Unavailable")}</b></div>
         <p class="muted">${coverage ? `Latest re-check: ${n(coverage.news_ok)} of ${n(coverage.news_attempted)} news searches and ${n(coverage.sources_ok)} of ${n(coverage.sources_attempted)} source pages succeeded.` : "This older re-check did not record how many source requests succeeded."}</p>
         <p class="muted">Guideline values are official reference rates, not market transactions. Village locations can be approximate name matches. Some TN history was collected without HTTPS certificate verification; check the official records before relying on it. <a href="https://github.com/Hasen1506/Ideas/blob/main/bhoomi-lens/docs/SOURCE_AUDIT.md" target="_blank" rel="noopener">Source audit</a>. News leads are unconfirmed; project statuses do not update automatically.</p></div>
+      <h3>Economic context</h3><div class="card small" style="line-height:1.6">
+        <div class="muted">Consumer price index · combined rural and urban · 2024 = 100</div>
+        ${latestCPI || '<div class="muted">No checked CPI data available.</div>'}
+        <p class="muted">Source: <a href="https://esankhyiki.mospi.gov.in/macroindicators?product=cpi" target="_blank" rel="noopener">MoSPI</a>. Consumer inflation is not a land-price trend. The latest values may be provisional; historical bases and back-series are kept separate and values can be revised.</p>
+        <p class="muted">${n(wb.series.length)} India-wide <a href="https://data.worldbank.org/country/india" target="_blank" rel="noopener">World Bank</a> population and economic series are recorded as background, not district data. Captured ${esc((wb.captured_utc || "unknown").slice(0, 10))}.</p></div>
       <h3>Earth observation</h3><div class="card small" style="line-height:1.6">
         <p><b>Satellite:</b> <a href="https://maps.eox.at/" target="_blank" rel="noopener">2025 cloudless mosaic</a>. Recent scene mode searches for a dated Sentinel-2 observation at the map center; clouds may remain.</p>
         <p><b>Water history:</b> <a href="https://global-surface-water.appspot.com/download" target="_blank" rel="noopener">Global Surface Water 1984–2024</a>. Both layers are coarse satellite observations, not plot boundaries or flood clearance.</p></div>

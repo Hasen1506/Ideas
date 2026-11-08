@@ -1,0 +1,35 @@
+name: Bhoomi Lens market-model checks
+
+on:
+  push:
+    paths:
+      - 'bhoomi-lens/scripts/market_model.py'
+      - 'bhoomi-lens/scripts/market_predict.py'
+      - 'bhoomi-lens/scripts/requirements-market.txt'
+      - 'bhoomi-lens/tests/test_market_model.py'
+      - '.github/workflows/market-model.yml'
+  pull_request:
+    paths:
+      - 'bhoomi-lens/scripts/market_model.py'
+      - 'bhoomi-lens/scripts/market_predict.py'
+      - 'bhoomi-lens/scripts/requirements-market.txt'
+      - 'bhoomi-lens/tests/test_market_model.py'
+      - '.github/workflows/market-model.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  model_checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reproducible model dependencies
+        run: python -m pip install -r bhoomi-lens/scripts/requirements-market.txt
+      - name: Check data gates, leakage controls and model training
+        run: python bhoomi-lens/tests/test_market_model.py
