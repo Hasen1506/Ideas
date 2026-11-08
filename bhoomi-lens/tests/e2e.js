@@ -35,11 +35,22 @@ const server = http.createServer(async (req, res) => {
     await page.route("**/photon.komoot.io/api/**", (route) => { onlineRequests++; return route.fulfill({ headers: cors, json: { features: [{ type: "Feature", geometry: { type: "Point", coordinates: [80.26, 13.08] }, properties: { name: "Unit Test Place", city: "Chennai", state: "Tamil Nadu", country: "India", countrycode: "IN" } }] } }); });
     const observed = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const observedLabel = observed.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-    await page.route("**/api/stac/v1/search?**", (route) => route.fulfill({ headers: cors, json: { features: [{ id: "test-scene", bbox: [80, 12, 81, 14], geometry: { type: "Polygon", coordinates: [[[80, 12], [81, 12], [81, 14], [80, 14], [80, 12]]] }, properties: { datetime: observed.toISOString(), "eo:cloud_cover": 19.7 }, assets: { tilejson: { href: "https://planetarycomputer.microsoft.com/api/data/v1/item/tilejson.json?item=test" } } }] } }));
+    await page.route("**/api/stac/v1/search?**", (route) => {
+      const params = new URL(route.request().url()).searchParams;
+      if ((params.get("datetime") || "").startsWith("2011-")) return route.fulfill({ headers: cors, json: { features: [] } });
+      const historical = params.get("collections") === "landsat-c2-l2";
+      return route.fulfill({ headers: cors, json: { features: [{ id: historical ? "LE07_test-scene" : "test-scene", bbox: [80, 12, 81, 14], geometry: { type: "Polygon", coordinates: [[[80, 12], [81, 12], [81, 14], [80, 14], [80, 12]]] }, properties: { datetime: historical ? "2012-11-14T04:54:26Z" : observed.toISOString(), platform: historical ? "landsat-7" : "sentinel-2b", "eo:cloud_cover": 19.7 }, assets: { tilejson: { href: "https://planetarycomputer.microsoft.com/api/data/v1/item/tilejson.json?item=test" } } }] } });
+    });
     await page.route("**/api/data/v1/item/tilejson.json?**", (route) => route.fulfill({ headers: cors, json: { tiles: ["https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/{z}/{x}/{y}?item=test"], maxzoom: 16 } }));
     await page.route("**/api/data/v1/item/tiles/**", (route) => route.fulfill({ headers: cors, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aX0AAAAASUVORK5CYII=", "base64") }));
     await page.goto(url + "#pt=13.0800,80.2600", { waitUntil: "domcontentloaded", timeout: 90000 });
     await page.locator("#fpcAsk").waitFor({ state: "visible", timeout: 60000 });
+    for (const width of [1440, 1024]) {
+      await page.setViewportSize({ width, height: 900 });
+      const layout = await page.evaluate(() => ({ top: document.querySelector(".topbar").getBoundingClientRect().bottom, detail: document.querySelector(".detail").getBoundingClientRect().top }));
+      assert.ok(layout.top < layout.detail, `the toolbar must not cover detail controls at ${width}px`);
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
     const detail = await page.locator("#detailBody").innerText();
     assert.match(detail, /CHENNAI, TAMIL NADU/i);
     assert.match(detail, /market references? \| \d+ guideline proxies/i);
@@ -57,6 +68,19 @@ const server = http.createServer(async (req, res) => {
     assert.ok(imagery.recent);
     assert.match(imagery.mosaic, /s2cloudless-2025/);
     assert.match(imagery.water, /water-world\/tiles2024\/occurrence/);
+    await page.locator("#btnPast").click();
+    await page.waitForFunction(() => /Past scene: 14 Nov 2012/.test(document.querySelector("#imageryStatus").textContent), null, { timeout: 20000 });
+    assert.match(await page.locator("#imageryStatus").innerText(), /Landsat 7; stripe gaps possible.*30 m/i);
+    assert.equal(await page.evaluate(() => BhoomiLens.map.getLayoutProperty("sat", "visibility")), "none", "a 2025 mosaic must not appear behind the 2012 image");
+    assert.equal(await page.evaluate(() => !!BhoomiLens.map.getLayer("sat-empty")), true, "past-image gaps should be neutral");
+    await page.selectOption("#imageYear", "2011");
+    await page.waitForFunction(() => /No scene.*2011.*Grey means no past image/i.test(document.querySelector("#imageryStatus").textContent), null, { timeout: 20000 });
+    assert.equal(await page.evaluate(() => !!BhoomiLens.map.getSource("sat-recent")), false, "a missing past scene must not show another image");
+    assert.equal(await page.evaluate(() => BhoomiLens.map.getLayoutProperty("sat", "visibility")), "none");
+    await page.locator("#btnRecent").click();
+    await page.waitForFunction((label) => document.querySelector("#imageryStatus").textContent.includes("Recent scene at map center: " + label), observedLabel, { timeout: 20000 });
+    assert.equal(await page.evaluate(() => !!BhoomiLens.map.getLayer("sat-empty")), false);
+    assert.equal(await page.evaluate(() => BhoomiLens.map.getLayoutProperty("sat", "visibility")), "visible");
     await page.locator("#btnSat").click();
     assert.equal(await page.locator("#btnRecent").getAttribute("aria-pressed"), "false");
     assert.equal(await page.evaluate(() => !!BhoomiLens.map.getSource("sat-recent")), false);
@@ -138,6 +162,9 @@ const server = http.createServer(async (req, res) => {
 
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
     mobile.on("pageerror", (error) => errors.push(error.message));
+    await mobile.route("**/api/stac/v1/search?**", (route) => route.fulfill({ headers: cors, json: { features: [{ id: "LE07_mobile", bbox: [80, 12, 81, 14], geometry: { type: "Polygon", coordinates: [[[80, 12], [81, 12], [81, 14], [80, 14], [80, 12]]] }, properties: { datetime: "2012-11-14T04:54:26Z", platform: "landsat-7", "eo:cloud_cover": 13 }, assets: { tilejson: { href: "https://planetarycomputer.microsoft.com/api/data/v1/item/tilejson.json?item=test" } } }] } }));
+    await mobile.route("**/api/data/v1/item/tilejson.json?**", (route) => route.fulfill({ headers: cors, json: { tiles: ["https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/{z}/{x}/{y}?item=test"], maxzoom: 16 } }));
+    await mobile.route("**/api/data/v1/item/tiles/**", (route) => route.fulfill({ headers: cors, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aX0AAAAASUVORK5CYII=", "base64") }));
     await mobile.goto(url + "#pt=13.0800,80.2600", { waitUntil: "domcontentloaded", timeout: 90000 });
     await mobile.locator("#fpcAsk").waitFor({ state: "visible", timeout: 60000 });
     const boxes = await mobile.evaluate(() => {
@@ -151,9 +178,15 @@ const server = http.createServer(async (req, res) => {
     await mobile.locator("#infraMenu").waitFor({ state: "visible" });
     const menu = await mobile.locator("#infraMenu").boundingBox();
     assert.ok(menu.x >= 0 && menu.x + menu.width <= 390, "mobile layers menu must remain on screen");
+    await mobile.locator("#btnInfra").click();
+    await mobile.evaluate(() => BhoomiLens.map.jumpTo({ center: [80.26, 13.08], zoom: 9 }));
+    await mobile.locator("#btnPast").scrollIntoViewIfNeeded();
+    await mobile.locator("#btnPast").click();
+    await mobile.waitForFunction(() => /Past scene: 14 Nov 2012/.test(document.querySelector("#imageryStatus").textContent), null, { timeout: 20000 });
+    assert.equal(await mobile.locator("#btnPast").getAttribute("aria-pressed"), "true");
     assert.deepEqual(errors, [], "uncaught browser errors");
     await mobile.close();
-    console.log("Browser checks passed: recent imagery, local and online search, shared location, evidence, comparison, backup, report, alerts, area analysis and mobile layout.");
+    console.log("Browser checks passed: past and recent imagery, local and online search, shared location, evidence, comparison, backup, report, alerts, area analysis and mobile layout.");
   } finally {
     await browser.close();
   }
