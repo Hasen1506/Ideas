@@ -31,10 +31,13 @@ jobs:
           else
             echo "done=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Stop scheduling when no automatic retries remain
+      - name: Publish and stop scheduling when no automatic retries remain
         if: steps.p.outputs.done == 'true'
         env: { GH_TOKEN: "${{ github.token }}" }
-        run: gh workflow disable tn-gv-collect.yml -R "$GITHUB_REPOSITORY" || true
+        run: |
+          # Dispatch before disabling: a disabled workflow may not emit workflow_run.
+          gh workflow run bhoomi-deploy.yml --ref main -R "$GITHUB_REPOSITORY"
+          gh workflow disable tn-gv-collect.yml -R "$GITHUB_REPOSITORY" || true
 
   collect:
     needs: check
@@ -65,5 +68,6 @@ jobs:
         run: |
           git fetch -q --depth=1 origin main && git reset -q --hard FETCH_HEAD || true
           if python3 -c "import json,sys; sys.exit(0 if json.load(open('bhoomi-lens/data/tn_gv/progress.json')).get('all_settled') else 1)"; then
+            gh workflow run bhoomi-deploy.yml --ref main -R "$GITHUB_REPOSITORY"
             gh workflow disable tn-gv-collect.yml -R "$GITHUB_REPOSITORY" || true
           fi
