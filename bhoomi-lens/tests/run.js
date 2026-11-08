@@ -140,7 +140,7 @@ E.setCalibration(pts, BL.CATALYSTS);
 err.sort((a, b) => a - b); const medErr = Math.exp(err[err.length >> 1]) - 1;
 ok(medErr < 1.2, `LOO median error too high ${medErr.toFixed(2)}`);
 console.log(`Property tests: 1000 properties in ${tProp} ms`);
-console.log(`LOO median error (1/3 sample): ${(medErr * 100).toFixed(0)}%`);
+console.log(`Reference leave-one-out median multiplicative error factor (${sample.length} rows): ${(medErr + 1).toFixed(2)}x`);
 
 // ---- Infra layers and site checks ----
 {

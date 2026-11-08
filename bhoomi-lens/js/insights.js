@@ -93,12 +93,12 @@
     const { ask, comparison } = ctx.last, ev = ctx.evidence;
     return `Bhoomi Lens price comparison: ${ctx.place} (${ctx.pm.district || ""}). Asking Rs ${Math.round(ask)}/sq ft; model estimate Rs ${Math.round(ctx.pm.basePrice)}/sq ft. ${comparison.text}. ${ev.market} market references, ${ev.proxies} guideline-derived proxies and ${ev.other} other priced references within 5 km. Unvalidated estimate, not a plot valuation. ${location.href.split("#")[0]}#pt=${ctx.lat.toFixed(4)},${ctx.lon.toFixed(4)}`;
   }
-  function png() { const a = document.createElement("a"); a.download = "bhoomi-fair-price.png"; a.href = cardCanvas().toDataURL("image/png"); a.click(); }
+  function png() { const a = document.createElement("a"); a.download = "bhoomi-price-comparison.png"; a.href = cardCanvas().toDataURL("image/png"); a.click(); }
   async function share() {
     const cv = cardCanvas();
     try {
       const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
-      const file = new File([blob], "bhoomi-fair-price.png", { type: "image/png" });
+      const file = new File([blob], "bhoomi-price-comparison.png", { type: "image/png" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: shareText() }); return; }
     } catch (e) {}
     png();

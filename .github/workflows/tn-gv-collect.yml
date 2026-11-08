@@ -2,7 +2,8 @@ name: TN guideline values - collect (tnreginet street-wise)
 # Collects official Tamil Nadu street-wise guideline values from tnreginet.gov.in for every SRO
 # and village, revision by revision (2024 current first, then 2023, 2017, 2012, 2007, 2003, 2002).
 # Resumable: the committed files in bhoomi-lens/data/tn_gv/ are the checkpoint.
-# Once progress.json says all_done, the workflow disables itself.
+# Once all records are collected or parked after repeated failures, stop automatic retries.
+# Parked records remain incomplete in progress.json and require review.
 on:
   schedule:
     - cron: "17 */2 * * *"   # every 2 hours; a run that is still going simply queues the next one
@@ -25,12 +26,12 @@ jobs:
       - id: p
         run: |
           f=bhoomi-lens/data/tn_gv/progress.json
-          if [ -f "$f" ] && python3 -c "import json,sys; sys.exit(0 if json.load(open('$f')).get('all_done') else 1)"; then
+          if [ -f "$f" ] && python3 -c "import json,sys; sys.exit(0 if json.load(open('$f')).get('all_settled') else 1)"; then
             echo "done=true" >> "$GITHUB_OUTPUT"
           else
             echo "done=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Stop scheduling once everything is collected
+      - name: Stop scheduling when no automatic retries remain
         if: steps.p.outputs.done == 'true'
         env: { GH_TOKEN: "${{ github.token }}" }
         run: gh workflow disable tn-gv-collect.yml -R "$GITHUB_REPOSITORY" || true
@@ -58,11 +59,11 @@ jobs:
           python bhoomi-lens/scripts/tn_gv_collect.py \
             --shard ${{ matrix.shard }}/3 --minutes ${{ github.event.inputs.minutes || '285' }} \
             --workers 24 --sync-minutes 25 --label "actions shard ${{ matrix.shard }}"
-      - name: Disable when finished
+      - name: Disable when settled
         if: always()
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           git fetch -q --depth=1 origin main && git reset -q --hard FETCH_HEAD || true
-          if python3 -c "import json,sys; sys.exit(0 if json.load(open('bhoomi-lens/data/tn_gv/progress.json')).get('all_done') else 1)"; then
+          if python3 -c "import json,sys; sys.exit(0 if json.load(open('bhoomi-lens/data/tn_gv/progress.json')).get('all_settled') else 1)"; then
             gh workflow disable tn-gv-collect.yml -R "$GITHUB_REPOSITORY" || true
           fi

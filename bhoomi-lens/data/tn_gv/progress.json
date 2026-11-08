@@ -1,5 +1,6 @@
 {
  "all_done": false,
+ "all_settled": true,
  "current_revision": "2007",
  "discovery_complete": true,
  "districts": {
@@ -401,72 +402,93 @@
    "complete": false,
    "items_mismatch": 0,
    "rows": 111475,
+   "settled": true,
    "sros": 595,
    "sros_done": 593,
+   "sros_settled": 595,
    "villages": 18813,
    "villages_done": 18811,
-   "villages_failed_attempts": 2
+   "villages_failed_attempts": 2,
+   "villages_parked": 2
   },
   "2003": {
    "complete": false,
    "items_mismatch": 0,
    "rows": 127306,
+   "settled": true,
    "sros": 595,
    "sros_done": 593,
+   "sros_settled": 595,
    "villages": 18883,
    "villages_done": 18881,
-   "villages_failed_attempts": 2
+   "villages_failed_attempts": 2,
+   "villages_parked": 2
   },
   "2007": {
    "complete": false,
    "items_mismatch": 0,
    "rows": 169671,
+   "settled": true,
    "sros": 595,
    "sros_done": 594,
+   "sros_settled": 595,
    "villages": 18088,
    "villages_done": 18087,
-   "villages_failed_attempts": 1
+   "villages_failed_attempts": 1,
+   "villages_parked": 1
   },
   "2012": {
    "complete": true,
    "items_mismatch": 0,
    "rows": 214726,
+   "settled": true,
    "sros": 595,
    "sros_done": 595,
+   "sros_settled": 595,
    "villages": 18570,
    "villages_done": 18570,
-   "villages_failed_attempts": 0
+   "villages_failed_attempts": 0,
+   "villages_parked": 0
   },
   "2017": {
    "complete": true,
    "items_mismatch": 0,
    "rows": 233378,
+   "settled": true,
    "sros": 595,
    "sros_done": 595,
+   "sros_settled": 595,
    "villages": 20397,
    "villages_done": 20397,
-   "villages_failed_attempts": 0
+   "villages_failed_attempts": 0,
+   "villages_parked": 0
   },
   "2023": {
    "complete": true,
    "items_mismatch": 0,
    "rows": 243652,
+   "settled": true,
    "sros": 595,
    "sros_done": 595,
+   "sros_settled": 595,
    "villages": 20254,
    "villages_done": 20254,
-   "villages_failed_attempts": 0
+   "villages_failed_attempts": 0,
+   "villages_parked": 0
   },
   "2024": {
    "complete": true,
    "items_mismatch": 0,
    "rows": 259069,
+   "settled": true,
    "sros": 595,
    "sros_done": 595,
+   "sros_settled": 595,
    "villages": 19895,
    "villages_done": 19895,
-   "villages_failed_attempts": 0
+   "villages_failed_attempts": 0,
+   "villages_parked": 0
   }
  },
- "updated": "2026-11-08T01:29:21Z"
+ "updated": "2026-11-08T07:23:05Z"
 }
