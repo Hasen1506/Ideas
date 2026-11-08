@@ -21,6 +21,18 @@ E.evaluate(models, {});
 let pass = 0, fail = 0; const fails = [];
 const ok = (c, msg) => { if (c) pass++; else { fail++; if (fails.length < 40) fails.push(msg); } };
 {
+  const lat = 13.08, lon = 80.26, Y = BL.MODEL_YEAR;
+  const project = { id: "scenario", user: true, t: "airport", pt: [lon, lat], stage: 1, cred: 0.5, ann: Y, eta: Y + 5, assumedEffect: -0.3, assumedProbability: 0.75, assumedDistance: 20, assumedPricedIn: 0 };
+  const baseline = E.buildModel("baseline", "same", "Tamil Nadu", lat, lon, 0, [], true);
+  const scenario = E.buildModel("scenario", "same", "Tamil Nadu", lat, lon, 0, [project], true);
+  ok(E.completionP(project, "bear") === 0.75 && E.completionP(project, "bull") === 0.75, "user-set probability remains fixed across market scenarios");
+  ok(E.effEta(project, "bear") === Y + 5 && E.effEta(project, "bull") === Y + 5, "user-set completion year remains fixed across market scenarios");
+  ok(Math.abs(E.priceAt(scenario, Y + 5) / E.priceAt(baseline, Y + 5) - 0.775) < 1e-9, "negative hypothetical effect follows user assumptions at the project");
+  const atPoint = E.catalystWeight(project, lat, lon).w;
+  const farther = E.catalystWeight(project, lat, lon + 0.1);
+  ok(Math.abs(atPoint + 0.3) < 1e-9 && Math.abs(farther.w / atPoint - Math.exp(-farther.d / 20)) < 1e-9, "user-set distance scale controls effect decay");
+}
+{
   const a = E.buildModel("a", "13.080,80.260", "Tamil Nadu", 13.08015, 80.26050, 0, [], true);
   const b = E.buildModel("b", "13.080,80.261", "Tamil Nadu", 13.08015, 80.26050, 0, [], true);
   ok(a.basePrice === b.basePrice && a.g === b.g, "changing only a location label must not change its price or growth prior");

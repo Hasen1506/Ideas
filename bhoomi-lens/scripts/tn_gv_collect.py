@@ -662,13 +662,17 @@ def village_list(store, dist, sid, rev):
     return r["v"]
 
 
-def street_search(store, dist, sid, rev, vid, vname):
+def street_query(store, sid, rev, vid, vname):
     R = REVS[rev]
     zone = store.meta["sro_zone"][sid]
-    q = dict(actionVal="criteriaSearch", screenId="7000057", toDate=R["toDate"], fromDate=R["fromDate"],
+    return dict(actionVal="criteriaSearch", screenId="7000057", toDate=R["toDate"], fromDate=R["fromDate"],
              fromLabel=R["fromLabel"], toLabel=R["toLabel"], zoneName=ZONES[zone], sroName=store.meta["sro_name"][sid],
              villageName=vname, cmb_zone=zone, cmb_sub_registrar_office=sid, cmb_reg_village=vid,
              zoneIdoc=zone, SROIdoc=sid, villageIdoc=vid, cmbCategory="0", searchCriteria="1", txt_SearchCriteria="%")
+
+
+def street_search(store, dist, sid, rev, vid, vname):
+    q = street_query(store, sid, rev, vid, vname)
     for attempt in range(3):
         _, h = get(**q)
         n = n_items(h)

@@ -10,11 +10,15 @@ on:
       - 'bhoomi-lens/data/*.js'
       - 'bhoomi-lens/scripts/tn_gv_history.py'
       - 'bhoomi-lens/scripts/tn_gv_collect.py'
+      - 'bhoomi-lens/scripts/tn_retry_gaps.py'
+      - 'bhoomi-lens/scripts/tn_verify_sample.py'
+      - 'bhoomi-lens/scripts/tn_rera_health.py'
       - 'bhoomi-lens/scripts/recheck.py'
       - 'bhoomi-lens/scripts/tn_gv_units.py'
       - 'bhoomi-lens/tests/**'
       - 'bhoomi-lens/package*.json'
       - '.github/workflows/bhoomi-tests.yml'
+      - '.github/workflows/tn-source-retry.yml'
   pull_request:
     paths:
       - 'bhoomi-lens/index.html'
@@ -24,11 +28,15 @@ on:
       - 'bhoomi-lens/data/*.js'
       - 'bhoomi-lens/scripts/tn_gv_history.py'
       - 'bhoomi-lens/scripts/tn_gv_collect.py'
+      - 'bhoomi-lens/scripts/tn_retry_gaps.py'
+      - 'bhoomi-lens/scripts/tn_verify_sample.py'
+      - 'bhoomi-lens/scripts/tn_rera_health.py'
       - 'bhoomi-lens/scripts/recheck.py'
       - 'bhoomi-lens/scripts/tn_gv_units.py'
       - 'bhoomi-lens/tests/**'
       - 'bhoomi-lens/package*.json'
       - '.github/workflows/bhoomi-tests.yml'
+      - '.github/workflows/tn-source-retry.yml'
   workflow_dispatch:
 
 permissions:
