@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '15 5 * * 1'
   workflow_dispatch:
+    inputs:
+      runner:
+        description: "Choose the GitHub-hosted runner or an explicitly connected portal-access runner"
+        type: choice
+        options: [hosted, portal]
+        default: hosted
 
 permissions:
   contents: write
@@ -14,15 +20,19 @@ concurrency:
 
 jobs:
   retry:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == 'portal' && 'bhoomi-portal' || 'ubuntu-latest' }}
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        if: inputs.runner != 'portal'
         with:
           python-version: '3.12'
-      - name: Install collector dependency
-        run: python -m pip install --quiet requests
+      - name: Install collector dependency in a temporary environment
+        run: |
+          python -m venv "$RUNNER_TEMP/bhoomi-venv"
+          "$RUNNER_TEMP/bhoomi-venv/bin/python" -m pip install --quiet requests
+          echo "$RUNNER_TEMP/bhoomi-venv/bin" >> "$GITHUB_PATH"
       - name: Check official RERA pages (no project scraping)
         run: |
           echo '## Tamil Nadu RERA source check' >> "$GITHUB_STEP_SUMMARY"
