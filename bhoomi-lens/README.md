@@ -4,12 +4,12 @@
 
 Bhoomi Lens is a client-side prototype with no build step or required API keys. Serve the folder over HTTP; the map and basemaps depend on external services and an internet connection. Accounts and cross-device sync require a separately configured backend; without one, saved items stay on the device.
 
-The price surface, project effects, risk and liquidity scores are heuristic estimates. The displayed forecast bands are illustrative assumptions, not validated 80% intervals. Market references include listings and reported deals; Tamil Nadu guideline-derived proxies are not observed sale prices. These estimates do not value a particular plot. See [the source audit](docs/SOURCE_AUDIT.md) and [forecasting roadmap](docs/FORECASTING_ROADMAP.md) for provenance, rights, and the evidence needed before treating forecasts as reliable.
+The price surface, project effects, risk and liquidity scores are heuristic estimates. The displayed forecast bands are illustrative assumptions, not validated 80% intervals. Market references include listings and reported deals; Tamil Nadu guideline-derived proxies are not observed sale prices. These estimates do not value a particular plot. See [the source audit](docs/SOURCE_AUDIT.md), [Tamil Nadu data operations](docs/TAMIL_NADU_DATA_OPERATIONS.md), and [experimental market-model notes](docs/MARKET_MODEL.md) for provenance, rights, and the evidence needed before treating forecasts as reliable.
 
 ## Run it
 
 - **Locally:** run `python3 -m http.server 8000 --directory bhoomi-lens` from the repo root, then open `http://localhost:8000/`.
-- **Online:** `https://hasen1506.github.io/Ideas/bhoomi-lens/`. The Pages workflow deploys `main` and republishes after successful weekly re-check and Tamil Nadu collection workflows.
+- **Online:** `https://hasen1506.github.io/Ideas/bhoomi-lens/`. The Pages workflow deploys `main` and republishes after the relevant app-data workflows.
 
 ## What it does
 
@@ -54,17 +54,11 @@ The price surface, project effects, risk and liquidity scores are heuristic esti
 6. **Opportunity score.** A percentile rank of risk-adjusted growth, adjusted for circle-rate gap, liquidity, pipeline momentum and how expensive land already is.
 7. **Looks like.** The nearest match among 14 historical Indian growth stories, such as Whitefield in 2003, Gachibowli in 2005, Devanahalli in 2008 and Nava Raipur in 2010.
 
-## Plug in real data
+## Working with real data
 
-Put registered transaction values (for example from state IGR portals) in `bhoomi-lens/data/overrides.js`:
+The experimental registered-sale model accepts an independently checked, de-identified, rights-cleared CSV from a private path outside this public repository. It evaluates future and held-out district errors against a baseline before any possible app integration. See [the input contract and limits](docs/MARKET_MODEL.md). No real Tamil Nadu sales model has yet been trained from this repository.
 
-```js
-window.BL_OVERRIDES = {
-  "Pune|Maharashtra": { price: 9800, circle: 5200 }
-};
-```
-
-The forecast, risk and scoring engine then runs on your numbers, and the district is tagged "Your data".
+`data/overrides.js` can demonstrate public, non-sensitive district-level inputs; its values feed the existing heuristic model and are not automatically validated. Do not put private sale documents, party names, credentials or restricted records in the public app or repository.
 
 ## Project structure
 

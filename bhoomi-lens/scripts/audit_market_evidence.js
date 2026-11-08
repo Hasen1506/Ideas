@@ -28,6 +28,7 @@ for (const p of market) {
 console.log(JSON.stringify({
   pricedMarketReferenceRows: market.length,
   pricedGuidelineDerivedRows: rows.filter((p) => p.derived && p.price > 0).length,
+  tamilNaduRowsLabelledRegisteredSale: market.filter((p) => p.state === "Tamil Nadu" && p.type === "registered").length,
   marketReferenceTypes: types,
   referenceRowDatesByYear: years,
   exactStateAndPlaceNamesWithMultipleDatedYears: [...locations.values()].filter((s) => s.size > 1).length,
