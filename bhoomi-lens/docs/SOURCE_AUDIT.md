@@ -26,6 +26,14 @@ Listings are asking prices, not completed sale prices; repeat advertisements and
 
 The strongest next source is a properly permitted, dated and de-identified transaction panel for a small pilot area, supplemented by independently sourced market observations and official rates as separate inputs. Even registered values can have reporting and selection bias; validate units, land class and comparability. RERA registrations and project documents may help identify activity but should not be treated as confirmed sale prices unless they actually report them. See [FORECASTING_ROADMAP.md](FORECASTING_ROADMAP.md) for the collection and release gates.
 
+## Tamil Nadu collection integrity
+
+The historical guideline collector previously used public proxies with HTTPS certificate verification disabled. That means the existing records were not protected against modification by an intermediary in transit; their integrity cannot be established solely from the collector. Independently check a sample against the official portal before relying on them. The collector now verifies TLS certificates and rejects responses when verification fails; access through some proxies may consequently stop working.
+
+The historical backfill has five village-and-revision entries parked after repeated failures. They remain incomplete, not collected: the progress report distinguishes fully collected data from work where automatic retries have stopped. The current app history is a separately built, fuzzy-matched snapshot; it does not update automatically as the raw backfill changes.
+
 ## Independent checks
 
 Automated model invariants, source-unit checks and browser tests catch software errors; they do not prove forecasts are correct. Before presenting a validated market forecast, hold out later periods and whole geographic blocks, group duplicate or related sources, compare with simple local baselines, and report error and interval coverage by area and land class. Independently review a sample of source transcriptions and village matches. Make stale, sparse and unmatched cases visible rather than extrapolating silently.
+
+On 8 November 2026, the internal leave-one-out diagnostic on a subset of non-derived market-reference rows reported a median multiplicative error factor of about 1.55. This is a fit check against reference points, not a future-period or geographically independent test; correlated listings can make it optimistic, and it does not establish the error for an individual plot.

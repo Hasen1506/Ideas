@@ -85,7 +85,7 @@ Built with MapLibre GL JS, OpenFreeMap, the [EOX Sentinel-2 cloudless 2025 mosai
 
 ## Checks
 
-From the repo root, run `node bhoomi-lens/tests/run.js` and `python3 bhoomi-lens/tests/test_tn_gv_history.py`. The latter checks published 2024 farm rates against the collected source records and tests acre/hectare conversions.
+From `bhoomi-lens/`, run `npm ci` and `npm test`. This checks model invariants, CSV safety, imagery selection, farm-rate units and collector integrity, including the treatment of unresolved records.
 
 For browser checks, run `npm ci`, `npx playwright install chromium`, and `npm run test:browser` inside `bhoomi-lens/`. MapLibre is bundled locally; the browser checks still need internet access for the map. Set `CHROMIUM_PATH` to an existing Chromium executable if preferred. The GitHub Actions workflow runs the same checks for application changes.
 
