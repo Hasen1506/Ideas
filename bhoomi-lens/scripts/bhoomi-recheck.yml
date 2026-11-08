@@ -1,6 +1,8 @@
 name: Bhoomi Lens weekly re-check
 # Free: public repo minutes, public pages and Google News RSS. No API keys.
-# Two independent jobs that each own their own files, so they can push in any order:
+# The news/source-page job produces leads for review. Gazette collection is paused
+# until its third-party source's redistribution terms have been resolved.
+# The jobs own separate files:
 #   recheck  -> bhoomi-lens/data/updates.js                      (news + source-page leads)
 #   gazette  -> bhoomi-lens/data/gazette.js, data/gazette_raw.json (Gazette 3A/3D land notices, resumable)
 on:
@@ -63,8 +65,19 @@ jobs:
           echo "::error::Could not push $F after 8 attempts"
           exit 1
 
-  gazette:
+  gazette-source-status:
     if: github.event_name != 'workflow_dispatch' || inputs.only != 'recheck'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report paused Gazette collection
+        run: |
+          echo '::warning::Gazette collection is paused pending review of third-party reuse rights.'
+          echo 'Gazette collection is paused. The existing extractor uses Gazette Tracker, whose terms restrict redistribution without prior written permission. Review rights or use a verified official-source pipeline before resuming.' >> "$GITHUB_STEP_SUMMARY"
+
+  gazette:
+    # Keep the implementation for review, but do not run it until the source
+    # and redistribution rights have been independently verified.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     # Scraper stops itself after GZ_MINUTES and saves a checkpoint; the rest is setup + census join + push.
     timeout-minutes: 35
