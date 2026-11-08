@@ -125,6 +125,7 @@ const server = http.createServer(async (req, res) => {
     await page.locator('#rail [data-tool="data"]').click();
     assert.match(await page.locator("#panelBody").innerText(), /Market-related references/i);
     assert.match(await page.locator("#panelBody").innerText(), /not independent completed sales/i);
+    assert.match(await page.locator("#panelBody").innerText(), /without HTTPS certificate verification/i);
     await page.locator('#rail [data-tool="draw"]').click();
     await page.locator('[data-act="quick-area"]').first().click();
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });

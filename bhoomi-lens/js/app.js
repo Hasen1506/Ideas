@@ -1315,7 +1315,7 @@
         <div class="row sb"><span>Tracked projects, snapshot</span><b>${n(BL.CATALYSTS.length)} · ${esc(BL.DATA_ASOF)}</b></div>
         <div class="row sb"><span>Weekly re-check, last generated</span><b>${esc(updates.gen || "Unavailable")}</b></div>
         <div class="row sb"><span>Gazette data, last generated</span><b>${esc(gazette.gen || "Unavailable")}</b></div>
-        <p class="muted">Guideline values are official reference rates, not market transactions. Village locations can be approximate name matches. News leads are unconfirmed; project statuses do not update automatically.</p></div>
+        <p class="muted">Guideline values are official reference rates, not market transactions. Village locations can be approximate name matches. Some TN history was collected without HTTPS certificate verification; check the official records before relying on it. <a href="https://github.com/Hasen1506/Ideas/blob/main/bhoomi-lens/docs/SOURCE_AUDIT.md" target="_blank" rel="noopener">Source audit</a>. News leads are unconfirmed; project statuses do not update automatically.</p></div>
       <h3>Earth observation</h3><div class="card small" style="line-height:1.6">
         <p><b>Satellite:</b> <a href="https://maps.eox.at/" target="_blank" rel="noopener">2025 cloudless mosaic</a>. Recent scene mode searches for a dated Sentinel-2 observation at the map center; clouds may remain.</p>
         <p><b>Water history:</b> <a href="https://global-surface-water.appspot.com/download" target="_blank" rel="noopener">Global Surface Water 1984–2024</a>. Both layers are coarse satellite observations, not plot boundaries or flood clearance.</p></div>
