@@ -9,6 +9,7 @@ from collections import Counter
 import datetime as dt
 import hashlib
 import os
+import re
 import time
 import urllib.error
 
@@ -55,6 +56,8 @@ def main():
     parser.add_argument('--seed', default=dt.date.today().strftime('%G-W%V'),
                         help='seed recorded in output, defaults to ISO week')
     args = parser.parse_args()
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,32}', args.seed):
+        parser.error('seed must contain 1–32 letters, numbers, underscores or hyphens')
     store = collector.Store()
     sample = select_samples(store, args.per_revision, args.seed)
     fetch = Fetcher(limit=14)

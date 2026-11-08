@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '15 3 20 * *'
   workflow_dispatch:
+    inputs:
+      runner:
+        description: "Choose a GitHub-hosted runner or an explicitly connected data-access runner"
+        type: choice
+        options: [hosted, portal]
+        default: hosted
 
 permissions:
   contents: write
@@ -15,11 +21,12 @@ concurrency:
 
 jobs:
   refresh:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == 'portal' && 'bhoomi-portal' || 'ubuntu-latest' }}
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        if: inputs.runner != 'portal'
         with:
           python-version: '3.12'
       - name: Fetch checked public series
@@ -38,7 +45,7 @@ jobs:
             echo 'changed=true' >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/setup-node@v4
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.changed == 'true' && inputs.runner != 'portal'
         with:
           node-version: '22'
       - name: Test changed data
