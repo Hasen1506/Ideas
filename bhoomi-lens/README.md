@@ -85,7 +85,7 @@ Built with MapLibre GL JS, OpenFreeMap, the [EOX Sentinel-2 cloudless 2025 mosai
 
 ## Checks
 
-From `bhoomi-lens/`, run `npm ci` and `npm test`. This checks model invariants, CSV safety, imagery selection, farm-rate units and collector integrity, including the treatment of unresolved records.
+From `bhoomi-lens/`, run `npm ci` and `npm test`. This checks model invariants, CSV safety, imagery selection, farm-rate units, collector integrity and weekly update failures.
 
 For browser checks, run `npm ci`, `npx playwright install chromium`, and `npm run test:browser` inside `bhoomi-lens/`. MapLibre is bundled locally; the browser checks still need internet access for the map. Set `CHROMIUM_PATH` to an existing Chromium executable if preferred. The GitHub Actions workflow runs the same checks for application changes.
 

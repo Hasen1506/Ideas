@@ -32,6 +32,10 @@ The historical guideline collector previously used public proxies with HTTPS cer
 
 The historical backfill has five village-and-revision entries parked after repeated failures. They remain incomplete, not collected: the progress report distinguishes fully collected data from work where automatic retries have stopped. The current app history is a separately built, fuzzy-matched snapshot; it does not update automatically as the raw backfill changes.
 
+## Project updates
+
+The weekly re-check finds news leads and page changes for human review; it does not verify a project status or change the model automatically. New runs record the number of successful news and source-page requests. If every news request fails, the job fails and retains the previous snapshot rather than presenting an unsuccessful check as a fresh one. A successful request or absence of a headline does not establish that there has been no project change.
+
 ## Independent checks
 
 Automated model invariants, source-unit checks and browser tests catch software errors; they do not prove forecasts are correct. Before presenting a validated market forecast, hold out later periods and whole geographic blocks, group duplicate or related sources, compare with simple local baselines, and report error and interval coverage by area and land class. Independently review a sample of source transcriptions and village matches. Make stale, sparse and unmatched cases visible rather than extrapolating silently.
