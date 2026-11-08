@@ -1,5 +1,7 @@
 """Focused tests for complete official responses and the no-write failure path."""
+import io
 import json
+import urllib.error
 import sys
 import tempfile
 import types
@@ -93,6 +95,37 @@ class RetryTests(unittest.TestCase):
         self.assertEqual({item[1][0] for item in samples}, {'D1', 'D2'})
         self.assertEqual(verify.stored_rows(samples[0][2], samples[0][3]),
                          {('Main Road', 120, 'ft2', 'Residential', ''): 1})
+
+    def test_repeated_transport_failures_back_off_without_writing(self):
+        store = types.SimpleNamespace()
+        pending = [('D', 'sro', '2002', str(i), 'Village') for i in range(5)]
+        with patch.object(retry.collector, 'Store', return_value=store), \
+             patch.object(retry, 'candidates', return_value=pending), \
+             patch.object(retry.collector, 'street_query', return_value={}), \
+             patch.object(retry, 'collect_complete', side_effect=urllib.error.URLError('timeout')) as collect, \
+             patch.object(retry, 'save_recoveries') as save, \
+             patch.object(sys, 'stdout', new_callable=io.StringIO) as output, \
+             patch.object(sys, 'argv', ['tn_retry_gaps.py', '--apply']):
+            retry.main()
+        self.assertEqual(collect.call_count, 3)
+        save.assert_not_called()
+        self.assertIn('stopping this run early', output.getvalue())
+        self.assertFalse(retry.is_transport_failure(urllib.error.HTTPError('https://example.com', 404, 'not found', None, None)))
+        self.assertTrue(retry.is_transport_failure(urllib.error.HTTPError('https://example.com', 503, 'unavailable', None, None)))
+
+    def test_sample_backs_off_and_reports_the_number_attempted(self):
+        samples = [(None, ('D', 'sro', '2002', str(i), 'Village'), {'items': 1}, []) for i in range(5)]
+        with patch.object(verify.collector, 'Store', return_value=types.SimpleNamespace()), \
+             patch.object(verify, 'select_samples', return_value=samples), \
+             patch.object(verify.collector, 'street_query', return_value={}), \
+             patch.object(verify, 'collect_complete', side_effect=urllib.error.URLError('timeout')) as collect, \
+             patch.object(verify.time, 'sleep'), \
+             patch.object(sys, 'stdout', new_callable=io.StringIO) as output, \
+             patch.object(sys, 'argv', ['tn_verify_sample.py']):
+            verify.main()
+        self.assertEqual(collect.call_count, 3)
+        self.assertIn('Attempted 3 of 5', output.getvalue())
+        self.assertIn('stopping this sample early', output.getvalue())
 
     def test_rera_check_does_not_mistake_error_or_generic_page_for_data(self):
         self.assertIn('unavailable', rera.classify(503, 'TN/11/Building/0301/2024'))
