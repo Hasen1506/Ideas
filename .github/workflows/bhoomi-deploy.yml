@@ -1,0 +1,49 @@
+name: Deploy Bhoomi Lens
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows:
+      - Bhoomi Lens weekly re-check
+      - TN guideline values - collect (tnreginet street-wise)
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/configure-pages@v5
+      - name: Prepare public app
+        run: |
+          mkdir -p _site/bhoomi-lens/data
+          cp -a bhoomi-lens/index.html bhoomi-lens/README.md bhoomi-lens/css bhoomi-lens/js bhoomi-lens/vendor bhoomi-lens/docs _site/bhoomi-lens/
+          cp bhoomi-lens/data/*.js _site/bhoomi-lens/data/
+          printf '{"commit":"%s"}\n' "$(git rev-parse HEAD)" > _site/bhoomi-lens/version.json
+          printf '%s\n' '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=bhoomi-lens/"><title>Bhoomi Lens</title><a href="bhoomi-lens/">Open Bhoomi Lens</a>' > _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

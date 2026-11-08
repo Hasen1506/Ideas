@@ -9,7 +9,7 @@ The price surface, project effects, risk and liquidity scores are heuristic esti
 ## Run it
 
 - **Locally:** run `python3 -m http.server 8000 --directory bhoomi-lens` from the repo root, then open `http://localhost:8000/`.
-- **Online:** in the repo, open **Settings > Pages**, set **Source** to **Deploy from a branch**, and choose `main` and `/ (root)`. The app is then live at `https://hasen1506.github.io/Ideas/bhoomi-lens/`.
+- **Online:** `https://hasen1506.github.io/Ideas/bhoomi-lens/`. The Pages workflow deploys `main` and republishes after successful weekly re-check and Tamil Nadu collection workflows.
 
 ## What it does
 
