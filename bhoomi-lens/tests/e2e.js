@@ -29,7 +29,7 @@ const server = http.createServer(async (req, res) => {
   const errors = [];
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (error) => errors.push(error.stack || error.message));
     const cors = { "access-control-allow-origin": "*" };
     let onlineRequests = 0;
     await page.route("**/photon.komoot.io/api/**", (route) => { onlineRequests++; return route.fulfill({ headers: cors, json: { features: [{ type: "Feature", geometry: { type: "Point", coordinates: [80.26, 13.08] }, properties: { name: "Unit Test Place", city: "Chennai", state: "Tamil Nadu", country: "India", countrycode: "IN" } }] } }); });
@@ -174,12 +174,13 @@ const server = http.createServer(async (req, res) => {
     assert.equal(simulation.cat.assumedEffect, -0.3);
     assert.equal(simulation.cat.assumedProbability, 0.75);
     assert.equal(simulation.hasDecrease, true);
+    assert.equal(await page.evaluate(() => BhoomiLens.map.getPaintProperty("d-fill", "fill-opacity")[0]), "interpolate", "opacity stays a zoom-and-feature expression when switching lenses");
     assert.match(await page.locator("#panelBody").innerText(), /not measured project effects or validated probabilities/i);
     assert.deepEqual(errors, [], "uncaught browser errors");
     await page.close();
 
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    mobile.on("pageerror", (error) => errors.push(error.message));
+    mobile.on("pageerror", (error) => errors.push(error.stack || error.message));
     await mobile.route("**/api/stac/v1/search?**", (route) => route.fulfill({ headers: cors, json: { features: [{ id: "LE07_mobile", bbox: [80, 12, 81, 14], geometry: { type: "Polygon", coordinates: [[[80, 12], [81, 12], [81, 14], [80, 14], [80, 12]]] }, properties: { datetime: "2012-11-14T04:54:26Z", platform: "landsat-7", "eo:cloud_cover": 13 }, assets: { tilejson: { href: "https://planetarycomputer.microsoft.com/api/data/v1/item/tilejson.json?item=test" } } }] } }));
     await mobile.route("**/api/data/v1/item/tilejson.json?**", (route) => route.fulfill({ headers: cors, json: { tiles: ["https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/{z}/{x}/{y}?item=test"], maxzoom: 16 } }));
     await mobile.route("**/api/data/v1/item/tiles/**", (route) => route.fulfill({ headers: cors, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aX0AAAAASUVORK5CYII=", "base64") }));

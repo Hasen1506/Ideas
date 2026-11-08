@@ -150,6 +150,14 @@
     cols.forEach((c, i) => out.push(i / (cols.length - 1), c));
     return out;
   };
+  // Keep the paint expression zoom-and-feature dependent for every lens.
+  // Changing between composite and source-only expressions while vector tiles
+  // are loading can leave MapLibre with an incompatible render binder.
+  function districtOpacity(layer, base) {
+    const hov = (on, off) => ["case", ["boolean", ["feature-state", "hover"], false], on, off];
+    if (layer === "price" || layer === "growth") return ["interpolate", ["linear"], ["zoom"], 7.2, hov(0.94, base), 8.2, hov(0.12, 0.06), 12, hov(0.04, 0.03), 16, 0];
+    return ["interpolate", ["linear"], ["zoom"], 7.2, hov(0.94, base), 16, hov(0.94, base)];
+  }
   function verifiedFC() {
     return { type: "FeatureCollection", features: (window.BL_VERIFIED || []).map((p, i) => ({ type: "Feature", properties: { i, type: p.price ? p.type : "govt" }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } })) };
   }
@@ -199,7 +207,7 @@
 
     add({ id: "d-fill", type: "fill", source: "districts", paint: {
       "fill-color": ramp("price"),
-      "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.94, 0.74],
+      "fill-opacity": districtOpacity("price", 0.74),
       "fill-opacity-transition": { duration: 200 }
     } });
     add({ id: "d-ext", type: "fill-extrusion", source: "districts", layout: { visibility: "none" }, paint: {
@@ -339,10 +347,8 @@
     map.setPaintProperty("d-fill", "fill-color", ramp(S.layer));
     map.setPaintProperty("d-ext", "fill-extrusion-color", ramp(S.layer));
     const base = S.sat ? 0.42 : S.proj ? 0.5 : 0.74; // dimmer when project lines are on so they stay readable
-    const hov = (on, off) => ["case", ["boolean", ["feature-state", "hover"], false], on, off];
-    // Hover highlight fades with zoom too, so the street-level map never gets a solid colour wash.
-    const op = GRID_LENSES.includes(S.layer) ? ["interpolate", ["linear"], ["zoom"], 7.2, hov(0.94, base), 8.2, hov(0.12, 0.06), 12, hov(0.04, 0.03), 16, 0] : hov(0.94, base);
-    map.setPaintProperty("d-fill", "fill-opacity", op);
+    // Hover highlight fades with zoom for the detailed price and growth grids.
+    map.setPaintProperty("d-fill", "fill-opacity", districtOpacity(S.layer, base));
     if (map.getLayer("grid-fill")) map.setPaintProperty("grid-fill", "fill-color", gridRamp(GRID_LENSES.includes(S.layer) ? S.layer : "price"));
     scheduleGrid();
     renderLegend();
