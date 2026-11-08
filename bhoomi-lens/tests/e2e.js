@@ -56,6 +56,10 @@ const server = http.createServer(async (req, res) => {
     assert.match(detail, /market references? \| \d+ guideline proxies/i);
     assert.match(detail, /no validated plot-level error range/i);
     assert.doesNotMatch(detail, /fair range|overpriced|80% band/i);
+    assert.match(detail, /Nearby price evidence/i);
+    assert.match(await page.locator('[data-evidence-group="asking"]').innerText(), /asking/i);
+    assert.match(await page.locator('[data-evidence-group="official"]').innerText(), /official rates/i);
+    assert.ok(await page.locator('[data-evidence-group="asking"] a[href^="http"]').count() > 0, "asking references expose their sources");
 
     await page.evaluate(() => BhoomiLens.map.jumpTo({ center: [80.26, 13.08], zoom: 9 }));
     await page.locator("#btnRecent").click();
@@ -157,6 +161,17 @@ const server = http.createServer(async (req, res) => {
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });
     const area = await page.evaluate(() => ({ n: BhoomiLens.S.area.n, sampled: BhoomiLens.S.area.sampled }));
     assert.ok(area.n > 0 && area.n <= area.sampled);
+    await page.locator('#rail [data-tool="simulate"]').click();
+    await page.locator("#simEffect").evaluate((el) => { el.value = "-30"; el.dispatchEvent(new Event("input", { bubbles: true })); });
+    await page.locator("#simProbability").evaluate((el) => { el.value = "75"; el.dispatchEvent(new Event("input", { bubbles: true })); });
+    await page.locator('[data-act="sim-place"]').click();
+    await page.mouse.click(720, 450);
+    await page.waitForFunction(() => BhoomiLens.S.userCats.length === 1, null, { timeout: 15000 });
+    const simulation = await page.evaluate(() => ({ cat: BhoomiLens.S.userCats[0], hasDecrease: BhoomiLens.models.some((m) => m.delta < -0.002) }));
+    assert.equal(simulation.cat.assumedEffect, -0.3);
+    assert.equal(simulation.cat.assumedProbability, 0.75);
+    assert.equal(simulation.hasDecrease, true);
+    assert.match(await page.locator("#panelBody").innerText(), /not measured project effects or validated probabilities/i);
     assert.deepEqual(errors, [], "uncaught browser errors");
     await page.close();
 

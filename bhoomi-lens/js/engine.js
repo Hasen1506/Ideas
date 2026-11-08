@@ -67,6 +67,7 @@
 
   function completionP(c, scen = "base") {
     if (c.scrapYear) return 0;
+    if (c.user && Number.isFinite(c.assumedProbability)) return clamp(c.assumedProbability);
     if (c.stage >= 4) return 1;
     const sc = BL.SCENARIOS[scen] || BL.SCENARIOS.base;
     const base = BL.STAGE_P[c.stage] * (0.55 + 0.45 * c.cred);
@@ -74,6 +75,7 @@
   }
 
   function effEta(c, scen = "base") {
+    if (c.user && Number.isFinite(c.assumedProbability)) return c.eta;
     const sc = BL.SCENARIOS[scen] || BL.SCENARIOS.base;
     if (c.stage >= 4) return c.eta;
     return Math.max(c.eta + sc.etaShift(c), BL.MODEL_YEAR);
@@ -83,7 +85,7 @@
   function realisation(c, year, scen = "base") {
     const T = BL.TYPES[c.t] || BL.TYPES.expressway;
     const eta = effEta(c, scen);
-    const K = BL.CURVE || { ann: 0.35, done: 0.85 };
+    const K = c.user && Number.isFinite(c.assumedPricedIn) ? { ann: clamp(c.assumedPricedIn), done: 1 } : (BL.CURVE || { ann: 0.35, done: 0.85 });
     if (year < c.ann) return 0;
     if (year <= eta) return K.ann + (K.done - K.ann) * ((year - c.ann) / Math.max(1, eta - c.ann));
     return K.done + (1 - K.done) * clamp((year - eta) / T.lag);
@@ -129,13 +131,16 @@
 
   function catalystWeight(c, lat, lon, areaKm2 = 0) {
     const T = BL.TYPES[c.t] || BL.TYPES.expressway;
+    const userDefined = c.user && Number.isFinite(c.assumedEffect);
+    const radius = userDefined && Number.isFinite(c.assumedDistance) ? clamp(c.assumedDistance, 2, 150) : T.r;
+    const effect = userDefined ? clamp(c.assumedEffect, -0.8, 3) : T.U;
     const d = distToCatalyst(c, lat, lon);
     const half = 0.4 * Math.sqrt(Math.max(areaKm2, 0));
     const dEff = Math.max(0, d - half);
-    const decay = Math.exp(-dEff / T.r);
-    const footprint = c.pt ? Math.PI * T.r * T.r * 3 : T.r * 120;
+    const decay = Math.exp(-dEff / radius);
+    const footprint = c.pt ? Math.PI * radius * radius * 3 : radius * 120;
     const dil = areaKm2 > 0 ? Math.min(1, Math.pow(footprint / Math.max(areaKm2, 30), 0.35)) : 1;
-    const w = T.U * decay * dil;
+    const w = effect * decay * dil;
     return { d, w };
   }
 
@@ -228,7 +233,8 @@
     const links = [];
     for (const c of catalysts) {
       const cw = catalystWeight(c, lat, lon, area);
-      if (cw.w * lev > 0.004) links.push({ c, w: cw.w * lev, d: cw.d });
+      const w = cw.w * (c.user && Number.isFinite(c.assumedEffect) ? 1 : lev);
+      if (Math.abs(w) > 0.004) links.push({ c, w, d: cw.d });
     }
     links.sort((a, b) => b.w - a.w);
     return {
@@ -310,7 +316,8 @@
       for (const c of catalysts) {
         const cw = catalystWeight(c, m.lat, m.lon, m.area);
         const lev = m.lev || 1;
-        if (cw.w * lev > 0.004) m.links.push({ c, w: cw.w * lev, d: cw.d });
+        const w = cw.w * (c.user && Number.isFinite(c.assumedEffect) ? 1 : lev);
+        if (Math.abs(w) > 0.004) m.links.push({ c, w, d: cw.d });
       }
       m.links.sort((a, b) => b.w - a.w);
     }
@@ -338,7 +345,7 @@
     const MY = BL.MODEL_YEAR;
     if (year <= MY) return 0;
     let unc = 0;
-    for (const L of m.links) unc += L.w * uncert(L.c, year, scen);
+    for (const L of m.links) unc += Math.abs(L.w) * uncert(L.c, year, scen);
     const liqPenalty = 0.03 * (1 - m.u);
     return 0.045 * Math.sqrt(year - MY) + 0.9 * unc + liqPenalty;
   }

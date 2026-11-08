@@ -1,0 +1,72 @@
+name: TN sources - bounded retry
+
+on:
+  schedule:
+    - cron: '15 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: tn-source-retry
+  cancel-in-progress: false
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install collector dependency
+        run: python -m pip install --quiet requests
+      - name: Check official RERA pages (no project scraping)
+        run: |
+          echo '## Tamil Nadu RERA source check' >> "$GITHUB_STEP_SUMMARY"
+          python -u bhoomi-lens/scripts/tn_rera_health.py | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Retry at most five parked guideline searches
+        run: |
+          set -o pipefail
+          echo '## Tamil Nadu guideline recovery' >> "$GITHUB_STEP_SUMMARY"
+          python -u bhoomi-lens/scripts/tn_retry_gaps.py --apply --max-records 5 | tee -a "$GITHUB_STEP_SUMMARY"
+        shell: bash
+      - name: Independently sample historical guideline rows
+        run: |
+          set -o pipefail
+          echo '## Historical guideline spot-check' >> "$GITHUB_STEP_SUMMARY"
+          python -u bhoomi-lens/scripts/tn_verify_sample.py --per-revision 2 | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Detect verified changes
+        id: changes
+        run: |
+          git add bhoomi-lens/data/tn_gv/
+          if git diff --cached --quiet; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No complete new records: no data commit or deployment.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.changed == 'true'
+        with:
+          node-version: '22'
+      - name: Test before committing recovered data
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: bhoomi-lens
+        run: |
+          npm ci
+          npm test
+      - name: Commit only complete recoveries
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'bhoomi-source-retry'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Recover verified TN guideline results'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run bhoomi-deploy.yml --ref main -R "$GITHUB_REPOSITORY"
