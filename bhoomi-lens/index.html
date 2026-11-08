@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Bhoomi Lens - Land intelligence for India</title>
-  <meta name="description" content="See what land across India is worth, what will move it, and what could go wrong. District-level valuation, infrastructure ripple modelling, risk and opportunity scoring." />
+  <meta name="description" content="Explore indicative land-price estimates, infrastructure scenarios and official reference data across India." />
   <meta name="theme-color" content="#070b14" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ffb547'/%3E%3Cstop offset='1' stop-color='%232ee6c5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='url(%23g)' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='url(%23g)'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
-  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <link href="vendor/maplibre/maplibre-gl.css" rel="stylesheet" />
   <link href="css/app.css" rel="stylesheet" />
 </head>
 <body>
@@ -34,11 +34,13 @@
       <label class="sel"><span>Horizon</span>
         <select id="horizon"><option value="3">3 yrs</option><option value="5" selected>5 yrs</option><option value="10">10 yrs</option></select>
       </label>
-      <div class="chip-group" data-g="Base map"><button id="btnSat" class="chip" title="Satellite imagery">Satellite</button><button id="btnLabels" class="chip" title="Place names and town dots on the map">Labels</button><button id="btn3d" class="chip" title="3D price terrain">3D</button></div>
+      <div class="chip-group" data-g="Base map"><button id="btnSat" class="chip" title="2025 cloudless satellite mosaic" aria-pressed="false">Satellite</button><button id="btnRecent" class="chip" title="Find a recent dated Sentinel-2 scene at the map center" aria-pressed="false">Recent scene</button><button id="btnLabels" class="chip" title="Place names and town dots on the map">Labels</button><button id="btn3d" class="chip" title="3D price terrain">3D</button></div>
       <div class="chip-group" data-g="Analysis"><button id="btnTint" class="chip on" title="Colour the map by the selected lens (price, growth, opportunity, risk...)">Colours</button><button id="btnHeat" class="chip" title="Pipeline hotspots heat layer">Hotspots</button></div>
-      <div class="chip-group" data-g="Evidence"><button id="btnProj" class="chip" title="Show infrastructure projects">Projects</button><select id="projType" class="chip-sel" title="Which project types to show"><option value="all">All types</option><option value="roads">Expressways and ring roads</option><option value="airport">Airports</option><option value="metro">Metro</option><option value="industrial">Industrial</option><option value="port">Ports</option><option value="city">New cities</option><option value="freight">Freight corridors</option></select><button id="btnReal" class="chip" title="Verified real prices and govt rates">Real data</button><button id="btnFarm" class="chip" title="Farm land value by village (Tamil Nadu)">Farm land</button><span class="ix-wrap"><button id="btnInfra" class="chip" title="Airport boundaries, expressway exits, notified villages, water history, routes" aria-expanded="false">Infra layers</button><div id="infraMenu" class="ix-menu hidden" role="menu"></div></span></div>
-      <button id="btnHideAll" class="chip ghost" title="Turn off every overlay and keep only the base map">Hide all</button><button id="btnAcct" class="chip ghost" title="Sign in to keep your watchlist on every device" aria-expanded="false">Account</button><div id="acctPop" class="ix-menu" hidden style="max-width:300px;padding:10px"></div>
+      <div class="chip-group" data-g="Evidence"><button id="btnProj" class="chip" title="Show infrastructure projects">Projects</button><select id="projType" class="chip-sel" title="Which project types to show"><option value="all">All types</option><option value="roads">Expressways and ring roads</option><option value="airport">Airports</option><option value="metro">Metro</option><option value="industrial">Industrial</option><option value="port">Ports</option><option value="city">New cities</option><option value="freight">Freight corridors</option></select><button id="btnReal" class="chip" title="Market references, guideline-derived estimates and official rates">Real data</button><button id="btnFarm" class="chip" title="Farm land value by village (Tamil Nadu)">Farm land</button><button id="btnInfra" class="chip" title="Airport boundaries, expressway exits, notified villages, water history, routes" aria-expanded="false">Infra layers</button></div>
+      <button id="btnHideAll" class="chip ghost" title="Turn off every overlay and keep only the base map">Hide all</button><button id="btnAcct" class="chip ghost" title="Saved places and backup" aria-expanded="false">Saved data</button>
     </div>
+    <div id="infraMenu" class="ix-menu hidden" role="menu"></div>
+    <div id="acctPop" class="ix-menu" hidden style="max-width:300px;padding:10px"></div>
   </header>
 
   <div id="focusBar" class="focus-bar glass hidden"><span id="focusText">Focused</span><button id="focusClose" class="icon-btn" title="Leave focus mode" aria-label="Leave focus mode">x</button></div>
@@ -68,35 +70,35 @@
 
   <div id="tooltip" class="tooltip"></div>
   <div id="ovLegend" class="ov-legend glass hidden"></div>
+  <div id="imageryStatus" class="imagery-status glass hidden" role="status" aria-live="polite"></div>
   <div id="yearBanner" class="year-banner hidden"><span id="yearBannerText"></span><button id="yearReset" class="btn sm">Back to today (2026)</button></div>
   <div id="drawHint" class="draw-hint hidden"></div>
   <div id="toast" class="toast"></div>
-  <div class="disclaimer">Data as of Oct 2026 | 186 verified projects | 738 verified price points across India | elsewhere modelled. Click anywhere for a spot-level read. <a href="#" id="methodLink">How it works</a></div>
+  <div class="disclaimer">Exploratory estimates; market references include listings and guideline-derived proxies. Project data: Oct 2026 snapshot. <a href="#" id="methodLink">How it works</a></div>
 
   <div id="palette" class="palette hidden" role="dialog" aria-label="Search">
     <div class="palette-box glass">
       <input id="paletteInput" placeholder="Search a district, city, project or state..." autocomplete="off" />
       <div id="paletteList" class="palette-list"></div>
-      <div class="palette-foot"><span><kbd>Up</kbd><kbd>Down</kbd> navigate</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div>
+      <div class="palette-foot"><button id="onlineSearch" class="btn sm">Search online</button><span id="onlineStatus" role="status">Optional: sends your query to Photon / OpenStreetMap.</span></div>
     </div>
   </div>
 
   <div id="intro" class="intro hidden">
     <div class="intro-box glass">
       <div class="intro-kicker">Bhoomi Lens</div>
-      <h1>See what land is worth, what will move it, and what could go wrong.</h1>
+      <h1>Explore land-price estimates, infrastructure scenarios and reference data.</h1>
       <div class="intro-grid">
         <div><b>Explore</b><p>Every district in India, priced, forecast and risk-scored. Switch lenses at the top and click any district.</p></div>
         <div><b>Draw an area</b><p>Lasso, circle or box any patch of land and get a full investment read-out for it.</p></div>
         <div><b>Simulate</b><p>Drop a hypothetical airport, metro or expressway and watch the price ripple spread.</p></div>
         <div><b>Time machine</b><p>Scrub from 2015 to 2036 and watch growth spill outward along corridors.</p></div>
       </div>
-      <p class="intro-note">All figures are modelled, indicative estimates built from public reference points. They are not registered transaction data or investment advice.</p>
+      <p class="intro-note">Estimates and scenarios are exploratory. Price references include listings and guideline-derived proxies, and forecast bands have not been validated. They are not plot valuations or investment advice.</p>
       <button id="introGo" class="btn primary">Start exploring</button>
     </div>
   </div>
 
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="data/districts.js"></script>
   <script src="data/states.js"></script>
   <script src="data/overrides.js"></script>
@@ -114,11 +116,13 @@
   <script src="data/gazette.js"></script>
   <script src="data/private.js"></script>
   <script src="js/engine.js"></script>
+  <script src="js/imagery.js"></script>
+  <script src="js/csv.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/insights.js"></script>
   <script src="js/infra.js"></script>
   <script src="js/config.js"></script>
   <script src="js/accounts.js"></script>
-  <script src="js/app.js"></script>
+  <script type="module" src="js/bootstrap.mjs"></script>
 </body>
 </html>

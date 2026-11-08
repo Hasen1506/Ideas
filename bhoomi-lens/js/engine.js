@@ -192,6 +192,27 @@
     return s;
   }
 
+  // A guideline-derived price already contains the assumed market/guideline
+  // multiplier, so treating it as an observed pair would fit the assumption to itself.
+  const MARKET_REFERENCE_TYPES = new Set(["govt_auction", "govt_allotment", "registered", "reported_deal", "listing", "consensus", "bank_auction"]);
+  function isMarketReference(p) {
+    return !!p && p.price > 0 && !p.derived && MARKET_REFERENCE_TYPES.has(p.type);
+  }
+  function observedCircleRatios(points) {
+    const all = [], byState = {};
+    for (const p of points || []) {
+      if (!isMarketReference(p) || !(p.govt_sqyd > 0 && p.txn_sqyd > 0)) continue;
+      const ratio = p.govt_sqyd / p.txn_sqyd;
+      if (!(ratio > 0.08 && ratio < 1.3)) continue;
+      all.push(ratio);
+      (byState[p.state] = byState[p.state] || []).push(ratio);
+    }
+    const median = (a) => { a.sort((x, y) => x - y); return a.length ? a[a.length >> 1] : null; };
+    const states = {};
+    for (const [state, values] of Object.entries(byState)) if (values.length >= 3) states[state] = median(values);
+    return { overall: median(all), states };
+  }
+
   /* ---------------- Preparation (static, cached) ---------------- */
   function buildModel(id, name, state, lat, lon, area, catalysts, raw) {
     const st = stateOf(state);
@@ -246,11 +267,39 @@
     return changed;
   }
 
+  // Keep district geometry with each prepared model set. A nearest-centre lookup
+  // assigns border areas to the wrong district (and sometimes the wrong state).
+  const DISTRICT_INDEX = new WeakMap();
   function prepare(features, catalysts) {
-    return features.map((f) => {
+    const models = features.map((f) => {
       const p = f.properties;
       return buildModel(p.id, p.n, p.s, p.lat, p.lon, p.a || 0, catalysts);
     });
+    const buckets = new Map();
+    features.forEach((f, i) => {
+      const geom = f.geometry;
+      if (!geom || !["Polygon", "MultiPolygon"].includes(geom.type)) return;
+      const polygons = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+      for (const polygon of polygons) {
+        const ring = polygon[0];
+        if (!ring || ring.length < 3) continue;
+        const box = [Infinity, Infinity, -Infinity, -Infinity];
+        for (const [x, y] of ring) {
+          box[0] = Math.min(box[0], x); box[1] = Math.min(box[1], y);
+          box[2] = Math.max(box[2], x); box[3] = Math.max(box[3], y);
+        }
+        const entry = { model: models[i], polygon, box };
+        for (let x = Math.floor(box[0]); x <= Math.floor(box[2]); x++) {
+          for (let y = Math.floor(box[1]); y <= Math.floor(box[3]); y++) {
+            const key = x + ":" + y;
+            if (!buckets.has(key)) buckets.set(key, []);
+            buckets.get(key).push(entry);
+          }
+        }
+      }
+    });
+    DISTRICT_INDEX.set(models, buckets);
+    return models;
   }
 
   // Re-link catalysts only (used by the ripple simulator).
@@ -306,16 +355,18 @@
   function contributions(m, horizon = 5, scen = "base") {
     const MY = BL.MODEL_YEAR, Y = MY + horizon;
     const sc = BL.SCENARIOS[scen] || BL.SCENARIOS.base;
-    const p0 = m.basePrice;
-    const e0 = E(m, MY, "base");
-    const fund = Math.pow(1 + m.g + sc.gAdj, horizon);
-    const parts = [{ label: "Market drift and city spillover", v: fund - 1, kind: "fund" }];
-    for (const L of m.links.slice(0, 8)) {
-      const dE = L.w * (eff(L.c, Y, scen) - eff(L.c, MY, "base"));
-      const v = fund * dE / (1 + e0);
-      if (Math.abs(v) > 0.002) parts.push({ label: L.c.n, v, kind: L.c.t, c: L.c, d: L.d });
-    }
-    const total = priceAt(m, Y, scen) / p0 - 1;
+    // priceAt combines effects multiplicatively. Allocate the combined change
+    // in proportion to log factors so the displayed components reconcile,
+    // including interactions, without implying these are causal estimates.
+    const fundLog = horizon * Math.log(1 + m.g + sc.gAdj);
+    const projectLogs = m.links.map((L) => ({ L, log: Math.log((1 + L.w * eff(L.c, Y, scen)) / (1 + L.w * eff(L.c, MY, "base"))) }));
+    const totalLog = fundLog + projectLogs.reduce((sum, x) => sum + x.log, 0);
+    const scale = Math.abs(totalLog) < 1e-12 ? 1 : Math.expm1(totalLog) / totalLog;
+    const parts = [{ label: "Market drift and city spillover", v: fundLog * scale, kind: "fund" }];
+    const projects = projectLogs.map(({ L, log }) => ({ label: L.c.n, v: log * scale, kind: L.c.t, c: L.c, d: L.d })).sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+    parts.push(...projects.slice(0, 8));
+    if (projects.length > 8) parts.push({ label: "Other projects", v: projects.slice(8).reduce((sum, x) => sum + x.v, 0), kind: "other" });
+    const total = priceAt(m, Y, scen) / m.basePrice - 1;
     return { parts, total };
   }
 
@@ -398,24 +449,27 @@
   }
 
   /* ---------------- Point model (area analysis, hotspots) ---------------- */
-  function nearestState(lat, lon, models) {
-    let best = null, bd = Infinity;
-    for (const m of models) {
-      const d = (m.lat - lat) ** 2 + ((m.lon - lon) * Math.cos(toRad(lat))) ** 2;
-      if (d < bd) { bd = d; best = m; }
+  function districtAt(lat, lon, models) {
+    const buckets = DISTRICT_INDEX.get(models);
+    if (!buckets || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    const entries = buckets.get(Math.floor(lon) + ":" + Math.floor(lat)) || [];
+    for (const { model, polygon, box } of entries) {
+      if (lon < box[0] || lon > box[2] || lat < box[1] || lat > box[3]) continue;
+      if (pointInPoly(lon, lat, polygon[0]) && !polygon.slice(1).some((hole) => pointInPoly(lon, lat, hole))) return model;
     }
-    return best;
+    return null;
   }
 
   function pointModel(lat, lon, catalysts, models, opts = {}) {
-    const near = nearestState(lat, lon, models);
-    const state = near ? near.state : "";
+    const district = districtAt(lat, lon, models);
+    if (!district) return null;
+    const state = district.state;
     const m = buildModel("pt", `${lat.toFixed(3)},${lon.toFixed(3)}`, state, lat, lon, 0, catalysts);
     const H = opts.horizon ?? 5, scen = opts.scenario || "base";
     m.price = priceAt(m, opts.year ?? BL.MODEL_YEAR, scen);
     m.mult = priceAt(m, BL.MODEL_YEAR + H, scen) / m.basePrice;
     m.cagr = Math.pow(m.mult, 1 / H) - 1;
-    m.district = near ? near.name : "";
+    m.district = district.name;
     return m;
   }
 
@@ -470,8 +524,10 @@
     const H = opts.horizon ?? 5;
     const cells = pts.map(([lon, lat]) => {
       const pm = pointModel(lat, lon, catalysts, models, opts);
+      if (!pm) return null;
       return { lon, lat, price: pm.basePrice, cagr: pm.cagr, mult: pm.mult, district: pm.district, state: pm.state, top: pm.links[0] ? pm.links[0].c.n : null };
-    });
+    }).filter(Boolean);
+    if (!cells.length) return null;
     const prices = cells.map((c) => c.price).sort((a, b) => a - b);
     const q = (p) => prices[Math.min(prices.length - 1, Math.floor(p * (prices.length - 1)))];
     const mean = (arr) => arr.reduce((s, v) => s + v, 0) / Math.max(1, arr.length);
@@ -491,7 +547,7 @@
     const hotspots = [...cells].sort((a, b) => b.cagr - a.cagr).slice(0, 5);
     const value = [...cells].sort((a, b) => a.price / a.mult - b.price / b.mult).slice(0, 5);
     return {
-      areaKm2: polyAreaKm2(ring), acres: polyAreaKm2(ring) * 247.105, step, n: cells.length, cells,
+      areaKm2: polyAreaKm2(ring), acres: polyAreaKm2(ring) * 247.105, step, n: cells.length, sampled: pts.length, cells,
       priceMean: mean(cells.map((c) => c.price)), p10: q(0.1), p50: q(0.5), p90: q(0.9),
       cagrMean: mean(cells.map((c) => c.cagr)), multMean: mean(cells.map((c) => c.mult)),
       districts: Object.entries(districts).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ name: k.split("|")[0], state: k.split("|")[1], share: v / cells.length })),
@@ -591,6 +647,6 @@
     hav, segDist, distToCatalyst, eff, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
     prepare, relink, evaluate, priceAt, sigmaAt, series, contributions, riskOf, momentum, analogueFor,
     pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,
-    setCalibration, calibFactor, calibContrib, calibrationEvidence, calibrateDistricts, oppScore, buildModel
+    setCalibration, calibFactor, calibContrib, calibrationEvidence, isMarketReference, observedCircleRatios, calibrateDistricts, oppScore, buildModel, districtAt
   };
 })(typeof window !== "undefined" ? window : globalThis);

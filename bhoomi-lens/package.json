@@ -1,0 +1,12 @@
+{
+  "name": "bhoomi-lens",
+  "private": true,
+  "scripts": {
+    "test": "node tests/run.js && node --test tests/*.test.js && python3 tests/test_tn_gv_history.py",
+    "test:browser": "node tests/e2e.js",
+    "audit:evidence": "node scripts/audit_market_evidence.js"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
