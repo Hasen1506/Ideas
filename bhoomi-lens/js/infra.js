@@ -34,6 +34,7 @@
     acq: { label: "Notified villages", desc: "Villages named in official land-acquisition notices. Dot = village centre (approximate), not the acquired parcel.", ids: ["ix-acq", "ix-acq-ring"] },
     rera: { label: "New real-estate projects (TN RERA)", desc: "Building projects registered with TNRERA 2024-2026, at the coordinates the builder filed. A cluster of new registrations is an early sign of demand.", ids: ["ix-rera"] },
     inv: { label: "Big company investments", desc: "71 sourced factories, data centres and parks (Rs crore, jobs, status) in 5 southern states. Pin = park or town centre, not the exact plot.", ids: ["ix-inv", "ix-inv-ring"] },
+    gv: { label: "Official rates history (TN)", desc: "Government guideline value per village, 2002-2024 (median street rate, Rs per sq ft). 5,400 villages placed on Census points. A floor for stamp duty, not the market price; it moves in statewide revisions.", ids: ["ix-gv"] },
     routes: { label: "Expressway routes (live)", desc: "Motorways under construction or proposed, loaded from OpenStreetMap for the area on screen (zoom in to 8+).", ids: ["ix-routes"] },
   };
   const on = {};
@@ -64,6 +65,13 @@
     map.on("click", "ix-rera", (e) => { const r = PV.rera[e.features[0].properties.i]; BL.Infra.onPick && BL.Infra.onPick(`<b>${esc(r[2])}</b><div class="muted">${esc(r[3])}</div><div class="small">${esc(r[5])}${r[5] ? ", " : ""}${esc(r[4])} | ${esc(r[8])}</div><div class="small muted">RERA ${esc(r[6])}, registered ${esc(r[7])}${r[9] ? ", completion due " + esc(r[9]) : ""}. Location as filed by the builder (${esc(r[10])}).</div><a href="${esc(r[11])}" target="_blank" rel="noopener">TNRERA register</a>`, e.lngLat); });
     map.on("click", "ix-inv", (e) => { const x = PV.inv[e.features[0].properties.i]; BL.Infra.onPick && BL.Infra.onPick(`<b>${esc(x.co)}</b><div>${esc(x.p)}</div><div class="small">${esc(x.loc || "")}, ${esc(x.d || "")}, ${esc(x.st || "")}</div><div class="small">${x.cr ? "Rs " + Number(x.cr).toLocaleString("en-IN") + " crore" : ""}${x.jobs ? " | " + Number(x.jobs).toLocaleString("en-IN") + " jobs" : ""} | <b>${esc(x.s || "")}</b> ${esc(x.sd || "")}</div><div class="small muted">Pin at ${esc(x.cb || "town centre")}, not the plot.</div>${(x.src || []).map((z) => `<a href="${esc(z.u)}" target="_blank" rel="noopener">${esc(z.p || "source")} ${esc(z.d || "")}</a>`).join(" | ")}`, e.lngLat); });
     ["ix-rera", "ix-inv"].forEach((id) => { map.on("mouseenter", id, () => (map.getCanvas().style.cursor = "pointer")); map.on("mouseleave", id, () => (map.getCanvas().style.cursor = "")); });
+    const GV = window.BL_TN_GV;
+    if (GV && GV.rows) {
+      map.addSource("ix-gv", { type: "geojson", data: { type: "FeatureCollection", features: GV.rows.map((r, i) => ({ type: "Feature", properties: { i, r: r[6] || r[7] || r[8] || 0 }, geometry: { type: "Point", coordinates: [r[5], r[4]] } })) } });
+      map.addLayer({ id: "ix-gv", type: "circle", source: "ix-gv", minzoom: 6, layout: none, paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 2, 12, 6], "circle-color": ["interpolate", ["linear"], ["ln", ["max", 1, ["get", "r"]]], 3, "#2ee6c5", 5, "#ffd166", 7, "#ff6b6b", 9, "#b98cff"], "circle-stroke-color": "#0b1020", "circle-stroke-width": 0.8 } });
+      map.on("click", "ix-gv", (e) => { BL.Infra.onPick && BL.Infra.onPick(gvHtml(GV.rows[e.features[0].properties.i]), e.lngLat); });
+      map.on("mouseenter", "ix-gv", () => (map.getCanvas().style.cursor = "pointer")); map.on("mouseleave", "ix-gv", () => (map.getCanvas().style.cursor = ""));
+    }
     map.addSource("ix-routes", { type: "geojson", data: { type: "FeatureCollection", features: routeFeatures() } });
     map.addLayer({ id: "ix-routes", type: "line", source: "ix-routes", layout: { visibility: "none", "line-cap": "round" }, paint: { "line-color": ["match", ["get", "st"], "construction", "#ffb547", "proposed", "#b98cff", "#2ee6c5"], "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1.5, 12, 4], "line-dasharray": [2, 1.2] } });
     map.on("click", "ix-acq", (e) => { const i = e.features[0].properties.i; BL.Infra.onPick && BL.Infra.onPick(acqHtml(D.acq[i]), e.lngLat); });
@@ -71,6 +79,11 @@
     ["ix-acq", "ix-air-fill", "ix-exits"].forEach((id) => { map.on("mouseenter", id, () => (map.getCanvas().style.cursor = "pointer")); map.on("mouseleave", id, () => (map.getCanvas().style.cursor = "")); });
     map.on("click", "ix-exits", (e) => { BL.Infra.onPick && BL.Infra.onPick(`<b>${esc(e.features[0].properties.n)}</b><div class="muted">Expressway exit (OpenStreetMap)</div>`, e.lngLat); });
     map.on("moveend", () => { if (on.routes) loadRoutes(map); });
+  }
+  function gvHtml(r) {
+    const R = (window.BL_TN_GV || {}).rev || [];
+    const cells = R.map((y, k) => r[6 + k] != null ? `<tr><td>${y}</td><td style="text-align:right">Rs ${Number(r[6 + k]).toLocaleString("en-IN")}</td></tr>` : "").join("");
+    return `<b>${esc(r[0])}</b> <span class="muted">${esc(r[1])}</span><div class="small">${esc(r[2])} SRO, ${esc(r[3])}</div><table class="small">${cells}</table>${r[12 + 1] ? `<div class="small">Farm land 2024: Rs ${Number(r[13]).toLocaleString("en-IN")} per acre</div>` : ""}<div class="small muted">Official guideline value (median street rate, Rs per sq ft), Registration Dept, Tamil Nadu. A stamp-duty floor, not the market price. Revisions are mostly statewide: 2017 cut most rates to 0.67x, 2023 raised most by 1.5x.</div>`;
   }
   function setLayer(map, k, v) {
     on[k] = v; LAYERS[k].ids.forEach((id) => { try { map.setLayoutProperty(id, "visibility", v ? "visible" : "none"); } catch (e) {} });

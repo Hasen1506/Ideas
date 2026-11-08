@@ -4,7 +4,7 @@ const fs = require("fs"), path = require("path");
 const ROOT = path.join(__dirname, "..");
 const load = (f) => eval(fs.readFileSync(path.join(ROOT, f), "utf8").replace(/window\./g, "globalThis."));
 global.window = undefined;
-["data/districts.js", "data/projects.js", "data/verified.js", "data/tn_villages.js", "data/evidence.js", "data/landtype.js", "data/backtest.js"].forEach(load);
+["data/districts.js", "data/projects.js", "data/verified.js", "data/tn_villages.js", "data/tn_gv_history.js", "data/evidence.js", "data/landtype.js", "data/backtest.js"].forEach(load);
 require(path.join(ROOT, "js/data.js")); require(path.join(ROOT, "js/engine.js"));
 const BL = globalThis.BL, E = BL.Engine;
 globalThis.document = globalThis.document || { addEventListener() {} };
@@ -81,6 +81,10 @@ const at = (lat, lon) => E.pointModel(lat, lon, BL.CATALYSTS, models, { horizon:
 const G = [
   ["Minjur (TN) within 0.5x-2.5x of verified ~Rs1,000/sq ft", at(13.28, 80.26).basePrice, 500, 2500],
   ["Ponneri SRO: >= 8 villages after geocode checks", (globalThis.BL_VERIFIED || []).filter((p) => p.village && /Ponneri/.test(p.taluk)).length, 8, 1e9],
+  ["TN official-rate history villages >= 5000", ((globalThis.BL_TN_GV || {}).rows || []).length, 5000, 1e9],
+  ["TN official-rate villages inside Tamil Nadu bounds", ((globalThis.BL_TN_GV || {}).rows || []).filter((r) => r[4] < 8 || r[4] > 13.6 || r[5] < 76.2 || r[5] > 80.4).length, 0, 0],
+  ["TN official-rate rows have 7 revisions + farm rate", ((globalThis.BL_TN_GV || {}).rows || []).filter((r) => r.length !== 14).length, 0, 0],
+  ["TN official 2024 rates within Rs 1-200,000 per sq ft", ((globalThis.BL_TN_GV || {}).rows || []).filter((r) => r[6] != null && !(r[6] >= 1 && r[6] <= 200000)).length, 0, 0],
   ["TN villages loaded >= 2000 (after geocode checks)", (globalThis.BL_TN_VILLAGES || []).length, 2000, 1e9],
   ["No two TN villages share a point", (() => { const s = new Set(); let d = 0; for (const r of globalThis.BL_TN_VILLAGES || []) { const k = r[3].toFixed(4) + "," + r[4].toFixed(4); if (s.has(k)) d++; s.add(k); } return d; })(), 0, 0],
   ["Every TN village has a fitted multiple 1-8", (globalThis.BL_TN_VILLAGES || []).filter((r) => !(r[11] >= 1 && r[11] <= 8)).length, 0, 0],
