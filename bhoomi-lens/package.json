@@ -4,7 +4,8 @@
   "scripts": {
     "test": "node tests/run.js && node --test tests/*.test.js && python3 tests/test_tn_gv_history.py && python3 tests/test_tn_gv_collect.py && python3 tests/test_recheck.py",
     "test:browser": "node tests/e2e.js",
-    "audit:evidence": "node scripts/audit_market_evidence.js"
+    "audit:evidence": "node scripts/audit_market_evidence.js",
+    "audit:projects": "node scripts/audit_project_cases.js"
   },
   "devDependencies": {
     "playwright": "1.62.1"

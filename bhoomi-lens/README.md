@@ -26,7 +26,7 @@ The price surface, project effects, risk and liquidity scores are heuristic esti
 | **Watchlist and signals** | Star districts to get signals for upcoming openings, credibility flags, circle-rate revision exposure and thin markets |
 | **Compare** | Up to three districts side by side, plus a price-index chart |
 | **Reports** | A one-click printable PDF report for any district |
-| **Hotspots, satellite, 3D** | A heat layer of modelled infrastructure upside; a 2025 Sentinel-2 cloudless mosaic with an optional recent dated Sentinel-2 scene at the map center; and modelled 3D price terrain |
+| **Hotspots, satellite, 3D** | A heat layer of modelled infrastructure upside; a 2025 cloudless mosaic and dated past/recent satellite scenes at the map center; and modelled 3D price terrain |
 | **Shareable state** | The URL hash records the lens, year, scenario, horizon and selected district or location |
 | **Saved data** | Save watchlists and spots in the browser, and export or import a private JSON backup. Cross-device account sync requires a separately configured backend. |
 
@@ -81,7 +81,7 @@ bhoomi-lens/
   data/overrides.js  Your real data goes here
 ```
 
-Built with MapLibre GL JS, OpenFreeMap, the [EOX Sentinel-2 cloudless 2025 mosaic](https://maps.eox.at/), [Microsoft Planetary Computer Sentinel-2 scenes](https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a), [Global Surface Water 1984–2024](https://global-surface-water.appspot.com/download) and district boundaries from datta07/INDIAN-SHAPEFILES. Recent imagery is a single scene selected for the map center with less than 30% cloud across the scene, not necessarily cloud-free at the selected plot. It is shown over the 2025 mosaic outside its footprint. Satellite imagery is 10 m resolution and is not suitable for identifying survey boundaries; the time slider changes the model, not the imagery. Availability depends on third-party services.
+Built with MapLibre GL JS, OpenFreeMap, the [EOX Sentinel-2 cloudless 2025 mosaic](https://maps.eox.at/), [Sentinel-2](https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a) and [Landsat](https://planetarycomputer.microsoft.com/dataset/landsat-c2-l2) scenes from Microsoft Planetary Computer, [Global Surface Water 1984–2024](https://global-surface-water.appspot.com/download) and district boundaries from datta07/INDIAN-SHAPEFILES. Select **Past scene** and a year, then switch to **Recent scene** to compare. A past scene uses Sentinel-2 where available from 2017, falling back to Landsat, and Landsat for earlier years back to 1984. Each is one dated observation selected for the map center with less than 30% scene-wide cloud, not necessarily cloud-free at the selected plot. Past-scene gaps are grey, never filled with a newer image; Landsat 7 scenes from 2003 onward can have stripe gaps. Recent imagery is shown over the 2025 mosaic outside its footprint. Resolution is 10 m for Sentinel-2 and 30 m for Landsat; neither establishes survey boundaries. Season, cloud, resolution and sensor changes can affect visual comparisons. The model's time slider does not change imagery, and availability depends on third-party services.
 
 ## Checks
 

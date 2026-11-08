@@ -216,8 +216,9 @@
   /* ---------------- Preparation (static, cached) ---------------- */
   function buildModel(id, name, state, lat, lon, area, catalysts, raw) {
     const st = stateOf(state);
-    const h = hash01(name + "|" + state);
-    const h2 = hash01(state + "#" + name);
+    // Keep the prior at its midpoint. A hash of the label or rounded coordinates
+    // creates artificial jumps between nearby points without adding evidence.
+    const h = 0.5, h2 = 0.5;
     const rural = (st.agri * 1e5) / SQFT_PER_ACRE * (0.75 + 0.5 * h);
     const g0 = urbanGravity(lat, lon, area);
     const urban = g0.urban * (0.85 + 0.3 * h2);

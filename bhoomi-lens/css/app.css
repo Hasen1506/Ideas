@@ -330,10 +330,12 @@ details.more { margin-top: 10px; border: 1px solid var(--line); border-radius: 1
 details.more > summary { cursor: pointer; color: var(--tx-2); font-weight: 600; }
 .buyer-sum .warn { color: #ffd166; }
 
-/* Never clip the toolbar: wrap to a second row when the window is not wide enough */
+/* Keep the controls on a scrollable second row at tablet and desktop widths. */
 @media (max-width: 1680px) {
   .topbar { height: auto; min-height: 58px; flex-wrap: wrap; padding: 8px 12px; row-gap: 6px; }
-  .top-right { flex: 1 1 100%; overflow: visible; flex-wrap: wrap; justify-content: flex-start; row-gap: 6px; }
+  .top-right { flex: 1 1 100%; overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; padding-bottom: 4px; scrollbar-width: thin; }
+  .top-right::-webkit-scrollbar { display: block; height: 3px; }
+  .top-right::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
   .rail, .panel, .detail { top: 120px; }
   .maplibregl-ctrl-top-right { top: 116px; }
   .year-banner, .draw-hint { top: 122px; }
