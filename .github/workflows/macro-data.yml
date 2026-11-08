@@ -1,0 +1,60 @@
+name: Bhoomi Lens economic data
+
+on:
+  schedule:
+    - cron: '15 3 20 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: bhoomi-macro-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch checked public series
+        run: |
+          set -o pipefail
+          echo '## Economic data refresh' >> "$GITHUB_STEP_SUMMARY"
+          python -u bhoomi-lens/scripts/collect_macro.py --apply | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Detect changed observations
+        id: changes
+        run: |
+          git add bhoomi-lens/data/macro_cpi.js bhoomi-lens/data/macro_worldbank.js
+          if git diff --cached --quiet; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No changed observations: no commit or deployment.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.changed == 'true'
+        with:
+          node-version: '22'
+      - name: Test changed data
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: bhoomi-lens
+        run: |
+          npm ci
+          npm test
+      - name: Commit and publish only changed data
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'bhoomi-data'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Update checked economic context data'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run bhoomi-deploy.yml --ref main -R "$GITHUB_REPOSITORY"

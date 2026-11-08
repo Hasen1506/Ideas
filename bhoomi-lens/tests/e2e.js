@@ -156,6 +156,9 @@ const server = http.createServer(async (req, res) => {
     assert.match(await page.locator("#panelBody").innerText(), /not independent completed sales/i);
     assert.match(await page.locator("#panelBody").innerText(), /without HTTPS certificate verification/i);
     assert.match(await page.locator("#panelBody").innerText(), /8 of 10 news searches and 3 of 5 source pages succeeded/i);
+    assert.match(await page.locator("#panelBody").innerText(), /Consumer price index/i);
+    assert.match(await page.locator("#panelBody").innerText(), /Consumer inflation is not a land-price trend/i);
+    assert.match(await page.locator("#panelBody").innerText(), /Tamil Nadu.*2026-/i);
     await page.locator('#rail [data-tool="draw"]').click();
     await page.locator('[data-act="quick-area"]').first().click();
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });
