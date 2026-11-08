@@ -113,6 +113,14 @@ class RetryTests(unittest.TestCase):
         self.assertFalse(retry.is_transport_failure(urllib.error.HTTPError('https://example.com', 404, 'not found', None, None)))
         self.assertTrue(retry.is_transport_failure(urllib.error.HTTPError('https://example.com', 503, 'unavailable', None, None)))
 
+    def test_sample_seed_rejects_workflow_control_characters(self):
+        with patch.object(verify.collector, 'Store') as store, \
+             patch.object(sys, 'stderr', new_callable=io.StringIO), \
+             patch.object(sys, 'argv', ['tn_verify_sample.py', '--seed', 'bad\n::warning::fake']):
+            with self.assertRaises(SystemExit):
+                verify.main()
+        store.assert_not_called()
+
     def test_sample_backs_off_and_reports_the_number_attempted(self):
         samples = [(None, ('D', 'sro', '2002', str(i), 'Village'), {'items': 1}, []) for i in range(5)]
         with patch.object(verify.collector, 'Store', return_value=types.SimpleNamespace()), \
