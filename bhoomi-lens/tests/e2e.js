@@ -122,10 +122,12 @@ const server = http.createServer(async (req, res) => {
     assert.match(await page.locator("#panelBody").innerText(), /new delay recorded/i);
 
     await page.locator('[data-act="close-detail"]').click();
+    await page.evaluate(() => { window.BL_UPDATES.coverage = { news_ok: 8, news_attempted: 10, sources_ok: 3, sources_attempted: 5 }; });
     await page.locator('#rail [data-tool="data"]').click();
     assert.match(await page.locator("#panelBody").innerText(), /Market-related references/i);
     assert.match(await page.locator("#panelBody").innerText(), /not independent completed sales/i);
     assert.match(await page.locator("#panelBody").innerText(), /without HTTPS certificate verification/i);
+    assert.match(await page.locator("#panelBody").innerText(), /8 of 10 news searches and 3 of 5 source pages succeeded/i);
     await page.locator('#rail [data-tool="draw"]').click();
     await page.locator('[data-act="quick-area"]').first().click();
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });
