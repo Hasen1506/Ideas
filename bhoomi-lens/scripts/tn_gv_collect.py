@@ -21,7 +21,8 @@ Usage:
                           [--sync-minutes 25] [--no-git] [--seed-raw DIR --seed-state FILE]
 Output files (all under bhoomi-lens/data/tn_gv/):
   <District>.json   one per district (compact; see "row_format" inside)
-  progress.json     small per-district / per-revision status; "all_done": true when finished
+  progress.json     per-revision status; "all_done" requires every village to be collected,
+                    while "all_settled" also includes records parked after repeated failures
   _meta.json        zones, districts, SRO lists and SRO->district map
   _proxies.json     proxies that recently worked
 """
@@ -29,8 +30,6 @@ import os, re, sys, json, time, html, random, argparse, threading, subprocess
 import concurrent.futures as cf
 import urllib.parse as up
 import requests
-
-requests.packages.urllib3.disable_warnings()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -173,7 +172,7 @@ class Proxies:
     @staticmethod
     def test(p):
         try:
-            r = requests.get(PROBE, proxies={"https": p, "http": p}, timeout=12, verify=False)
+            r = requests.get(PROBE, proxies={"https": p, "http": p}, timeout=12, verify=True)
             return p, r.status_code == 200 and b"svg" in r.content[:800]
         except Exception:
             return p, False
@@ -226,7 +225,7 @@ EX = cf.ThreadPoolExecutor(300)
 
 
 def _one(p, url):
-    r = requests.get(url, proxies={"https": p, "http": p}, timeout=45, verify=False)
+    r = requests.get(url, proxies={"https": p, "http": p}, timeout=45, verify=True)
     if r.status_code >= 500:
         raise RuntimeError(r.status_code)
     return p, r
@@ -459,7 +458,7 @@ class Store:
     def progress(self):
         sro_map = self.meta.get("sro_district", {})
         dists = {}
-        tot = {r: {"sros": 0, "sros_done": 0, "villages": 0, "villages_done": 0, "villages_failed_attempts": 0, "rows": 0, "items_mismatch": 0} for r in REV_ORDER}
+        tot = {r: {"sros": 0, "sros_done": 0, "sros_settled": 0, "villages": 0, "villages_done": 0, "villages_parked": 0, "villages_failed_attempts": 0, "rows": 0, "items_mismatch": 0} for r in REV_ORDER}
         for sid, dist in sro_map.items():
             dd = dists.setdefault(dist, {"sros": 0, "revs": {}})
             dd["sros"] += 1
@@ -472,15 +471,18 @@ class Store:
                 rows = sum(len(e.get("rows", [])) for e in d.values())
                 mism = sum(1 for e in d.values() if "items" in e and e["items"] != len(e["rows"]))
                 fails = sum(1 for vid, _ in (v or []) if "err" in d.get(vid, {}))
-                parked = sum(1 for vid, _ in (v or []) if d.get(vid, {}).get("err", 0) >= PARK_ERR)
-                sdone = v is not None and done + parked == len(v)   # villages the site keeps failing on (>= PARK_ERR tries) count as settled
+                parked = sum(1 for vid, _ in (v or []) if "items" not in d.get(vid, {}) and d.get(vid, {}).get("err", 0) >= PARK_ERR)
+                sdone = v is not None and done == len(v)
+                settled = v is not None and done + parked == len(v)
                 x = dd["revs"].setdefault(rev, {"sros_done": 0, "villages": 0, "villages_done": 0, "rows": 0})
                 x["sros_done"] += int(sdone); x["villages"] += len(v or []); x["villages_done"] += done; x["rows"] += rows
                 t = tot[rev]
-                t["sros"] += 1; t["sros_done"] += int(sdone); t["villages"] += len(v or []); t["villages_done"] += done
+                t["sros"] += 1; t["sros_done"] += int(sdone); t["sros_settled"] += int(settled)
+                t["villages"] += len(v or []); t["villages_done"] += done; t["villages_parked"] += parked
                 t["rows"] += rows; t["items_mismatch"] += mism; t["villages_failed_attempts"] += fails
         for t in tot.values():
             t["complete"] = t["sros"] > 0 and t["sros_done"] == t["sros"]
+            t["settled"] = t["sros"] > 0 and t["sros_settled"] == t["sros"]
         discovered = bool(sro_map) and self.meta.get("discovery_complete", False)
         cur = next((r for r in REV_ORDER if not tot[r]["complete"]), None)
         compact = {}
@@ -492,7 +494,9 @@ class Store:
                 "scope": "street-wise guideline values, all SROs, revisions newest first", "revision_order": REV_ORDER,
                 "districts_discovered": len([k for k in dists if k != UNMAPPED]), "sros_discovered": len(sro_map),
                 "discovery_complete": discovered, "current_revision": cur,
-                "all_done": discovered and cur is None, "totals": tot, "districts": compact}
+                "all_done": discovered and cur is None,
+                "all_settled": discovered and all(t["settled"] for t in tot.values()),
+                "totals": tot, "districts": compact}
 
 
 PARK_ERR = int(os.environ.get("TN_GV_PARK_ERR", "6"))  # same default as --max-err
@@ -826,9 +830,13 @@ def main():
     os.makedirs(DATA, exist_ok=True)
     store = Store()
     prog = jload(os.path.join(DATA, "progress.json"), {})
-    if prog.get("all_done"):
-        log("all revisions done; nothing to do")
-        print("::notice::TN GV collection complete")
+    if prog.get("all_done") or (prog.get("all_settled") and args.max_err <= PARK_ERR):
+        if prog.get("all_done"):
+            log("all revisions collected; nothing to do")
+            print("::notice::TN GV collection complete")
+        else:
+            log("all revisions settled, with parked failures requiring review; increase --max-err to retry")
+            print("::notice::TN GV collection settled with unresolved records")
         return 0
     PX = Proxies(args.proxy_files)
     if len(PX.good) < 25:
