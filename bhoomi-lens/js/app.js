@@ -26,8 +26,8 @@
     growth: { label: "Growth", title: "Forecast growth per year", norm: (m) => (m.cagr - 0.035) / 0.09, val: (m) => pct(m.cagr) + " / yr", ll: ["3.5%", "8%", "12.5%+"] },
     opp: { label: "Opportunity", title: "Opportunity score", norm: (m) => m.opp / 100, val: (m) => m.opp + " / 100", ll: ["0", "50", "100"] },
     risk: { label: "Risk", title: "Composite risk", norm: (m) => (m.risk.total - 22) / 36, val: (m) => Math.round(m.risk.total) + " / 100", ll: ["Low", "Medium", "High"] },
-    liq: { label: "Liquidity", title: "Liquidity (ease of exit)", norm: (m) => m.liq / 100, val: (m) => Math.round(m.liq) + " / 100", ll: ["Illiquid", "", "Liquid"] },
-    gap: { label: "Circle gap", title: "Circle rate below market price (share of market)", norm: (m) => (m.gap - 0.3) / 0.3, val: (m) => "circle rate " + Math.round(m.gap * 100) + "% below market", ll: ["30%", "45%", "60%"] },
+    liq: { label: "Liquidity", title: "Modelled liquidity score", norm: (m) => m.liq / 100, val: (m) => Math.round(m.liq) + " / 100", ll: ["Lower score", "", "Higher score"] },
+    gap: { label: "Circle gap", title: "Modelled circle-rate gap", norm: (m) => (m.gap - 0.3) / 0.3, val: (m) => "modelled gap " + Math.round(m.gap * 100) + "%", ll: ["30%", "45%", "60%"] },
     impact: { label: "Sim impact", title: "Uplift from your simulated projects", norm: (m) => Math.pow(clamp(m.delta / 0.35), 0.6), val: (m) => pct(m.delta), ll: ["0%", "+8%", "+35%"] }
   };
   const TOOLS = [
@@ -39,6 +39,7 @@
     { id: "shortlist", label: "Infra-led shortlist", icon: '<path d="M4 6h16M4 12h10M4 18h6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M17 15l2 2 3-4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>' },
     { id: "alerts", label: "Spot alerts", icon: '<path d="M6 16V11a6 6 0 1112 0v5l1.5 2h-15z M10 20a2 2 0 004 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' },
     { id: "track", label: "Track record", icon: '<path d="M4 19h16M6 16l4-5 3 3 5-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { id: "data", label: "Data sources and freshness", icon: '<ellipse cx="12" cy="5" rx="7" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5 5v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5M5 12v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-7" fill="none" stroke="currentColor" stroke-width="1.7"/>' },
     "sep",
     { id: "watchlist", label: "Watchlist and signals", icon: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' },
     { id: "compare", label: "Compare districts", icon: '<path d="M4 6h7v13H4zM13 10h7v9h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
@@ -54,7 +55,7 @@
   };
   const S = {
     layer: "price", year: MY, horizon: 5, scenario: "base",
-    tool: null, sel: null, three: false, sat: false, heat: false, zones: false,
+    tool: null, sel: null, three: false, sat: false, recent: false, heat: false, zones: false,
     userCats: [], watch: store.get("bl_watch", []), compare: store.get("bl_compare", []),
     playing: false, draw: null, placing: null, area: null, catFilter: "all", catStage: "all",
     simType: "airport", simStage: 2, simCred: 0.65, hoverId: null, radiusKm: 10, loc: null, real: false, proj: false, tint: true, labels: false,
@@ -83,12 +84,9 @@
   let models = E.prepare(GEO.features, BL.CATALYSTS);
   E.calibrateDistricts(models, GEO.features, BL.CATALYSTS);
   (function realCircleRatio() {
-    const r = VERIFIED.filter((p) => p.price > 0 && p.govt_sqyd > 0).map((p) => p.govt_sqyd / p.txn_sqyd).filter((x) => x > 0.08 && x < 1.3).sort((a, b) => a - b);
-    if (!r.length) return;
-    const byS = {};
-    for (const p of VERIFIED) if (p.price > 0 && p.govt_sqyd > 0 && p.txn_sqyd) { const x = p.govt_sqyd / p.txn_sqyd; if (x > 0.08 && x < 1.3) (byS[p.state] = byS[p.state] || []).push(x); }
-    const med = r[r.length >> 1];
-    for (const m of models) if (m.calibrated) { const a = (byS[m.state] || []).sort((x, y) => x - y); m.st = Object.assign({}, m.st, { cg: a.length >= 3 ? a[a.length >> 1] : med }); }
+    const ratios = E.observedCircleRatios(VERIFIED);
+    if (ratios.overall == null) return;
+    for (const m of models) if (m.calibrated) m.st = Object.assign({}, m.st, { cg: ratios.states[m.state] ?? ratios.overall });
   })();
   for (const m of models) {
     const o = OVR[m.name + "|" + m.state];
@@ -182,7 +180,7 @@
     const firstSym = (sty.layers || []).find((l) => l.type === "symbol");
     BEFORE = firstSym ? firstSym.id : undefined;
     const add = (l) => map.addLayer(l, BEFORE);
-    map.addSource("sat", { type: "raster", tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg"], tileSize: 256, maxzoom: 15, attribution: "Sentinel-2 cloudless by EOX (Copernicus Sentinel data 2024)" });
+    map.addSource("sat", { type: "raster", tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg"], tileSize: 256, maxzoom: 14, attribution: 'Sentinel-2 cloudless 2025 © <a href="https://maps.eox.at/" target="_blank" rel="noopener">EOX</a>, contains modified Copernicus Sentinel data 2025' });
     add({ id: "sat", type: "raster", source: "sat", layout: { visibility: "none" }, paint: { "raster-opacity": 0.95 } });
     map.addSource("districts", { type: "geojson", data: GEO });
     map.addSource("grid", { type: "geojson", data: emptyFC() });
@@ -271,7 +269,7 @@
       btn.addEventListener("click", (e) => { e.stopPropagation(); const open = menu.classList.toggle("hidden") === false; btn.setAttribute("aria-expanded", open); if (open) paint(); });
       menu.addEventListener("click", (e) => e.stopPropagation());
       menu.addEventListener("change", (e) => { const k = e.target.dataset.ixToggle; if (k) { BL.Infra.setLayer(map, k, e.target.checked); paint(); } });
-      document.addEventListener("click", () => menu.classList.add("hidden"));
+      document.addEventListener("click", () => { menu.classList.add("hidden"); btn.setAttribute("aria-expanded", "false"); });
       document.addEventListener("click", (e) => { const l = e.target.closest && e.target.closest("[data-ix]"); if (l) { e.preventDefault(); BL.Infra.setLayer(map, l.dataset.ix, true); paint(); toast(BL.Infra.LAYERS[l.dataset.ix].desc); } });
       BL.Infra.onStatus = (t) => { const st = menu.querySelector(".ix-status"); if (st) st.textContent = t; toast(t); };
       BL.Infra.onPick = (html, ll) => { if (ll) new maplibregl.Popup({ maxWidth: "320px" }).setLngLat(ll).setHTML(html).addTo(map); };
@@ -280,11 +278,12 @@
     paint();
     buildMarkers();
     bindMapEvents();
-    map.on("moveend", scheduleGrid);
+    map.on("moveend", () => { scheduleGrid(); scheduleRecent(); });
+    map.on("error", (e) => { if (S.recent && e.sourceId === "sat-recent") imageryStatus("Recent image tiles could not load. The 2025 mosaic remains underneath; try again later."); });
     readHash();
     loader.classList.add("done");
     setTimeout(() => loader.remove(), 600);
-    if (!store.get("bl_intro", false)) $("#intro").classList.remove("hidden");
+    if (!store.get("bl_intro", false) && !S.loc && S.sel == null) $("#intro").classList.remove("hidden");
   });
 
   /* ---------------- Fine price surface (zoom >= 7.2) ---------------- */
@@ -321,6 +320,7 @@
       const lon = x0 + (c + 0.5) * step, lat = y0 + (r + 0.5) * step;
       if (!insideIndia(lon, lat, cand)) continue;
       const pm = E.pointModel(lat, lon, cats, models, opts());
+      if (!pm) continue;
       const v = clamp(L.norm({ price: S.year === MY ? pm.basePrice : E.priceAt(pm, S.year, S.scenario), cagr: pm.cagr }));
       const h = step / 2;
       fs.push({ type: "Feature", properties: { v }, geometry: { type: "Polygon", coordinates: [[[lon - h, lat - h], [lon + h, lat - h], [lon + h, lat + h], [lon - h, lat + h], [lon - h, lat - h]]] } });
@@ -408,7 +408,7 @@
     return `<div style="min-width:240px;max-width:290px">
       <div class="row"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><b>${esc(c.n)}</b><div class="small muted">${esc(T.label)} | ${esc(c.ag || "")}</div></div></div>
       <div class="row sb" style="margin:10px 0 6px">${c.cancelled ? '<span class="tag down">Cancelled / dropped</span>' : C.stage(c.stage) + `<span class="small muted">${esc(BL.STAGES[c.stage])}</span>`}</div>
-      ${c.path ? '<div class="small muted" style="margin:4px 0">Line drawn from published alignment maps: approximate, not the surveyed route. Turn on Infra layers > Expressway routes (live) for mapped geometry.</div>' : ""}${c.cancelled ? "" : `<div class="row sb small"><span class="muted">Completion probability</span><b>${Math.round(p * 100)}%</b></div>`}
+      ${c.path ? '<div class="small muted" style="margin:4px 0">Line drawn from published alignment maps: approximate, not the surveyed route. Turn on Infra layers > Expressway routes (live) for mapped geometry.</div>' : ""}${c.cancelled ? "" : `<div class="row sb small"><span class="muted">Assumed completion probability</span><b>${Math.round(p * 100)}%</b></div><div class="small muted">Heuristic model input; not a validated probability.</div>`}
       ${c.cancelled ? "" : `<div class="row sb small"><span class="muted">${c.stage >= 4 ? "Opened" : "Expected"} (${esc(BL.SCENARIOS[S.scenario].label)})</span><b>${eta}</b></div>`}
       <div class="row sb small"><span class="muted">Agency credibility</span><b>${Math.round(c.cred * 100)} / 100</b></div>
       ${c.cancelled ? '<div class="small down" style="margin-top:6px"><b>Cancelled / dropped.</b> Any price premium should unwind.</div>' : ""}
@@ -462,7 +462,7 @@
       <div class="d-body">${catPopupHTML(c)}
       ${(() => { const U = ((window.BL_UPDATES || {}).items || []).filter((u) => u.pid === c.id).slice(0, 6); return U.length ? `<h3>Latest leads from the weekly re-check</h3><div class="card small" style="padding:6px 12px">${U.map((u) => `<div style="padding:3px 0"><span class="muted">${esc(u.date || u.found)}</span> <a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a> ${(u.tags || []).map((t) => `<span class="tag" style="padding:0 5px">${esc(t)}</span>`).join("")}</div>`).join("")}<div class="muted" style="margin-top:4px">Automatic news matches, not yet confirmed. Project status only changes after a source is checked. Last run ${esc((window.BL_UPDATES || {}).gen || "")}.</div></div>` : ""; })()}
       <h3>Districts it moves most (next ${S.horizon} yrs)</h3>${hit.length ? hit.map((h, i) => listItem(h.m, i, `<span class="pill ${h.up < 0 ? "r" : ""}">${pct(h.up)}</span>`)).join("") : '<div class="empty">Effect too small at district level. Zoom in on the corridor.</div>'}
-      ${pts.length ? `<h3>Verified prices inside its reach</h3>${pts.map((x) => `<div class="list-item" data-act="verified" data-i="${x.i}"><div class="grow"><b>${esc(x.p.loc)}</b> <span class="small muted">${x.d.toFixed(1)} km</span></div><span class="pill s">${x.p.txn_sqyd ? fmtINR(x.p.txn_sqyd / 9) + "/sq ft" : "govt " + fmtINR((x.p.govt_sqyd || x.p.govt_sqyd_agri) / 9)}</span></div>`).join("")}` : ""}
+      ${pts.length ? `<h3>Reference data inside its reach</h3>${pts.map((x) => `<div class="list-item" data-act="verified" data-i="${x.i}"><div class="grow"><b>${esc(x.p.loc)}</b> <span class="small muted">${x.d.toFixed(1)} km | ${esc(TYPE_LABEL[x.p.type] || x.p.type || "official rate")}</span></div><span class="pill s">${x.p.txn_sqyd ? fmtINR(x.p.txn_sqyd / 9) + "/sq ft" : "govt " + fmtINR((x.p.govt_sqyd || x.p.govt_sqyd_agri) / 9)}</span></div>`).join("")}` : ""}
       <p class="small muted" style="margin-top:10px">The highlighted band on the map is the project's modelled reach (about ${Math.round(T.r * 1.5)} km).</p></div>`;
     $("#detail").scrollTop = 0;
   }
@@ -582,6 +582,13 @@
     renderDraw(ring.slice(0, -1), "poly");
     const t0 = performance.now();
     S.area = E.analyseArea(ring, allCats(), models, opts());
+    if (!S.area) {
+      map.getSource("draw").setData(emptyFC());
+      map.getSource("cells").setData(emptyFC());
+      toast("No mapped district land in this area. Select an area within India.");
+      openTool("draw", true);
+      return;
+    }
     S.area.ring = ring;
     S.area.ms = Math.round(performance.now() - t0);
     map.getSource("cells").setData({ type: "FeatureCollection", features: S.area.cells.map((c) => ({ type: "Feature", properties: { g: c.cagr, p: c.price }, geometry: { type: "Point", coordinates: [c.lon, c.lat] } })) });
@@ -671,7 +678,7 @@
     if (!LAYERS[k] || (k === "impact" && !S.userCats.length)) return;
     S.layer = k; renderLayerSeg(); paint();
     // Say what the colours now mean, so a lens switch is never "just new colours".
-    const EXPL = { price: "Colours = estimated market price today. Darker/warmer = costlier land.", growth: "Colours = forecast yearly price growth for the chosen scenario and horizon. Brighter = faster growth.", opp: "Colours = opportunity score (growth vs price vs risk). Brighter = better value for growth.", risk: "Colours = risk score (delay-prone projects, thin evidence, price swings). Brighter = riskier.", liq: "Colours = ease of resale (deal volume and evidence). Brighter = easier to exit.", gap: "Colours = how far the circle rate sits below market. Wider gap = higher chance of a rate revision." };
+    const EXPL = { price: "Colours = modelled price estimates, not plot valuations.", growth: "Colours = modelled yearly growth for the chosen scenario and horizon.", opp: "Colours = a relative model score, not an investment recommendation.", risk: "Colours = heuristic district risk indicators, not site-specific assessments.", liq: "Colours = a model score based on assumptions, not measured deal volume or guaranteed resale.", gap: "Colours = a modelled difference between estimated circle and market rates, not an actual plot's official rate." };
     if (EXPL[k] && S.tint) toast(EXPL[k] + " Click any district for its numbers.");
     if (EXPL[k] && !S.tint) toast("Colours are off (Satellite or the Colours chip). Turn Colours on to see this lens.");
   }
@@ -716,7 +723,7 @@
 
   $("#scenario").addEventListener("change", (e) => { S.scenario = e.target.value; recompute(); setYear(S.year); if (S.heat) map.getSource("heat").setData(heatFC()); paint(); if (S.area) reanalyse(); });
   $("#horizon").addEventListener("change", (e) => { S.horizon = +e.target.value; recompute(); paint(); if (S.area) reanalyse(); });
-  function reanalyse() { const ring = S.area.ring; S.area = E.analyseArea(ring, allCats(), models, opts()); S.area.ring = ring; refreshPanel(); }
+  function reanalyse() { const ring = S.area.ring; const area = E.analyseArea(ring, allCats(), models, opts()); if (area) { S.area = area; S.area.ring = ring; } refreshPanel(); }
 
   $("#btn3d").addEventListener("click", (e) => {
     S.three = !S.three; e.currentTarget.classList.toggle("on", S.three);
@@ -724,13 +731,61 @@
     map.setLayoutProperty("d-fill", "visibility", S.three ? "none" : "visible");
     map.easeTo({ pitch: S.three ? 52 : 0, bearing: S.three ? -12 : 0, duration: 1000 });
   });
+  let recentTimer = null, recentAbort = null, recentScene = null, recentVersion = 0;
+  function imageryStatus(message, scene) {
+    const el = $("#imageryStatus");
+    el.textContent = message; el.classList.toggle("hidden", !message);
+    if (scene && scene.id) { const a = document.createElement("a"); a.href = "https://planetarycomputer.microsoft.com/api/stac/v1/collections/sentinel-2-l2a/items/" + encodeURIComponent(scene.id); a.target = "_blank"; a.rel = "noopener"; a.textContent = " Scene details"; el.appendChild(a); }
+  }
+  function removeRecent() {
+    clearTimeout(recentTimer); recentTimer = null; recentVersion++;
+    if (recentAbort) recentAbort.abort(); recentAbort = null; recentScene = null;
+    if (map.getLayer("sat-recent")) map.removeLayer("sat-recent");
+    if (map.getSource("sat-recent")) map.removeSource("sat-recent");
+  }
+  function mosaicStatus() { imageryStatus(S.sat ? "Sentinel-2 cloudless mosaic: 2025, 10 m. The time slider changes the model, not the imagery." : ""); }
+  function scheduleRecent() {
+    if (!S.recent || !S.sat || !mapReady) return;
+    if (map.getZoom() < 8) { removeRecent(); imageryStatus("Zoom in to load a recent scene at the map center. The 2025 mosaic is shown meanwhile."); return; }
+    const center = map.getCenter();
+    if (BL.Imagery.contains(recentScene, center.lng, center.lat, E.pointInPoly)) return;
+    removeRecent();
+    imageryStatus("Finding a recent Sentinel-2 scene at the map center…");
+    const version = recentVersion;
+    recentTimer = setTimeout(async () => {
+      const controller = new AbortController(); recentAbort = controller;
+      const timeout = setTimeout(() => controller.abort(), 20000);
+      try {
+        const scene = await BL.Imagery.recentScene(center.lng, center.lat, { signal: controller.signal });
+        if (version !== recentVersion || !S.recent || !S.sat) return;
+        const current = map.getCenter();
+        if (!BL.Imagery.contains(scene, current.lng, current.lat, E.pointInPoly)) { scheduleRecent(); return; }
+        map.addSource("sat-recent", { type: "raster", tiles: scene.tiles, bounds: scene.bounds, tileSize: 256, maxzoom: scene.maxzoom, attribution: 'Contains modified Copernicus Sentinel data, served by <a href="https://planetarycomputer.microsoft.com/" target="_blank" rel="noopener">Microsoft Planetary Computer</a>' });
+        map.addLayer({ id: "sat-recent", type: "raster", source: "sat-recent" }, "d-fill");
+        recentScene = scene;
+        const date = new Date(scene.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+        imageryStatus(`Recent scene at map center: ${date}${scene.cloud == null ? "" : ` · ${scene.cloud.toFixed(1)}% scene-wide cloud`} · 10 m. Clouds may remain; 2025 mosaic outside the scene. The time slider changes the model only.`, scene);
+      } catch (error) {
+        if (version !== recentVersion || !S.recent || !S.sat) return;
+        const message = error.name === "AbortError" ? "Image search timed out" : error.message;
+        imageryStatus(`${message}. Showing the 2025 mosaic; move the map or try again.`);
+      } finally { clearTimeout(timeout); if (recentAbort === controller) recentAbort = null; }
+    }, 350);
+  }
   $("#btnSat").addEventListener("click", (e) => {
     S.sat = !S.sat; e.currentTarget.classList.toggle("on", S.sat);
+    e.currentTarget.setAttribute("aria-pressed", String(S.sat));
     map.setLayoutProperty("sat", "visibility", S.sat ? "visible" : "none");
     // Satellite is for seeing the ground: hide the colour overlay while it is on, restore it after.
-    if (S.sat) { S.tintBeforeSat = S.tint; if (S.tint) $("#btnTint").click(); toast("Satellite on: colour overlay hidden so you see the ground. Turn Colours back on to overlay the analysis."); }
-    else if (S.tintBeforeSat && !S.tint) $("#btnTint").click();
+    if (S.sat) { S.tintBeforeSat = S.tint; if (S.tint) $("#btnTint").click(); mosaicStatus(); toast("2025 satellite mosaic on. Turn Colours back on to overlay the analysis."); }
+    else { if (S.recent) { S.recent = false; $("#btnRecent").classList.remove("on"); $("#btnRecent").setAttribute("aria-pressed", "false"); removeRecent(); } mosaicStatus(); if (S.tintBeforeSat && !S.tint) $("#btnTint").click(); }
     paint();
+  });
+  $("#btnRecent").addEventListener("click", (e) => {
+    if (!S.sat) $("#btnSat").click();
+    S.recent = !S.recent; e.currentTarget.classList.toggle("on", S.recent);
+    e.currentTarget.setAttribute("aria-pressed", String(S.recent));
+    if (S.recent) scheduleRecent(); else { removeRecent(); mosaicStatus(); }
   });
   $("#btnProj").addEventListener("click", (e) => {
     S.proj = !S.proj; e.currentTarget.classList.toggle("on", S.proj);
@@ -756,12 +811,12 @@
     S.real = !S.real; e.currentTarget.classList.toggle("on", S.real);
     ["verified", "verified-cl", "verified-cl-n"].forEach((l) => { if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", S.real ? "visible" : "none"); });
     renderOverlayLegend();
-    if (S.real) toast(`${VERIFIED.length} verified points across India (auctions, allotments, deals, listings, official rates). Click one for sources.`);
+    if (S.real) toast(`${VERIFIED.length} reference points: listings, reported deals, official rates and guideline-derived estimates. Click one for its source and type.`);
   });
   $("#btnFarm").addEventListener("click", (e) => {
     S.farm = !S.farm; e.currentTarget.classList.toggle("on", S.farm);
     map.setLayoutProperty("farm", "visibility", S.farm ? "visible" : "none");
-    if (S.farm) toast("Farm land Rs lakh/acre by Tamil Nadu village: official farm rate x fitted district multiple. White ring = high confidence, grey = medium, dark = low (state median). Click a dot for the method.");
+    if (S.farm) toast("Farm estimates use official rates and fitted multiples. Ring colours indicate source agreement, not measured accuracy. Click a dot for the method.");
   });
   $("#projType").addEventListener("change", (e) => {
     S.catFilter = e.target.value; if (!S.proj) $("#btnProj").click();
@@ -838,6 +893,7 @@
   /* ---------------- Location (plot-level) card ---------------- */
   let pinMk = null;
   function openLocation(lon, lat) {
+    if (!E.districtAt(lat, lon, models)) { toast("This location is outside the mapped districts."); return; }
     S.sel = null; S.loc = { lon, lat };
     map.setFilter("d-sel", ["==", ["get", "id"], -1]); map.setFilter("d-sel-glow", ["==", ["get", "id"], -1]);
     if (pinMk) pinMk.remove();
@@ -845,83 +901,80 @@
     pinMk = new maplibregl.Marker({ element: wrap, anchor: "bottom" }).setLngLat([lon, lat]).addTo(map);
     document.body.classList.add("detail-open");
     $("#detail").classList.remove("hidden");
-    renderLocation(); $("#detail").scrollTop = 0;
+    renderLocation(); $("#detail").scrollTop = 0; writeHash();
   }
   function nearVerified(lat, lon, maxKm) {
     return (window.BL_VERIFIED || []).map((p, i) => ({ p, i, d: E.hav(lat, lon, p.lat, p.lon) })).filter((x) => x.d <= maxKm).sort((a, b) => a.d - b.d);
   }
-  const TYPE_LABEL = { govt_auction: "Govt auction (actual sale)", registered: "Registered sale", reported_deal: "Reported deal", listing: "Listing (asking, -10%)", govt_allotment: "Govt allotment (actual)", derived_gv: "Derived from govt guideline value" };
+  const TYPE_LABEL = { govt_auction: "Govt auction", registered: "Reported registered sale", reported_deal: "Reported price or deal", listing: "Listing or quoted price", consensus: "Cross-checked listings (asking, -10%)", unverified: "Unverified asking price", govt_allotment: "Govt allotment", bank_auction: "Bank auction reference", compensation: "Acquisition compensation", official: "Official rate", derived_gv: "Derived from govt guideline value" };
   function renderLocation() {
     const { lon, lat } = S.loc;
     const pm = E.pointModel(lat, lon, allCats(), models, opts());
     pm.priceNow = pm.basePrice;
     const ser = E.series(pm, S.scenario), con = E.contributions(pm, S.horizon, S.scenario);
     con.parts.forEach((p) => (p.color = p.c ? BL.TYPES[p.c.t].color : "#8fa3c7"));
-    const ev = E.calibrationEvidence(lat, lon), cf = E.calibFactor(lat, lon);
-    const near = nearVerified(lat, lon, 12).slice(0, 8);
-    const gov = nearVerified(lat, lon, 8).find((x) => x.p.govt_sqyd);
-    const dm = models.find((m) => m.name === pm.district);
+    const cf = E.calibFactor(lat, lon);
+    const nearAll = nearVerified(lat, lon, 12), near = nearAll.slice(0, 8);
+    const evidence = BL.Insights.evidenceSummary(nearAll);
+    const gov = nearAll.find((x) => x.d <= 8 && x.p.govt_sqyd);
+    const dm = models.find((m) => m.name === pm.district && m.state === pm.state);
     const projs = allCats().map((c) => ({ c, d: E.distToCatalyst(c, lat, lon) })).filter((x) => x.d < 60).sort((a, b) => a.d - b.d).slice(0, 8);
-    const conf = ev > 1.2 ? ["High", "up"] : ev > 0.35 ? ["Medium", "warn"] : ["Model only", "muted"];
     $("#detailBody").innerHTML = `
       <div class="d-hero">
-        <div class="kicker">Plot-level read | ${esc(pm.district || "")}${pm.state ? ", " + esc(pm.state) : ""}</div>
+        <div class="kicker">Location estimate | ${esc(pm.district || "")}${pm.state ? ", " + esc(pm.state) : ""}</div>
         <h1 style="font-size:20px">${near.length && near[0].d < 6 ? "Near " + esc(near[0].p.loc) : esc(pm.district || "Selected spot")}</h1>
         <div class="small muted">${lat.toFixed(4)}, ${lon.toFixed(4)}${near.length && near[0].d < 6 ? ` | ${near[0].d.toFixed(1)} km from ${esc(near[0].p.loc)}` : ""}</div>
         <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">
           <span class="tag">${pm.nearest ? Math.round(pm.nearestD) + " km from " + esc(pm.nearest.n) : ""}</span>
-          <span class="tag ${conf[1]}">Confidence: ${conf[0]}</span>
-          ${Math.abs(cf - 1) > 0.05 ? `<span class="tag" style="border-color:#ffd166;color:#ffd166">Real-data adjusted ${pct(cf - 1, 0)}</span>` : ""}
+          ${Math.abs(cf - 1) > 0.05 ? `<span class="tag" style="border-color:#ffd166;color:#ffd166">Adjusted using reference data ${pct(cf - 1, 0)}</span>` : ""}
         </div>
         <div class="acts"><button class="icon-btn" data-act="close-detail" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
       </div>
       <div class="d-body">
         ${(() => { // Buyer summary first: the 4 things a buyer needs, everything else below or collapsed.
-          const fr = BL.Insights && BL.Insights.fairRange ? BL.Insights.fairRange({ pm, lat, lon, nearAll: nearVerified(lat, lon, 12), conf: conf[0] }) : null;
-          const n5 = nearVerified(lat, lon, 5).filter((x) => x.p.price > 0).length;
           const ex = BL.Infra ? BL.Infra.nearestExit(lat, lon) : null, ap = BL.Infra ? BL.Infra.nearestAirport(lat, lon) : null, aq = BL.Infra ? BL.Infra.nearAcq(lat, lon, 3) : [];
           const warn = [];
           if (aq.length) warn.push(`Land-acquisition notice: ${esc(aq[0].a.v)} village (${aq[0].d.toFixed(1)} km)`);
           if (ap && ap.d <= 20) warn.push(`Within 20 km of ${esc(ap.n)}: height clearance may apply`);
-          if (!n5) warn.push("No verified price within 5 km: estimate is model-led");
-          if (pm.risk != null && pm.risk > 0.6) warn.push("High district risk score");
+          if (!evidence.market) warn.push("No market reference within 5 km: estimate is model-led");
+          if (dm && dm.risk && dm.risk.total >= 55) warn.push("Elevated modelled district risk score");
           return `<div class="card buyer-sum" style="margin-top:4px">
             <div class="small muted">Buyer summary</div>
-            <div class="row sb" style="margin-top:4px"><span>Fair range</span><b>${fr ? fmtINR(fr.lo) + "-" + fmtINR(fr.hi) : fmtINR(pm.basePrice)} <span class="small muted">/sq ft</span></b></div>
-            <div class="row sb small"><span class="muted">Evidence</span><span>${n5} verified price${n5 === 1 ? "" : "s"} within 5 km | ${esc(conf[0])}</span></div>
+            <div class="row sb" style="margin-top:4px"><span>Model estimate</span><b>${fmtINR(pm.basePrice)} <span class="small muted">/sq ft</span></b></div>
+            <div class="row sb small"><span class="muted">Within 5 km</span><span>${evidence.market} market references | ${evidence.proxies} guideline proxies${evidence.other ? ` | ${evidence.other} other` : ""}</span></div>
             <div class="row sb small"><span class="muted">Road access</span><span>${ex ? ex.d.toFixed(1) + " km to " + esc(ex.n || "an expressway exit") : "No expressway exit nearby"}</span></div>
             <div class="small" style="margin-top:6px">${warn.length ? warn.slice(0, 3).map((w) => `<div class="warn">! ${w}</div>`).join("") : '<div class="up">No flags from the public checks below (not legal clearance)</div>'}</div>
-            <div class="small muted" style="margin-top:6px">Test an asking price in Fair Price Check below. Model detail is collapsed further down.</div></div>`; })()}
+            <div class="small muted" style="margin-top:6px">This is not a plot valuation. Compare an asking price below; no validated plot-level error range is available.</div></div>`; })()}
         <h3>Value at this spot</h3>
         <div class="kpis">
           <div class="kpi"><div class="k">Est. land price</div><div class="v">${fmtINR(pm.basePrice)}<span class="small muted"> /sq ft</span></div><div class="s">${fmtINR(pm.basePrice * 9)} /sq yd | ${fmtINR(pm.basePrice * E.SQFT_PER_ACRE)} /acre</div></div>
           <div class="kpi"><div class="k">${S.horizon}-yr outlook</div><div class="v up">${pm.mult.toFixed(2)}x</div><div class="s">${pct(pm.cagr)} per year, ${esc(BL.SCENARIOS[S.scenario].label.toLowerCase())}</div></div>
-          ${gov ? `<div class="kpi wide"><div class="k">Official govt market value nearby (${esc(gov.p.loc)}, ${gov.d.toFixed(1)} km)</div><div class="v">${fmtINR(gov.p.govt_sqyd)}<span class="small muted"> /sq yd</span></div><div class="s">${esc(gov.p.govt_date || "")} | <a href="${esc(gov.p.govt_src)}" target="_blank" rel="noopener">source</a> | market is ${Math.round((pm.basePrice / (gov.p.govt_sqyd / 9) - 1) * 100)}% above it</div></div>` : ""}
+          ${gov ? `<div class="kpi wide"><div class="k">Official guideline rate nearby (${esc(gov.p.loc)}, ${gov.d.toFixed(1)} km)</div><div class="v">${fmtINR(gov.p.govt_sqyd)}<span class="small muted"> /sq yd</span></div><div class="s">${esc(gov.p.govt_date || "")} | <a href="${esc(gov.p.govt_src)}" target="_blank" rel="noopener">source</a> | model estimate vs rate: ${Math.round((pm.basePrice / (gov.p.govt_sqyd / 9) - 1) * 100)}%. Rate may not apply to this plot.</div></div>` : ""}
         </div>
         ${(() => { const v = nearVerified(lat, lon, 5).find((x) => x.p.village && E.landTypeFor(x.p.path, x.p.district)); return v ? `<h3>By land type (Tamil Nadu, nearest guideline village ${esc(v.p.loc)}, ${v.d.toFixed(1)} km)</h3><div class="card">${landTypeHTML(E.landTypeFor(v.p.path, v.p.district))}</div>` : ""; })()}
-        ${BL.Insights ? BL.Insights.block({ pm, lat, lon, nearAll: nearVerified(lat, lon, 12), gov, conf: conf[0], place: near.length && near[0].d < 6 ? "Near " + near[0].p.loc : (pm.district || "Selected spot"), ser, con, horizon: S.horizon, scenario: S.scenario }) : ""}
+        ${BL.Insights ? BL.Insights.block({ pm, lat, lon, nearAll, gov, place: near.length && near[0].d < 6 ? "Near " + near[0].p.loc : (pm.district || "Selected spot"), ser, con, horizon: S.horizon, scenario: S.scenario }) : ""}
         <details class="more"><summary>Model detail: how the price was built, price path and drivers</summary>
         <h3>How this price was arrived at</h3>
         <div class="card small" style="line-height:1.6">${(() => {
           const cc = E.calibContrib(lat, lon);
           const raw = pm.modelPrice;
           return `<div class="row sb"><span class="muted">1. Base model (state farmland baseline + pull of ${esc(pm.nearest ? pm.nearest.n : "nearest city")})</span><b>${fmtINR(raw)}</b></div>
-            <div class="row sb"><span class="muted">2. Real-data adjustment from verified prices nearby</span><b class="${cc.factor < 1 ? "down" : "up"}">x${cc.factor.toFixed(2)}</b></div>
+            <div class="row sb"><span class="muted">2. Adjustment from nearby reference data</span><b class="${cc.factor < 1 ? "down" : "up"}">x${cc.factor.toFixed(2)}</b></div>
             <div class="row sb" style="border-top:1px solid var(--line);margin-top:4px;padding-top:4px"><span>Estimate today</span><b>${fmtINR(pm.basePrice)}</b></div>
-            ${cc.top.length ? `<div class="muted" style="margin-top:6px">Weight of evidence: ${cc.top.map((t) => `${esc(t.loc)} ${Math.round(t.share * 100)}% (${t.d.toFixed(1)} km, real ${fmtINR(t.real)})`).join("; ")}; model prior ${Math.round(cc.priorShare * 100)}%.</div>` : '<div class="muted" style="margin-top:6px">No verified price within ~50 km, so this is model-only.</div>'}
+            ${cc.top.length ? `<div class="muted" style="margin-top:6px">Weight of model inputs: ${cc.top.map((t) => `${esc(t.loc)} ${Math.round(t.share * 100)}% (${t.d.toFixed(1)} km, input ${fmtINR(t.real)})`).join("; ")}; model prior ${Math.round(cc.priorShare * 100)}%. Inputs can include guideline-derived proxies.</div>` : '<div class="muted" style="margin-top:6px">No priced reference input nearby, so this is model-only.</div>'}
             <div class="muted" style="margin-top:4px">3. Forecast = today's estimate grown by the state drift and each project's priced-in share x completion odds (see drivers below).</div>`;
         })()}</div>
         <h3>Analyse around this point</h3>
         <div class="btn-row">${[2, 5, 10, 15, 25, 50].map((r) => `<button class="btn sm" data-act="loc-radius" data-r="${r}" data-lon="${lon}" data-lat="${lat}">${r} km</button>`).join("")}</div>
-        ${near.length ? `<h3>Real prices nearby (${near.length})</h3><div class="card" style="padding:4px 12px">${near.map((x) => `<div class="cat-row" data-act="verified" data-i="${x.i}"><span class="cat-ico" style="background:${x.p.type === "govt_auction" ? "#ffd166" : x.p.price ? "#c9d3e6" : "#b98cff"}">${x.p.price ? "Rs" : "G"}</span><div class="grow"><div class="cn">${esc(x.p.loc)}</div><div class="small muted">${x.p.price ? fmtINR(x.p.txn_sqyd) + "/sq yd | " + esc(TYPE_LABEL[x.p.type] || x.p.type) + " | " + esc(x.p.date || "") : "Govt rate " + fmtINR(x.p.govt_sqyd || x.p.govt_sqyd_agri) + "/sq yd"} | ${x.d.toFixed(1)} km</div></div></div>`).join("")}</div>` : ""}
-        <h3>Price path</h3><div class="card">${C.fan(ser, { cursor: S.year !== MY ? S.year : null })}</div>
-        <h3>What drives the next ${S.horizon} years</h3><div class="card">${C.bars(con.parts)}</div>
+        ${near.length ? `<h3>Nearby reference points (${near.length})</h3><div class="card" style="padding:4px 12px">${near.map((x) => `<div class="cat-row" data-act="verified" data-i="${x.i}"><span class="cat-ico" style="background:${x.p.type === "govt_auction" ? "#ffd166" : x.p.price ? "#c9d3e6" : "#b98cff"}">${x.p.price ? "Rs" : "G"}</span><div class="grow"><div class="cn">${esc(x.p.loc)}</div><div class="small muted">${x.p.price ? fmtINR(x.p.txn_sqyd) + "/sq yd | " + esc(TYPE_LABEL[x.p.type] || x.p.type) + " | " + esc(x.p.date || "") : x.p.govt_sqyd || x.p.govt_sqyd_agri ? "Official rate " + fmtINR(x.p.govt_sqyd || x.p.govt_sqyd_agri) + "/sq yd" : x.p.txn_sqyd ? "Unverified asking price " + fmtINR(x.p.txn_sqyd) + "/sq yd (not used in model)" : "No price recorded"} | ${x.d.toFixed(1)} km</div></div></div>`).join("")}</div>` : ""}
+        <h3>Illustrative price path</h3><div class="card">${C.fan(ser, { cursor: S.year !== MY ? S.year : null })}<div class="small muted">The forecast band is an unvalidated model assumption, not an 80% prediction interval.</div></div>
+        <h3>Model components for the next ${S.horizon} years</h3><div class="card">${C.bars(con.parts)}<div class="small muted">The model's combined change is allocated across its inputs; this does not establish what caused a real price change.</div></div>
         </details>
         ${BL.Infra ? BL.Infra.checks(lat, lon) : ""}
         <h3>Projects within 60 km</h3>
         <div class="card" style="padding:4px 12px">${projs.length ? projs.map((x) => catRow(x.c, `${x.d.toFixed(1)} km away`)).join("") : '<div class="empty">No tracked project within 60 km.</div>'}</div>
         ${dm ? `<div class="btn-row" style="margin-top:12px"><button class="btn sm" data-act="open-d" data-id="${dm.id}">Open ${esc(dm.name)} district card</button></div>` : ""}
-        <p class="small muted" style="margin-top:12px">Confidence reflects how much verified price evidence sits within about 10 km. "Model only" means no real transactions nearby yet.</p>
+        <p class="small muted" style="margin-top:12px">District boundaries are simplified. Check the location, land type and original sources before using an estimate.</p>
       </div>`;
   }
   function landTypeHTML(lt) {
@@ -944,14 +997,14 @@
     const p = (window.BL_VERIFIED || [])[i]; if (!p) return;
     if (popup) popup.remove();
     popup = new maplibregl.Popup({ offset: 10, maxWidth: "320px" }).setLngLat([p.lon, p.lat]).setHTML(`<div style="min-width:230px">
-      <b>${esc(p.loc)}</b><div class="small muted">${esc(p.district)}${p.taluk ? ", " + esc(p.taluk) : ""}, ${esc(p.state || "")} | verified data point</div>
+      <b>${esc(p.loc)}</b><div class="small muted">${esc(p.district)}${p.taluk ? ", " + esc(p.taluk) : ""}, ${esc(p.state || "")} | reference data point</div>
       ${(() => { const lt = S.farm && p.village ? E.landTypeFor(p.path, p.district) : null; const f = lt && lt.farm; if (!f) return ""; const cc = f.conf === "High" ? "#5bd18b" : f.conf === "Medium" ? "#ffd166" : "#ff8a5c";
-        return `<div class="card" style="margin:8px 0;padding:8px 10px"><div class="small muted">Farm land value</div><div style="font-size:20px;font-weight:700">${fmtINR(f.value)}<span class="small muted"> /acre</span></div><div class="small">Confidence <b style="color:${cc}">${esc(f.conf)}</b>${f.method ? ` | ${esc(f.method)}` : ""}</div><div class="small muted" style="margin-top:4px">Residential plot figures below are for comparison only.</div></div>`; })()}
+        return `<div class="card" style="margin:8px 0;padding:8px 10px"><div class="small muted">Farm land estimate</div><div style="font-size:20px;font-weight:700">${fmtINR(f.value)}<span class="small muted"> /acre</span></div><div class="small">Source agreement <b style="color:${cc}">${esc(f.conf)}</b>${f.method ? ` | ${esc(f.method)}` : ""}</div><div class="small muted" style="margin-top:4px">Source agreement is not measured valuation accuracy. Residential plot figures below are for comparison only.</div></div>`; })()}
       ${p.price ? `<div class="row sb small" style="margin-top:8px"><span class="muted">${esc(TYPE_LABEL[p.type] || p.type)}</span><b>${fmtINR(p.txn_sqyd)}/sq yd</b></div><div class="small muted">${esc(p.date || "")} | ${fmtINR(p.price)}/sq ft used in model</div>${p.note ? `<p class="small" style="margin:6px 0 0;line-height:1.45">${esc(p.note)}</p>` : ""}<div class="small"><a href="${esc(p.src)}" target="_blank" rel="noopener">Price source</a></div>` : ""}
-      ${p.govt_sqyd || p.govt_sqyd_agri ? `<div class="row sb small" style="margin-top:8px"><span class="muted">Official market value${p.govt_sqyd ? "" : " (agri)"}</span><b>${fmtINR(p.govt_sqyd || p.govt_sqyd_agri)}/sq yd</b></div><div class="small"><span class="muted">${esc(p.govt_date || "")}</span> | <a href="${esc(p.govt_src)}" target="_blank" rel="noopener">Rate source</a></div>` : ""}
+      ${p.govt_sqyd || p.govt_sqyd_agri ? `<div class="row sb small" style="margin-top:8px"><span class="muted">Official guideline rate${p.govt_sqyd ? "" : " (agri)"}</span><b>${fmtINR(p.govt_sqyd || p.govt_sqyd_agri)}/sq yd</b></div><div class="small"><span class="muted">${esc(p.govt_date || "")}</span> | <a href="${esc(p.govt_src)}" target="_blank" rel="noopener">Rate source</a></div>` : ""}
       ${provenanceHTML(p)}
       ${p.village ? landTypeHTML(E.landTypeFor(p.path, p.district)) : ""}
-      <button class="btn sm" style="margin-top:8px" data-act="open-loc" data-lon="${p.lon}" data-lat="${p.lat}">Plot-level read here</button></div>`).addTo(map);
+      <button class="btn sm" style="margin-top:8px" data-act="open-loc" data-lon="${p.lon}" data-lat="${p.lat}">Explore this location</button></div>`).addTo(map);
   }
 
   function riskWord(v) { return v < 0.33 ? "Low" : v < 0.6 ? "Moderate" : "High"; }
@@ -974,7 +1027,7 @@
           <span class="tag">${esc(near)}</span>
           <span class="tag"><span class="dotc" style="background:${m.u > 0.5 ? "#2ee6c5" : m.u > 0.15 ? "#ffd166" : "#8fa3c7"}"></span>${m.u > 0.5 ? "Urban core" : m.u > 0.15 ? "Peri-urban" : "Rural"}</span>
           ${m.ov ? '<span class="tag" style="border-color:#2ee6c5;color:#2ee6c5">Your data</span>' : ""}
-          ${m.calibrated ? `<span class="tag" style="border-color:#ffd166;color:#ffd166">Calibrated with real data</span>` : ""}
+          ${m.calibrated ? `<span class="tag" style="border-color:#ffd166;color:#ffd166">Adjusted using reference data</span>` : ""}
         </div>
         <div class="acts">
           <button class="icon-btn ${starred ? "on" : ""}" data-act="star" data-id="${m.id}" title="${starred ? "Remove from" : "Add to"} watchlist"><svg viewBox="0 0 24 24" width="17" height="17"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" fill="${starred ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
@@ -985,7 +1038,7 @@
         <div class="score-row">
           <div class="score">${C.gauge(m.opp, { color: "#2ee6c5" })}<div><div class="lab">Opportunity</div><div class="txt">${m.opp >= 75 ? "Strong" : m.opp >= 60 ? "Above average" : m.opp >= 40 ? "Average" : "Below average"}</div></div></div>
           <div class="score">${C.gauge(R.total, { color: "#ff5c7a" })}<div><div class="lab">Risk</div><div class="txt">${R.total < 38 ? "Contained" : R.total < 50 ? "Moderate" : "Elevated"}</div></div></div>
-          <div class="score">${C.gauge(m.liq, { color: "#5ad1ff" })}<div><div class="lab">Liquidity</div><div class="txt">${m.liq > 65 ? "Easy exit" : m.liq > 40 ? "Fair" : "Thin market"}</div></div></div>
+          <div class="score">${C.gauge(m.liq, { color: "#5ad1ff" })}<div><div class="lab">Liquidity score</div><div class="txt">${m.liq > 65 ? "Higher" : m.liq > 40 ? "Middle" : "Lower"} model score</div></div></div>
         </div>
       </div>
       <div class="d-body">
@@ -993,23 +1046,23 @@
         <div class="kpis">
           <div class="kpi"><div class="k">Market price</div><div class="v">${fmtINR(m.priceNow)}<span class="small muted"> /sq ft</span></div><div class="s">${fmtINR(m.priceNow * E.SQFT_PER_ACRE)} per acre</div></div>
           <div class="kpi"><div class="k">Circle rate</div><div class="v">${fmtINR(m.circle)}<span class="small muted"> /sq ft</span></div><div class="s warn">Circle rate is ${Math.round(m.gap * 100)}% below market (market is ${Math.round((1 / Math.max(0.01, 1 - m.gap) - 1) * 100)}% above it)</div></div>
-          <div class="kpi"><div class="k">${S.horizon}-yr value multiple</div><div class="v">${m.mult.toFixed(2)}x</div><div class="s">Range ${m.lo.toFixed(2)}x to ${m.hi.toFixed(2)}x</div></div>
+          <div class="kpi"><div class="k">${S.horizon}-yr value multiple</div><div class="v">${m.mult.toFixed(2)}x</div><div class="s">Illustrative range ${m.lo.toFixed(2)}x to ${m.hi.toFixed(2)}x</div></div>
           <div class="kpi"><div class="k">Growth per year</div><div class="v ${m.cagr > 0.09 ? "up" : ""}">${pct(m.cagr)}</div><div class="s">${esc(BL.SCENARIOS[S.scenario].label)} case</div></div>
           ${yrPrice}
         </div>
         <h3>Price path, 2015 to 2036</h3>
         <div class="card">${C.fan(ser, { marks, cursor: S.year !== MY ? S.year : null })}
-          <div class="row small muted" style="gap:14px;margin-top:4px"><span><span style="display:inline-block;width:14px;height:2px;background:#8fa3c7;vertical-align:middle"></span> modelled history</span><span><span style="display:inline-block;width:14px;height:2px;background:#ffb547;vertical-align:middle"></span> forecast with 80% band</span><span>dots = project dates</span></div>
+          <div class="row small muted" style="gap:14px;margin-top:4px"><span><span style="display:inline-block;width:14px;height:2px;background:#8fa3c7;vertical-align:middle"></span> modelled history</span><span><span style="display:inline-block;width:14px;height:2px;background:#ffb547;vertical-align:middle"></span> forecast with illustrative band</span><span>dots = project dates</span></div><div class="small muted">The band is an unvalidated model assumption, not an 80% prediction interval.</div>
         </div>
         <h3>What drives the next ${S.horizon} years</h3>
-        <div class="card">${C.bars(con.parts)}<div class="row sb small" style="margin-top:9px;border-top:1px solid var(--line);padding-top:8px"><span class="muted">Total expected change</span><b class="up">${pct(con.total)}</b></div></div>
+        <div class="card">${C.bars(con.parts)}<div class="row sb small" style="margin-top:9px;border-top:1px solid var(--line);padding-top:8px"><span class="muted">Total modelled change</span><b class="up">${pct(con.total)}</b></div><div class="small muted">Inputs are model assumptions, not causal project effects.</div></div>
         <h3>Looks like</h3>
         <div class="analogue">
           <div class="small muted">Closest historical match (${Math.round(an.similarity * 100)}% similar)</div>
           <b>${esc(an.a.n)} in ${an.a.y}</b>
           <p class="small" style="margin:6px 0 0;line-height:1.5;color:var(--tx-2)">${esc(an.a.why)} Over the next decade, land there moved roughly <b style="color:var(--tx)">${an.a.mult}x</b>. This is an illustrative pattern match, not a promise.</p>
         </div>
-        <h3>Risk profile</h3>
+        <h3>Modelled risk profile</h3><p class="small muted">Heuristic district-level indicators, not a site inspection or measured plot risk.</p>
         <div class="card"><div class="row" style="align-items:center">
           <div style="width:52%">${C.radar([{ label: "Flood", v: R.flood }, { label: "Heat", v: R.heat }, { label: "Water", v: R.water }, { label: "Title", v: R.title }, { label: "Rules", v: R.reg }])}</div>
           <div class="grow small">
@@ -1035,7 +1088,7 @@
   /* ------------------------------------------------------------------ */
   /* Tool panels                                                          */
   /* ------------------------------------------------------------------ */
-  const PANEL_TITLES = { track: "Track record: past projects", shortlist: "Infra-led shortlist", alerts: "Spot alerts", explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
+  const PANEL_TITLES = { track: "Track record: past projects", data: "Data sources and freshness", shortlist: "Infra-led shortlist", alerts: "Spot alerts", explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
   function openTool(id, force) {
     if (S.tool === id && !force) { closeTool(); return; }
     if (id !== "draw") cancelDraw();
@@ -1053,12 +1106,11 @@
   }
   $("#panelClose").addEventListener("click", closeTool);
   if (BL.Insights) BL.Insights.onChange = () => refreshPanel();
-  (function ptHash() { const m = /[#&]pt=(-?[\d.]+),(-?[\d.]+)/.exec(location.hash); if (m) setTimeout(() => openLocation(+m[2], +m[1]), 800); })();
 
   function refreshPanel() {
     if (!S.tool) return;
     const body = $("#panelBody");
-    const fn = { track: () => BL.Infra.trackPanel(), shortlist: () => BL.Insights.shortlistPanel(models), alerts: () => BL.Insights.alertsPanel((la, lo) => { const q = E.pointModel(la, lo, allCats(), models, opts()); return q; }), explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
+    const fn = { track: () => BL.Infra.trackPanel(), data: pDataHealth, shortlist: () => BL.Insights.shortlistPanel(models), alerts: () => BL.Insights.alertsPanel((la, lo) => { const q = E.pointModel(la, lo, allCats(), models, opts()); return q; }), explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
     body.innerHTML = fn();
     renderRail();
   }
@@ -1079,7 +1131,7 @@
         <div class="kpi"><div class="k">Projects tracked</div><div class="v">${allCats().length}</div><div class="s">${allCats().filter((c) => c.stage < 4).length} still in the pipeline</div></div>
         <div class="kpi wide"><div class="k">National average growth (${S.horizon} yrs)</div><div class="v">${pct(nat)} <span class="small muted">per year, ${esc(BL.SCENARIOS[S.scenario].label.toLowerCase())} case</span></div></div>
       </div>
-      <h3>Best risk-adjusted opportunities</h3>${top.map((m, i) => listItem(m, i, `<span class="pill">${m.opp}</span>`)).join("")}
+      <h3>Highest model opportunity scores</h3>${top.map((m, i) => listItem(m, i, `<span class="pill">${m.opp}</span>`)).join("")}
       <h3>Emerging: cheap land with a pipeline</h3>${emerging.map((m, i) => listItem(m, i, `<span class="pill s">${pct(m.cagr)}</span>`)).join("")}
       <h3>Widest circle-rate gaps (revision risk)</h3>${gaps.map((m, i) => listItem(m, i, `<span class="pill r">${Math.round(m.gap * 100)}%</span>`)).join("")}
       <h3>Most expensive land</h3>${priced.map((m, i) => listItem(m, i, `<span class="pill s">${fmtINR(m.priceNow)}</span>`)).join("")}`;
@@ -1103,7 +1155,7 @@
     const A = S.area;
     const budget = +(store.get("bl_budget", 5000000));
     const acres = budget / (A.p50 * E.SQFT_PER_ACRE);
-    const lo = budget * Math.max(0.4, A.multMean * 0.82), hi = budget * A.multMean * 1.2, mid = budget * A.multMean;
+    const mid = budget * A.multMean;
     return `${tools}
       <div class="kpis">
         <div class="kpi"><div class="k">Area</div><div class="v">${A.areaKm2 >= 100 ? Math.round(A.areaKm2).toLocaleString("en-IN") : A.areaKm2.toFixed(1)} km\u00B2</div><div class="s">${Math.round(A.acres).toLocaleString("en-IN")} acres | ${A.n} grid cells</div></div>
@@ -1112,11 +1164,10 @@
         <div class="kpi"><div class="k">${A.horizon}-yr outlook</div><div class="v up">${A.multMean.toFixed(2)}x</div><div class="s">${pct(A.cagrMean)} per year on average</div></div>
       </div>
       <h3>Price distribution</h3><div class="card">${C.histogram(A.cells.map((c) => c.price))}</div>
-      <h3>Invest here</h3>
+      <h3>Illustrative budget scenario</h3>
       <div class="card">
         <div class="field"><label><span>Budget (INR)</span><span>${fmtINR(budget)}</span></label><input type="number" id="budget" value="${budget}" min="100000" step="100000"/></div>
-        <div class="small muted">That buys about <b style="color:var(--tx)">${acres >= 1 ? acres.toFixed(1) + " acres" : Math.round(acres * E.SQFT_PER_ACRE).toLocaleString("en-IN") + " sq ft"}</b> at the median price. Value in ${A.horizon} years:</div>
-        <div class="calc-out"><div><span class="small muted">Downside</span><b class="down">${fmtINR(lo)}</b></div><div><span class="small muted">Base</span><b>${fmtINR(mid)}</b></div><div><span class="small muted">Upside</span><b class="up">${fmtINR(hi)}</b></div></div>
+        <div class="small muted">At the modelled median, this budget corresponds to about <b style="color:var(--tx)">${acres >= 1 ? acres.toFixed(1) + " acres" : Math.round(acres * E.SQFT_PER_ACRE).toLocaleString("en-IN") + " sq ft"}</b>. Applying the model's average ${A.horizon}-year multiple gives <b style="color:var(--tx)">${fmtINR(mid)}</b>.</div><div class="small muted" style="margin-top:6px">This is arithmetic using unvalidated model assumptions, not a quote or return forecast. Land class, fees, taxes and plot characteristics are not included.</div>
       </div>
       <h3>Hottest cells (fastest growth)</h3>
       ${A.hotspots.map((c, i) => `<div class="list-item" data-act="fly-pt" data-lon="${c.lon}" data-lat="${c.lat}"><span class="rank">${i + 1}</span><div class="grow"><div style="font-weight:600">${c.lat.toFixed(3)}, ${c.lon.toFixed(3)}</div><div class="small muted ellipsis">${esc(c.district)} | ${c.top ? "near " + esc(c.top) : "no catalyst"}</div></div><span class="pill">${pct(c.cagr)}</span></div>`).join("")}
@@ -1128,26 +1179,25 @@
       <h3>Districts covered</h3>
       ${A.districts.slice(0, 6).map((d) => { const m = models.find((x) => x.name === d.name && x.state === d.state); return `<div class="list-item" ${m ? `data-act="open-d" data-id="${m.id}"` : ""}><div class="grow"><b>${esc(d.name)}</b> <span class="small muted">${esc(d.state)}</span></div><span class="small muted">${Math.round(d.share * 100)}%</span></div>`; }).join("")}
       <div class="btn-row" style="margin-top:12px"><button class="btn sm" data-act="area-csv">Export cells (CSV)</button><button class="btn sm danger" data-act="clear-area">Clear area</button></div>
-      <p class="small muted">Computed in ${A.ms || 0} ms on a ${(A.step * 111).toFixed(1)} km grid.</p>`;
+      <p class="small muted">Computed in ${A.ms || 0} ms on a ${(A.step * 111).toFixed(1)} km grid. Estimates use ${A.n} of ${A.sampled} sampled cells inside mapped districts; selected area includes any land or water outside the map.</p>`;
   }
 
   function pSimulate() {
     const types = Object.entries(BL.TYPES);
     const imp = S.userCats.length ? [...models].sort((a, b) => b.delta - a.delta).slice(0, 8).filter((m) => m.delta > 0.002) : [];
-    const created = imp.length ? models.reduce((s, m) => s + m.priceNow * m.delta * m.area * 10.7639e6 * 0.02, 0) : 0;
     return `<p class="lead">What if a new airport, metro or expressway came here? Place a project and the model re-prices every district, weighted by the chance it actually gets built.</p>
       <div class="type-grid">${types.map(([k, T]) => `<button class="${S.simType === k ? "on" : ""}" style="--c:${T.color}" data-act="sim-type" data-t="${k}"><i>${esc(T.icon)}</i>${esc(T.label)}</button>`).join("")}</div>
       <div class="field"><label><span>Project name (optional)</span></label><input type="text" id="simName" placeholder="e.g. Third Mumbai airport"/></div>
       <div class="field"><label><span>Stage</span><span>${esc(BL.STAGES[S.simStage])}</span></label><input type="range" id="simStage" min="0" max="4" step="1" value="${S.simStage}"/></div>
       <div class="field"><label><span>Agency credibility</span><span>${Math.round(S.simCred * 100)} / 100</span></label><input type="range" id="simCred" min="0.2" max="1" step="0.05" value="${S.simCred}"/></div>
-      <div class="small muted" style="margin:-2px 0 10px">Completion probability: <b style="color:var(--tx)">${Math.round(E.completionP({ stage: S.simStage, cred: S.simCred }, S.scenario) * 100)}%</b> | Reach about ${BL.TYPES[S.simType].r} km | Max uplift ${Math.round(BL.TYPES[S.simType].U * 100)}%</div>
+      <div class="small muted" style="margin:-2px 0 10px">Assumed completion probability: <b style="color:var(--tx)">${Math.round(E.completionP({ stage: S.simStage, cred: S.simCred }, S.scenario) * 100)}%</b> | Reach about ${BL.TYPES[S.simType].r} km | Max uplift ${Math.round(BL.TYPES[S.simType].U * 100)}%. These are model assumptions, not measured project effects.</div>
       <div class="btn-row">${S.placing ? `<button class="btn primary" data-act="place-cancel">Cancel placing</button>${S.placing.path ? '<button class="btn" data-act="sim-finish">Finish route</button>' : ""}` : `<button class="btn primary" data-act="sim-place">Place on map</button>`}</div>
       ${S.userCats.length ? `
         <h3>Your simulated projects</h3>
         ${S.userCats.map((c) => `<div class="card row"><span class="cat-ico" style="background:${BL.TYPES[c.t].color}">${esc(BL.TYPES[c.t].icon)}</span><div class="grow"><div style="font-weight:600" class="ellipsis">${esc(c.n)}</div><div class="small muted">${esc(BL.STAGES[c.stage])} | P ${Math.round(E.completionP(c, S.scenario) * 100)}%</div></div><button class="btn sm ghost" data-act="fly-cat" data-id="${esc(c.id)}">View</button><button class="btn sm danger" data-act="sim-remove" data-id="${esc(c.id)}">Remove</button></div>`).join("")}
         <h3>Most affected districts (${S.horizon}-yr uplift)</h3>
         ${imp.length ? imp.map((m, i) => listItem(m, i, `<span class="pill">${pct(m.delta)}</span>`)).join("") : '<div class="empty">No district is materially affected. Try a bigger catalyst or a later stage.</div>'}
-        ${created > 0 ? `<div class="card" style="margin-top:10px"><div class="k small muted">Indicative land value created</div><div style="font-family:var(--display);font-size:20px;font-weight:700" class="up">${fmtINR(created)}</div><div class="small muted">Assumes 2% of land in affected districts is developable. Useful for value-capture and betterment-levy planning.</div></div>` : ""}
+        <p class="small muted">These changes illustrate the model's assumptions. A total land value created cannot be estimated without verified affected land, land use and market evidence.</p>
         <div class="btn-row" style="margin-top:10px"><button class="btn sm danger" data-act="sim-clear">Clear all simulations</button></div>` : ""}`;
   }
 
@@ -1158,7 +1208,7 @@
       .sort((a, b) => E.effEta(a, S.scenario) - E.effEta(b, S.scenario));
     const types = ["all", ...Object.keys(BL.TYPES)];
     const delayed = allCats().filter((c) => c.stage < 4 && E.effEta(c, "bear") - c.eta >= 3).length;
-    return `<p class="lead">Every major project from announcement to opening. Prices tend to jump on announcement, stall during delays and re-rate on opening. Credibility scores show which agencies deliver on time.</p>
+    return `<p class="lead">Tracked projects and their recorded stages. Statuses are a snapshot and the credibility scores are model assumptions; verify current status with each source.</p>
       <div class="kpis" style="margin-bottom:10px">
         <div class="kpi"><div class="k">In pipeline</div><div class="v">${allCats().filter((c) => c.stage < 4).length}</div><div class="s">${allCats().filter((c) => c.stage === 3).length} under construction</div></div>
         <div class="kpi"><div class="k">Delay-prone</div><div class="v warn">${delayed}</div><div class="s">3+ years late in the bear case</div></div>
@@ -1233,36 +1283,77 @@
       <div class="btn-row">${ms.map((m) => `<button class="btn sm" data-act="cmp" data-id="${m.id}">Remove ${esc(m.name)}</button>`).join("")}</div>`;
   }
 
+  function pDataHealth() {
+    const market = VERIFIED.filter(E.isMarketReference);
+    const proxies = VERIFIED.filter((p) => p.derived && p.price > 0);
+    const n = (v) => Number(v || 0).toLocaleString("en-IN");
+    const count = (types) => market.filter((p) => types.includes(p.type)).length;
+    const years = {}, byPlace = new Map();
+    for (const p of market) {
+      const match = String(p.date || "").match(/\b(?:19|20)\d{2}\b/);
+      if (!match) { years.unknown = (years.unknown || 0) + 1; continue; }
+      const year = match[0], key = `${p.state || ""}|${String(p.loc || "").toLowerCase().trim()}`;
+      years[year] = (years[year] || 0) + 1;
+      if (!byPlace.has(key)) byPlace.set(key, new Set());
+      byPlace.get(key).add(year);
+    }
+    const multi = [...byPlace.values()].filter((s) => s.size > 1).length;
+    const datedYears = Object.keys(years).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
+    const yearSummary = datedYears.slice(0, 2).map((y) => `${n(years[y])} rows have a ${esc(y)} date`).join(", ");
+    const gv = window.BL_TN_GV || { rows: [] }, updates = window.BL_UPDATES || {}, gazette = window.BL_GAZETTE || {};
+    return `<p class="lead">See what the map is built from and when each source was last captured. Coverage is uneven and these counts do not establish accuracy.</p>
+      <h3>Market-related references</h3><div class="card small" style="line-height:1.6">
+        <div class="row sb"><span>Priced references</span><b>${n(market.length)}</b></div>
+        <div class="row sb"><span>Listings and cross-checked listing aggregates</span><b>${n(count(["listing", "consensus"]))}</b></div>
+        <div class="row sb"><span>Auctions and allotments</span><b>${n(count(["govt_auction", "govt_allotment", "bank_auction"]))}</b></div>
+        <div class="row sb"><span>Reported prices, deals and registrations</span><b>${n(count(["reported_deal", "registered"]))}</b></div>
+        <p class="muted">These are reference rows, not independent completed sales. Some listings use an assumed 10% asking-to-sale adjustment, which is not validated. The same property or source may appear more than once.</p>
+        <p class="muted">${yearSummary || "No dated rows"}; ${n(years.unknown)} have no parseable year. Dates may be collection dates. ${n(multi)} exact place names have rows dated in more than one year; that does not establish comparable sales.</p></div>
+      <h3>Official rates and project notices</h3><div class="card small" style="line-height:1.6">
+        <div class="row sb"><span>Guideline-derived price proxies</span><b>${n(proxies.length)}</b></div>
+        <div class="row sb"><span>TN rate-history locations</span><b>${n((gv.rows || []).length)}</b></div>
+        <div class="row sb"><span>Tracked projects, snapshot</span><b>${n(BL.CATALYSTS.length)} · ${esc(BL.DATA_ASOF)}</b></div>
+        <div class="row sb"><span>Weekly re-check, last generated</span><b>${esc(updates.gen || "Unavailable")}</b></div>
+        <div class="row sb"><span>Gazette data, last generated</span><b>${esc(gazette.gen || "Unavailable")}</b></div>
+        <p class="muted">Guideline values are official reference rates, not market transactions. Village locations can be approximate name matches. News leads are unconfirmed; project statuses do not update automatically.</p></div>
+      <h3>Earth observation</h3><div class="card small" style="line-height:1.6">
+        <p><b>Satellite:</b> <a href="https://maps.eox.at/" target="_blank" rel="noopener">2025 cloudless mosaic</a>. Recent scene mode searches for a dated Sentinel-2 observation at the map center; clouds may remain.</p>
+        <p><b>Water history:</b> <a href="https://global-surface-water.appspot.com/download" target="_blank" rel="noopener">Global Surface Water 1984–2024</a>. Both layers are coarse satellite observations, not plot boundaries or flood clearance.</p></div>
+      <p class="warn">The price model, project effects, risk scores and forecast bands have not been validated for plot-level decisions. Open “How the model works” for details.</p>`;
+  }
+
   function pMethod() {
     const BT = window.BL_BACKTEST, VS = window.BL_VERIFIED_SUMMARY;
-    const btHtml = BT ? `<h3>Back-test: did the model match reality?</h3>
-      <p>Each row compares the documented price change around a past project (in excess of the wider city market) with what the old and the re-calibrated model predicted. Average log error fell from ${BT.oldLoss} to ${BT.newLoss}.</p>
+    const btHtml = BT ? `<h3>Historical calibration cases</h3>
+      <p>These cases were used to adjust the model, so they are not an independent test of future forecasts or causal project effects. Each row compares a documented price change with the old and re-fitted formula. Average log error on these cases fell from ${BT.oldLoss} to ${BT.newLoss}.</p>
       <table class="cmp"><tr><th>Place</th><th>Years</th><th>Actual</th><th>Old</th><th>New</th></tr>${BT.rows.map((r) => `<tr><td title="${esc(r.project)}"><a href="${esc(r.src)}" target="_blank" rel="noopener">${esc(r.loc.slice(0, 30))}</a></td><td>${r.y0}-${String(r.y1).slice(2)}</td><td>${r.obs.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.old / r.obs)) < 0.15 ? "best" : ""}">${r.old == null ? "-" : r.old.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.now / r.obs)) < 0.15 ? "best" : ""}">${r.now == null ? "-" : r.now.toFixed(2)}x</td></tr>`).join("")}</table>
       <p style="margin-top:8px">What changed (24 Oct 2026 re-fit): airport max uplift 0.85 to 1.8, expressway 0.42 to 1.1, ring road 0.5 to 1.5, metro and rapid rail restored to 0.35 (the earlier cut to 0.2 under-predicted Namo Bharat), and cheap rural land gets up to 2.3x the percentage boost of built-up land. About 85% of the effect is priced in by opening. Average log error is now ${BT.newLoss} versus ${BT.oldLoss} for the original model. Still under-predicted: speculative peaks like Yamuna Expressway plots (actual 1.9x vs model 1.16x) and the Hyderabad ORR belt, where the IT corridor also drove prices.</p>` : "";
     const vsHtml = VS ? `<h3>Real-data calibration across India</h3>
       <p>Tamil Nadu village layer: ${VS.tnVillagesCrawled ? VS.tnVillagesCrawled.toLocaleString("en-IN") : ""} villages crawled from all 595 sub-registrar offices, ${VS.tnVillages ? VS.tnVillages.toLocaleString("en-IN") : ""} automatically geocoded and loaded as very-low-weight derived evidence (official guideline value x ${VS.tnMult}).</p>
-      <p>${VS.total} verified localities: ${VS.pricePoints} real land prices and ${VS.govtPoints} official government rates. Before calibration the model's typical error was ${Math.round(VS.errBefore * 100)}%. With real data the typical error, tested by hiding each point and predicting it from the rest, is ${Math.round(VS.errLOO * 100)}%. Areas far from any verified point stay model-only and are labelled that way.</p>
+      <p>${VS.total} reference localities: ${VS.pricePoints} price references and ${VS.govtPoints} official rates. Price references include listings and reported deals. Before calibration the reported typical error was ${Math.round(VS.errBefore * 100)}%; hiding individual points gave ${Math.round(VS.errLOO * 100)}%. Nearby points and shared sources may be related, so this is not an independent geographic or future-period validation.</p>
       <table class="cmp"><tr><th>State</th><th>Points</th><th>Error before</th><th>After</th></tr>${(VS.stateStats || []).map((x) => `<tr><td>${esc(x.s)}</td><td>${x.n}</td><td>${Math.round(x.before * 100)}%</td><td class="${x.after < x.before ? "best" : ""}">${Math.round(x.after * 100)}%</td></tr>`).join("")}</table>
       <p style="margin-top:8px"><b>Biggest district corrections</b></p>
       <table class="cmp"><tr><th>District</th><th>Old est.</th><th>Now</th><th>Change</th></tr>${VS.districts.map((d) => `<tr><td>${esc(d.n)}</td><td>${fmtINR(d.old)}</td><td>${fmtINR(d.now)}</td><td class="${d.now < d.old ? "down" : "up"}">${pct(d.now / d.old - 1, 0)}</td></tr>`).join("")}</table>
       <p style="margin-top:8px"><b>Sources</b></p>${VS.sources.map((x) => `<p>- <b>${esc(x[0])}</b>: ${esc(x[1])}. Reliability: ${esc(x[2])}.</p>`).join("")}<p class="warn">${esc(VS.gaps)}</p>` : "";
     return `<div class="note">
-      <p><b>Data as of ${esc(BL.DATA_ASOF)}.</b> Project statuses were verified in ${esc(BL.DATA_ASOF)} for ${BL.CATALYSTS.length} projects, each with a source link (click a project marker). Prices are calibrated to verified local evidence where it exists; elsewhere they are modelled and marked "Model only".</p>
+      <p><b>Project and market reference snapshot: ${esc(BL.DATA_ASOF)}.</b> The ${BL.CATALYSTS.length} tracked projects have source links and may have changed since. Reference data include adjusted listings and guideline-derived proxies; they are not all observed sale prices.</p>
       ${vsHtml}${btHtml}
       <p><b>What this is.</b> Bhoomi Lens is a modelled land-intelligence map. It turns public reference points into an estimate of what land is worth today, where it is heading and what could go wrong. It is not a record of registered transactions.</p>
       <h3>Where every number comes from</h3>
-      <p>No price in the app is invented, but they are not all the same kind of evidence. Each verified point is tagged with its type, date and source link (click any dot with Real data on):</p>
+      <p>Prices shown by the model are estimates. Reference points are tagged by type, date and source link (click a dot with Real data on):</p>
       <p>- <b>Govt auction / allotment</b> (gold): an actual sale or allotment price by a government authority.<br/>- <b>Registered / reported deal</b> (teal): reported registrations or land deals.<br/>- <b>Listing</b> (light grey): portal asking prices, cut by 10% to approximate sale prices.<br/>- <b>Official govt rate</b> (shown inside each point): guideline, circle, ready reckoner or jantri value.<br/>- <b>Derived village value</b> (dark grey, Tamil Nadu only): the official guideline median x ${VS ? VS.tnMult : 2}x, the median market-to-guideline ratio across ${VS ? VS.tnPairs : 0} Tamil Nadu localities with both numbers. Used at a third of the weight of a real price.</p>
-      <p>Individual registered sale deeds are not included: state registration portals require captchas and document-by-document searches. Everywhere else the price is the model, adjusted by the nearest verified evidence. Each plot-level card shows exactly how its price was built: base model, the real-data adjustment, and which verified points pulled it and by how much.</p>
+      <p>Individual sale deeds are not included. Location estimates use a model adjusted by nearby reference data, including guideline-derived estimates. The location card shows the model inputs and their weights; it is not a valuation of a specific plot.</p>
       <h3>1. Price today</h3>
       <p>Each district's price combines a rural baseline (typical agricultural land per acre in that state) with urban gravity: the pull of ${BL.ANCHORS.length} city anchors, each decaying with distance. Circle rates are modelled from state-level guidance-to-market ratios.</p>
       <h3>2. Catalyst uplift</h3>
-      <p>Each of the ${BL.CATALYSTS.length} tracked projects has a type-specific maximum uplift and reach (an airport moves land 25-30 km away; a metro station moves land within about 4 km). Impact = uplift x distance decay x completion probability x how much is already priced in.</p>
-      <p><b>Completion probability</b> comes from the project's stage (announced to operational) and the implementing agency's delivery credibility. <b>Realisation</b> follows the Indian pattern: about 30% is priced on announcement, about 65% by completion, and the rest over the following years.</p>
+      <p>Each project has an assumed type-specific uplift and reach. Impact = assumed uplift x distance decay x assumed completion probability x the assumed share already priced in. These are scenarios, not estimates of causation.</p>
+      <p><b>Completion probability</b> is a heuristic based on stage and agency credibility; it has not been probability-calibrated. The current formula assumes 35% of the effect at announcement and 85% by opening.</p>
       <h3>3. Forecast band</h3>
-      <p>Uncertainty widens with time and with the share of value that depends on unfinished projects. The bear case cuts completion odds and adds delays based on agency credibility. The bull case does the opposite.</p>
+      <p>The illustrative band widens with time and unfinished projects. Its coverage has not been tested; it is not an 80% prediction interval. The bear and bull cases change assumptions about completion, timing and growth.</p>
       <h3>4. Risk, liquidity, opportunity</h3>
-      <p>Risk blends flood, heat, groundwater stress, title and records quality, and limits on who may buy agricultural land. The opportunity score is a percentile rank of risk-adjusted growth, adjusted for circle-rate gap, liquidity, pipeline momentum and how expensive land already is.</p>
+      <p>Risk and liquidity use state-level assumptions, geography and synthetic local variation, not site-specific hazard, title or transaction-volume data. Opportunity ranks these modelled inputs; it is not an investment recommendation.</p>
+      <h3>What the latest official-rate experiment showed</h3>
+      <p>The statewide Tamil Nadu experiment reported 9.9% median error for LightGBM versus 1.2% for a district-median baseline on 2017–2024 official-rate growth. Official revisions were often uniform, so this result cannot validate market growth or project uplift. Market-side observations and independent time and region holdouts are needed.</p>
       <h3>5. Looks like</h3>
       <p>Each district is matched to the closest of ${BL.ANALOGUES.length} historical Indian growth stories on price level, pipeline momentum, urban proximity and fundamental growth.</p>
       <h3>Plug in real data</h3>
@@ -1358,9 +1449,9 @@
     const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  const csvCell = (v) => { const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const csvCell = BL.CSV.escapeCell;
   function allCSV() {
-    const head = ["district", "state", "lat", "lon", "price_inr_sqft", "price_inr_acre", "circle_rate_sqft", "gap_pct", `mult_${S.horizon}y`, "low", "high", "cagr_pct", "opportunity", "risk", "liquidity", "top_catalyst", "analogue"];
+    const head = ["district", "state", "lat", "lon", "price_inr_sqft", "price_inr_acre", "circle_rate_sqft", "gap_pct", `mult_${S.horizon}y`, "illustrative_low_unvalidated", "illustrative_high_unvalidated", "cagr_pct", "opportunity", "risk", "liquidity", "top_catalyst", "analogue"];
     const rows = models.map((m) => [m.name, m.state, m.lat, m.lon, Math.round(m.priceNow), Math.round(m.priceNow * E.SQFT_PER_ACRE), Math.round(m.circle), Math.round(m.gap * 100), m.mult.toFixed(3), m.lo.toFixed(3), m.hi.toFixed(3), (m.cagr * 100).toFixed(2), m.opp, Math.round(m.risk.total), Math.round(m.liq), m.links[0] ? m.links[0].c.n : "", E.analogueFor(m.vec).a.n]);
     download(`bhoomi-lens-districts-${S.scenario}-${S.horizon}y.csv`, [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\n"));
   }
@@ -1380,14 +1471,14 @@
       <div class="muted">BHOOMI LENS | LAND INTELLIGENCE REPORT | ${new Date().toLocaleDateString("en-IN")}</div>
       <h1>${esc(m.name)}</h1><div class="muted">${esc(m.state)} | ${m.nearest ? Math.round(m.nearestD) + " km from " + esc(m.nearest.n) : ""} | ${esc(BL.SCENARIOS[S.scenario].label)} case, ${S.horizon}-year horizon</div>
       <h2>Summary</h2><div class="k">
-        <div>Market price<b>${fmtINR(m.priceNow)}/sq ft</b><span class="muted">${fmtINR(m.priceNow * E.SQFT_PER_ACRE)}/acre</span></div>
-        <div>Circle rate<b>${fmtINR(m.circle)}/sq ft</b><span class="muted">gap ${Math.round(m.gap * 100)}%</span></div>
-        <div>${S.horizon}-yr multiple<b>${m.mult.toFixed(2)}x</b><span class="muted">${m.lo.toFixed(2)}x to ${m.hi.toFixed(2)}x</span></div>
+        <div>Model price estimate<b>${fmtINR(m.priceNow)}/sq ft</b><span class="muted">${fmtINR(m.priceNow * E.SQFT_PER_ACRE)}/acre</span></div>
+        <div>Model circle rate<b>${fmtINR(m.circle)}/sq ft</b><span class="muted">gap ${Math.round(m.gap * 100)}%</span></div>
+        <div>${S.horizon}-yr multiple<b>${m.mult.toFixed(2)}x</b><span class="muted">illustrative band ${m.lo.toFixed(2)}x to ${m.hi.toFixed(2)}x</span></div>
         <div>Scores<b>${m.opp} | ${Math.round(m.risk.total)} | ${Math.round(m.liq)}</b><span class="muted">opportunity | risk | liquidity</span></div></div>
-      <h2>Price path</h2>${C.fan(ser, { w: 740, h: 230 })}
-      <h2>Drivers of the forecast</h2>${C.bars(con.parts)}
-      <h2>Projects in range</h2><table>${m.links.slice(0, 10).map((L) => `<tr><td><b>${esc(L.c.n)}</b><br><span class="muted">${esc(BL.TYPES[L.c.t].label)} | ${esc(L.c.ag)}</span></td><td>${esc(BL.STAGES[L.c.stage])}</td><td>ETA ${E.effEta(L.c, S.scenario)}</td><td>${Math.round(E.completionP(L.c, S.scenario) * 100)}% likely</td><td>${Math.round(L.d)} km</td></tr>`).join("") || "<tr><td>None tracked nearby</td></tr>"}</table>
-      <h2>Risk</h2><table>${[["Flood", m.risk.flood], ["Heat", m.risk.heat], ["Water stress", m.risk.water], ["Title and records", m.risk.title], ["Buyer restrictions", m.risk.reg]].map(([k, v]) => `<tr><td>${k}</td><td>${riskWord(v)}</td><td>${Math.round(v * 100)}/100</td></tr>`).join("")}</table>
+      <h2>Price path</h2>${C.fan(ser, { w: 740, h: 230 })}<p class="muted">The band is an unvalidated assumption, not a prediction interval.</p>
+      <h2>Model components</h2>${C.bars(con.parts)}<p class="muted">These are model inputs, not estimates of causal project effects.</p>
+      <h2>Projects in range</h2><table>${m.links.slice(0, 10).map((L) => `<tr><td><b>${esc(L.c.n)}</b><br><span class="muted">${esc(BL.TYPES[L.c.t].label)} | ${esc(L.c.ag)}</span></td><td>${esc(BL.STAGES[L.c.stage])}</td><td>ETA ${E.effEta(L.c, S.scenario)}</td><td>${Math.round(E.completionP(L.c, S.scenario) * 100)}% assumed</td><td>${Math.round(L.d)} km</td></tr>`).join("") || "<tr><td>None tracked nearby</td></tr>"}</table>
+      <h2>Modelled risk</h2><p class="muted">Heuristic district indicators, not site-specific hazard or title checks.</p><table>${[["Flood", m.risk.flood], ["Heat", m.risk.heat], ["Water stress", m.risk.water], ["Title and records", m.risk.title], ["Buyer restrictions", m.risk.reg]].map(([k, v]) => `<tr><td>${k}</td><td>${riskWord(v)}</td><td>${Math.round(v * 100)}/100</td></tr>`).join("")}</table>
       <h2>Historical analogue</h2><p><b>${esc(an.a.n)} in ${an.a.y}</b> (${Math.round(an.similarity * 100)}% similar). ${esc(an.a.why)} Land there moved roughly ${an.a.mult}x over the following decade.</p>
       <div class="disc">Modelled, indicative estimates generated by Bhoomi Lens from public reference points. Not registered transaction data and not investment, legal or valuation advice. Verify title, zoning, encumbrances and project status independently.</div>
       <script>setTimeout(function(){window.print()},400)<\/script></body></html>`);
@@ -1404,11 +1495,12 @@
     ...BL.CATALYSTS.map((c) => ({ k: "Project", t: c.n, s: BL.TYPES[c.t].label, go: () => focusCatalyst(c.id) })),
     ...BL.ANCHORS.map((a) => ({ k: "City", t: a.n, s: "City", go: () => map.flyTo({ center: [a.lon, a.lat], zoom: 9, duration: 1400 }) })),
     // Survey-number search: every notified village with survey numbers (official notices). Type a survey number or village name.
-    ...((BL.Infra && BL.Infra.data && BL.Infra.data.acq) || []).filter((x) => x.sv && x.ll).map((x) => ({ k: "Notice", t: `${x.v} (notified, ${x.nt || "notice"} ${x.dt || ""})`, s: "Survey nos " + (Array.isArray(x.sv) ? x.sv.join(", ") : x.sv), go: () => { map.flyTo({ center: x.ll, zoom: 13, duration: 1400 }); BL.Infra.setLayer && BL.Infra.setLayer("acq", true); } })),
+    ...((BL.Infra && BL.Infra.data && BL.Infra.data.acq) || []).filter((x) => x.sv && x.ll).map((x) => ({ k: "Notice", t: `${x.v} (notified, ${x.nt || "notice"} ${x.dt || ""})`, s: "Survey nos " + (Array.isArray(x.sv) ? x.sv.join(", ") : x.sv), go: () => { map.flyTo({ center: x.ll, zoom: 13, duration: 1400 }); BL.Infra.setLayer && BL.Infra.setLayer(map, "acq", true); } })),
     ...[...new Set(models.map((m) => m.state))].map((s) => ({ k: "State", t: s, s: "State or UT", go: () => fitState(s) })),
     // Suburbs and localities with real price evidence, then Tamil Nadu villages, so "Tambaram" works offline.
-    ...(() => { const seen = new Set(); return (window.BL_VERIFIED || []).filter((p) => p.loc && p.lat).map((p) => ({ p, t: String(p.loc).split(/[,(]/)[0].trim() })).filter((x) => x.t.length > 2 && !seen.has(x.t.toLowerCase()) && seen.add(x.t.toLowerCase())).map((x) => ({ k: "Locality", t: x.t, s: [x.p.district, x.p.state].filter(Boolean).join(", "), go: () => { map.flyTo({ center: [x.p.lon, x.p.lat], zoom: 12.5, duration: 1400 }); openLocation(x.p.lon, x.p.lat); } })); })(),
-    ...(() => { const seen = new Set(); return (window.BL_TN_VILLAGES || window.TN_VILLAGES || []).filter((r) => Array.isArray(r) && r[3]).filter((r) => !seen.has(String(r[0]).toLowerCase()) && seen.add(String(r[0]).toLowerCase())).map((r) => ({ k: "Village", t: r[0], s: r[2] + ", Tamil Nadu", go: () => { map.flyTo({ center: [r[4], r[3]], zoom: 13, duration: 1400 }); openLocation(r[4], r[3]); } })); })()
+    ...(() => { const seen = new Set(); return (window.BL_VERIFIED || []).filter((p) => p.loc && p.lat).map((p) => ({ p, t: String(p.loc).split(/[,(]/)[0].trim() })).filter((x) => { const k = [x.t, x.p.district, x.p.state].join("|").toLowerCase(); return x.t.length > 2 && !seen.has(k) && seen.add(k); }).map((x) => ({ k: "Locality", t: x.t, s: [x.p.district, x.p.state].filter(Boolean).join(", "), go: () => { map.flyTo({ center: [x.p.lon, x.p.lat], zoom: 12.5, duration: 1400 }); openLocation(x.p.lon, x.p.lat); } })); })(),
+    ...(() => { const seen = new Set(); return (window.BL_TN_VILLAGES || window.TN_VILLAGES || []).filter((r) => Array.isArray(r) && r[3]).filter((r) => { const k = `${r[0]}|${r[2]}`.toLowerCase(); return !seen.has(k) && seen.add(k); }).map((r) => ({ k: "Village", t: r[0], s: r[2] + ", Tamil Nadu", go: () => { map.flyTo({ center: [r[4], r[3]], zoom: 13, duration: 1400 }); openLocation(r[4], r[3]); } })); })(),
+    ...((window.BL_TN_GV || {}).rows || []).map((r) => ({ k: "TN rate", t: r[0], s: `${r[1]}, ${r[2]} SRO, ${r[3]}, Tamil Nadu`, go: () => { map.flyTo({ center: [r[5], r[4]], zoom: 13, duration: 1400 }); openLocation(r[5], r[4]); } }))
   ];
   function fitState(s) {
     const b = new maplibregl.LngLatBounds();
@@ -1416,28 +1508,48 @@
     if (!b.isEmpty()) map.fitBounds(b, { padding: 120, duration: 1200, maxZoom: 8 });
     S.scr.state = s; openTool("screener", true);
   }
-  function openPalette() { pal.classList.remove("hidden"); pin.value = ""; renderPalette(); setTimeout(() => pin.focus(), 20); }
-  function closePalette() { pal.classList.add("hidden"); }
+  const onlineStatus = $("#onlineStatus"), geoCache = new Map();
+  let geoAbort = null, geoSeq = 0, lastGeoRequest = 0;
+  function openPalette() { pal.classList.remove("hidden"); pin.value = ""; onlineStatus.textContent = "Optional: sends your query to Photon / OpenStreetMap."; renderPalette(); setTimeout(() => pin.focus(), 20); }
+  function closePalette() { pal.classList.add("hidden"); geoSeq++; if (geoAbort) geoAbort.abort(); }
   function renderPalette() {
+    if (geoAbort) { geoSeq++; geoAbort.abort(); geoAbort = null; }
+    onlineStatus.textContent = "Optional: sends your query to Photon / OpenStreetMap.";
     const q = pin.value.trim().toLowerCase();
     if (!q) pItems = [...INDEX.filter((x) => x.k === "City").slice(0, 6), ...INDEX.filter((x) => x.k === "Project").slice(0, 6)];
     else pItems = INDEX.map((x) => { const t = x.t.toLowerCase(); const sc = t.startsWith(q) ? 3 : t.includes(q) ? 2 : x.s.toLowerCase().includes(q) ? 1 : 0; return { x, sc }; }).filter((o) => o.sc).sort((a, b) => b.sc - a.sc || a.x.t.length - b.x.t.length).slice(0, 40).map((o) => o.x);
-    pIdx = 0; drawPalette(); geocode(q);
+    pIdx = 0; drawPalette();
   }
-  let geoT = null, geoQ = "";
-  function geocode(q) {
-    clearTimeout(geoT);
-    if (q.length < 3 || !window.fetch) return;
-    geoT = setTimeout(() => {
-      geoQ = q;
-      fetch("https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&limit=6&q=" + encodeURIComponent(q), { headers: { "Accept-Language": "en" } })
-        .then((r) => r.json()).then((res) => {
-          if (geoQ !== pin.value.trim().toLowerCase() || pal.classList.contains("hidden")) return;
-          const extra = (res || []).map((g) => ({ k: "Place", t: g.display_name.split(",").slice(0, 2).join(","), s: g.display_name.split(",").slice(2, 4).join(",").trim(), go: () => { map.flyTo({ center: [+g.lon, +g.lat], zoom: 12, duration: 1400 }); openLocation(+g.lon, +g.lat); } }));
-          pItems = pItems.filter((x) => x.k !== "Place").concat(extra); drawPalette();
-        }).catch(() => {});
-    }, 380);
+  async function geocode() {
+    const q = pin.value.trim().toLowerCase();
+    if (q.length < 3) { onlineStatus.textContent = "Enter at least three characters to search online."; return; }
+    const apply = (features) => {
+      if (q !== pin.value.trim().toLowerCase() || pal.classList.contains("hidden")) return;
+      const extra = features.filter((f) => f && f.geometry && f.geometry.type === "Point" && Array.isArray(f.geometry.coordinates) && f.geometry.coordinates.every(Number.isFinite) && (f.properties || {}).countrycode === "IN").map((f) => {
+        const p = f.properties, lon = f.geometry.coordinates[0], lat = f.geometry.coordinates[1];
+        return { k: "Place", t: String(p.name || p.city || p.county || "Place"), s: [p.city, p.county, p.state, p.country].filter(Boolean).join(", "), go: () => { map.flyTo({ center: [lon, lat], zoom: 12, duration: 1400 }); openLocation(lon, lat); } };
+      });
+      pItems = pItems.filter((x) => x.k !== "Place").concat(extra); drawPalette();
+      onlineStatus.textContent = `${extra.length} online results from Photon / OpenStreetMap. Locations are approximate.`;
+    };
+    if (geoCache.has(q)) { apply(geoCache.get(q)); return; }
+    if (Date.now() - lastGeoRequest < 1200) { onlineStatus.textContent = "Please wait a moment before searching again."; return; }
+    if (geoAbort) geoAbort.abort();
+    const controller = new AbortController(), request = ++geoSeq; geoAbort = controller; lastGeoRequest = Date.now();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    onlineStatus.textContent = "Searching Photon / OpenStreetMap…";
+    try {
+      const params = new URLSearchParams({ q, limit: "6", bbox: "68,6,98,38" });
+      const r = await fetch("https://photon.komoot.io/api/?" + params, { signal: controller.signal });
+      if (!r.ok) throw new Error("Online search is unavailable");
+      const data = await r.json();
+      if (request !== geoSeq || !Array.isArray(data.features)) return;
+      if (geoCache.size >= 50) geoCache.delete(geoCache.keys().next().value);
+      geoCache.set(q, data.features); apply(data.features);
+    } catch (e) { if (request === geoSeq && !pal.classList.contains("hidden")) onlineStatus.textContent = "Online search unavailable. Local results remain available."; }
+    finally { clearTimeout(timeout); if (geoAbort === controller) geoAbort = null; }
   }
+  $("#onlineSearch").addEventListener("click", geocode);
   function drawPalette() {
     plist.innerHTML = pItems.length ? pItems.map((x, i) => `<div class="p-item ${i === pIdx ? "on" : ""}" data-i="${i}"><span class="pk">${esc(x.k)}</span><div class="grow"><b>${esc(x.t)}</b> <span class="small muted">${esc(x.s)}</span></div></div>`).join("") : '<div class="empty">No matches</div>';
     const on = plist.querySelector(".on"); if (on && on.scrollIntoView) on.scrollIntoView({ block: "nearest" });
@@ -1463,7 +1575,7 @@
       else if (S.draw) cancelDraw();
       else if (S.placing) { cancelPlacement(); refreshPanel(); }
       else if (popup && popup.isOpen()) popup.remove();
-      else if (S.sel != null) closeDetail();
+      else if (S.sel != null || S.loc) closeDetail();
       else if (S.tool) closeTool();
       return;
     }
@@ -1487,6 +1599,7 @@
       p.set("l", S.layer); if (S.year !== MY) p.set("y", S.year);
       if (S.horizon !== 5) p.set("h", S.horizon); if (S.scenario !== "base") p.set("s", S.scenario);
       if (S.sel != null) p.set("d", S.sel);
+      if (S.loc) p.set("pt", `${S.loc.lat.toFixed(4)},${S.loc.lon.toFixed(4)}`);
       history.replaceState(null, "", "#" + p.toString());
     }, 250);
   }
@@ -1497,7 +1610,9 @@
     if (p.get("l") && LAYERS[p.get("l")] && p.get("l") !== "impact") S.layer = p.get("l");
     recompute();
     if (p.get("y")) setYear(clamp(+p.get("y"), BL.YEAR_MIN, BL.YEAR_MAX)); else { renderLayerSeg(); paint(); }
-    if (p.get("d") && byId.has(+p.get("d"))) openDetail(+p.get("d"));
+    const pt = (p.get("pt") || "").match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+    if (pt) openLocation(+pt[2], +pt[1]);
+    else if (p.get("d") && byId.has(+p.get("d"))) openDetail(+p.get("d"));
   }
 
   let toastT = null;
@@ -1511,5 +1626,10 @@
   renderLayerSeg();
   renderRail();
   renderLegend();
+  if (BL.Accounts) BL.Accounts.onChange = () => {
+    S.watch = store.get("bl_watch", []); S.compare = store.get("bl_compare", []);
+    renderRail(); if (S.sel != null) renderDetail(); else if (S.loc) renderLocation();
+    if (S.tool) refreshPanel();
+  };
   window.BhoomiLens = { S, models, map, recompute, paint };
 })();

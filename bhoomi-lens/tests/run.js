@@ -28,7 +28,7 @@ function randomPoint() {
     const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
     const ring = polys[0][0]; let b = [180, 90, -180, -90];
     for (const [x, y] of ring) { b = [Math.min(b[0], x), Math.min(b[1], y), Math.max(b[2], x), Math.max(b[3], y)]; }
-    for (let k = 0; k < 30; k++) { const x = b[0] + rnd() * (b[2] - b[0]), y = b[1] + rnd() * (b[3] - b[1]); if (E.pointInPoly(x, y, ring)) return [x, y, f.properties]; }
+    for (let k = 0; k < 30; k++) { const x = b[0] + rnd() * (b[2] - b[0]), y = b[1] + rnd() * (b[3] - b[1]); if (E.pointInPoly(x, y, ring) && E.districtAt(y, x, models)) return [x, y, f.properties]; }
   }
 }
 /* 1. Property tests: 1000 random properties across India */
@@ -45,6 +45,8 @@ for (let i = 0; i < 1000; i++) {
   const ser = E.series(base, "base");
   ok(ser.every((s) => s.lo <= s.p + 1e-6 && s.p <= s.hi + 1e-6 && s.p > 0), `${tag} band not containing price`);
   ok(Math.abs(ser.find((s) => s.y === BL.MODEL_YEAR).p - base.basePrice) / base.basePrice < 1e-6, `${tag} today price mismatch`);
+  const contributions = E.contributions(base, 5, "base");
+  ok(Math.abs(contributions.parts.reduce((s, p) => s + p.v, 0) - contributions.total) < 1e-9, `${tag} displayed contributions do not add up to the forecast`);
   // adding a credible operational airport next door must not lower value
   const extra = { id: "t", n: "test", t: "airport", pt: [lon + 0.05, lat], stage: 4, ann: 2020, eta: 2025, cred: 0.9 };
   const withAir = E.pointModel(lat, lon, BL.CATALYSTS.concat([extra]), models, { horizon: 5 });
@@ -99,11 +101,10 @@ const G = [
   ["Every asserted land-type fit meets the cross-check rule", [...Object.values(LT.districts.farm), ...Object.values(LT.districts.comm)].filter((d) => d.asserted && !(d.n_sites >= 3 && d.n_agree >= 2 && d.n_agree * 2 >= d.n_sites)).length, 0, 0],
   ["Every land-type source has url + retrieved", [...Object.values(LT.districts.farm), ...Object.values(LT.districts.comm)].reduce((a, d) => a + d.sources.filter((x) => !x.url || !x.retrieved).length, 0), 0, 0],
   ["Farm sells below residential per sq ft (ratio < 1) in every fitted district", Object.values(LT.districts.farm).filter((d) => d.farm_to_res != null && !(d.farm_to_res > 0 && d.farm_to_res < 1)).length, 0, 0],
-  ["Fair Price Check: ask at mid -> green", INS.verdict(1000, { lo: 800, hi: 1200 }).k === "green" ? 1 : 0, 1, 1],
-  ["Fair Price Check: ask 10% over top -> amber", INS.verdict(1320, { lo: 800, hi: 1200 }).k === "amber" ? 1 : 0, 1, 1],
-  ["Fair Price Check: ask 40% over top -> red", INS.verdict(1680, { lo: 800, hi: 1200 }).k === "red" ? 1 : 0, 1, 1],
-  ["Fair Price Check: suspiciously cheap -> amber", INS.verdict(400, { lo: 800, hi: 1200 }).k === "amber" ? 1 : 0, 1, 1],
-  ["Fair range brackets the estimate", (() => { const fr = INS.fairRange({ pm: { basePrice: 2000 }, conf: "Medium", nearAll: [] }); return fr.lo < 2000 && fr.hi > 2000 ? 1 : 0; })(), 1, 1],
+  ["Price comparison reports difference from the estimate", INS.compareAsk(1200, 1000).difference, 20 - 1e-9, 20 + 1e-9],
+  ["Price comparison rejects non-finite values", INS.compareAsk(Infinity, 1000) === null ? 1 : 0, 1, 1],
+  ["Guideline proxies and compensation are counted separately from market references", (() => { const e = INS.evidenceSummary([{ d: 1, p: { price: 100, derived: true, type: "derived_gv" } }, { d: 2, p: { price: 200, type: "listing" } }, { d: 2, p: { price: 80, type: "compensation" } }, { d: 2, p: { price: 0, type: "unverified" } }]); return e.market === 1 && e.proxies === 1 && e.other === 1 ? 1 : 0; })(), 1, 1],
+  ["Guideline-derived proxies do not fit the official-to-market ratio to itself", (() => { const observed = { state: "X", type: "listing", price: 100, govt_sqyd: 450, txn_sqyd: 900 }; const proxy = { state: "X", type: "derived_gv", price: 100, govt_sqyd: 180, txn_sqyd: 900, derived: true }; const r = E.observedCircleRatios([observed, observed, observed, ...Array(20).fill(proxy)]); return r.overall === 0.5 && r.states.X === 0.5 ? 1 : 0; })(), 1, 1],
   ["Every displayed price point has a method or source", (globalThis.BL_VERIFIED || []).filter((p) => p.price > 0 && !p.src && !p.method).length, 0, 0],
   ["No SRO-group placeholders remain", (globalThis.BL_VERIFIED || []).filter((p) => /SRO villages \(/.test(p.loc || "")).length, 0, 0],
   ["Every TN village inside Tamil Nadu bounds", (globalThis.BL_TN_VILLAGES || []).filter((r) => r[3] < 8 || r[3] > 13.6 || r[4] < 76.2 || r[4] > 80.4).length, 0, 0],
@@ -115,6 +116,22 @@ const G = [
   ["Thiruvallur district avg < Rs2,000/sq ft", models.find((m) => /allur/.test(m.name) && m.state === "Tamil Nadu").priceNow, 200, 2000]
 ];
 for (const [name, v, lo, hi] of G) ok(v >= lo && v <= hi, `GOLDEN ${name}: got ${Math.round(v)}`);
+/* District containment must win over a closer neighbouring centre; holes and
+ * unmapped areas must not silently receive a location estimate. */
+{
+  const square = (x0, y0, x1, y1) => [[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
+  const features = [
+    { properties: { id: "a", n: "A", s: "State A", lat: 0.2, lon: 0.2 }, geometry: { type: "Polygon", coordinates: [square(0,0,4,4), square(1,1,2,2)] } },
+    { properties: { id: "b", n: "B", s: "State B", lat: 0.5, lon: 3.9 }, geometry: { type: "MultiPolygon", coordinates: [[square(4,0,5,4)], [square(6,0,7,1)]] } }
+  ];
+  const districts = E.prepare(features, []);
+  const border = E.pointModel(0.5, 3.5, [], districts);
+  ok(border && border.district === "A" && border.state === "State A", "point uses containing district rather than nearest centre");
+  ok(E.pointModel(1.5, 1.5, [], districts) === null, "polygon hole is not assigned to a district");
+  ok(E.pointModel(0.5, 6.5, [], districts)?.district === "B", "multipolygon island is assigned to its district");
+  ok(E.pointModel(10, 10, [], districts) === null, "unmapped location has no estimate");
+  ok(E.analyseArea(square(8, 8, 9, 9), [], districts) === null, "unmapped area has no estimate");
+}
 /* 5. Calibration quality (leave-one-out) */
 const sample = pts.filter((p, i) => !p.derived && i % 2 === 0);
 const err = [];
@@ -140,8 +157,8 @@ console.log(`LOO median error (1/3 sample): ${(medErr * 100).toFixed(0)}%`);
   const ex = I.nearestExit(12.92, 80.10); ok(ex && ex.d < 3, "Irumbiliyur exit found near Tambaram");
   ok(I.band(1) === "0-2 km" && I.band(3) === "2-5 km" && I.band(7) === "5-10 km" && I.band(20) === "over 10 km", "exit bands");
   const ap = I.nearestAirport(12.99, 80.17); ok(ap && ap.d < 5, "Chennai airport within height zone");
-  ok(/height NOC/.test(I.checks(12.99, 80.17)), "20 km rule flagged near airport");
-  ok(!/height NOC/.test(I.checks(11.0, 78.0)) || I.nearestAirport(11.0, 78.0).d <= 20, "no height flag far from airports");
+  ok(/Height-clearance requirements depend on the site/.test(I.checks(12.99, 80.17)), "airport screening directs users to site-specific clearance");
+  ok(!/outside the 20 km height-rule zone/.test(I.checks(11.0, 78.0)), "airport screening does not assert blanket clearance");
   const a0 = D.acq[0]; ok(/Land-acquisition notice nearby/.test(I.checks(a0.ll[1], a0.ll[0])) && /notice<\/a>/.test(I.checks(a0.ll[1], a0.ll[0])), "notified village flagged with source link");
   ok((I.trackPanel().match(/source<\/a>/g) || []).length === (W.BL_BACKTEST || global.BL_BACKTEST || { rows: [] }).rows.length || true, "track rows have sources");
   ok(Object.keys(I.LAYERS).every((k) => !I.isOn(k)), "all infra layers off by default");
