@@ -55,7 +55,7 @@
   };
   const S = {
     layer: "price", year: MY, horizon: 5, scenario: "base",
-    tool: null, sel: null, three: false, sat: false, recent: false, heat: false, zones: false,
+    tool: null, sel: null, three: false, sat: false, recent: false, imageYear: null, heat: false, zones: false,
     userCats: [], watch: store.get("bl_watch", []), compare: store.get("bl_compare", []),
     playing: false, draw: null, placing: null, area: null, catFilter: "all", catStage: "all",
     simType: "airport", simStage: 2, simCred: 0.65, hoverId: null, radiusKm: 10, loc: null, real: false, proj: false, tint: true, labels: false,
@@ -279,7 +279,7 @@
     buildMarkers();
     bindMapEvents();
     map.on("moveend", () => { scheduleGrid(); scheduleRecent(); });
-    map.on("error", (e) => { if (S.recent && e.sourceId === "sat-recent") imageryStatus("Recent image tiles could not load. The 2025 mosaic remains underneath; try again later."); });
+    map.on("error", (e) => { if (e.sourceId === "sat-recent" && (S.recent || S.imageYear != null)) imageryStatus(S.imageYear != null ? "Past image tiles could not load. Grey areas have no displayed imagery; try again later." : "Recent image tiles could not load. The 2025 mosaic remains underneath; try again later."); });
     readHash();
     loader.classList.add("done");
     setTimeout(() => loader.remove(), 600);
@@ -731,44 +731,64 @@
     map.setLayoutProperty("d-fill", "visibility", S.three ? "none" : "visible");
     map.easeTo({ pitch: S.three ? 52 : 0, bearing: S.three ? -12 : 0, duration: 1000 });
   });
-  let recentTimer = null, recentAbort = null, recentScene = null, recentVersion = 0;
+  let recentTimer = null, recentAbort = null, recentScene = null, recentVersion = 0, sceneMode = null;
+  const sceneCache = [];
+  const imageYear = $("#imageYear"), currentImageYear = new Date().getUTCFullYear();
+  for (let year = currentImageYear; year >= 1984; year--) {
+    const option = document.createElement("option"); option.value = String(year); option.textContent = String(year); imageYear.appendChild(option);
+  }
+  imageYear.value = String(Math.min(2012, currentImageYear));
   function imageryStatus(message, scene) {
     const el = $("#imageryStatus");
     el.textContent = message; el.classList.toggle("hidden", !message);
-    if (scene && scene.id) { const a = document.createElement("a"); a.href = "https://planetarycomputer.microsoft.com/api/stac/v1/collections/sentinel-2-l2a/items/" + encodeURIComponent(scene.id); a.target = "_blank"; a.rel = "noopener"; a.textContent = " Scene details"; el.appendChild(a); }
+    if (scene && scene.id) { const a = document.createElement("a"); a.href = "https://planetarycomputer.microsoft.com/api/stac/v1/collections/" + encodeURIComponent(scene.collection) + "/items/" + encodeURIComponent(scene.id); a.target = "_blank"; a.rel = "noopener"; a.textContent = " Scene details"; el.appendChild(a); }
   }
   function removeRecent() {
     clearTimeout(recentTimer); recentTimer = null; recentVersion++;
-    if (recentAbort) recentAbort.abort(); recentAbort = null; recentScene = null;
+    if (recentAbort) recentAbort.abort(); recentAbort = null; recentScene = null; sceneMode = null;
     if (map.getLayer("sat-recent")) map.removeLayer("sat-recent");
     if (map.getSource("sat-recent")) map.removeSource("sat-recent");
+    if (map.getLayer("sat-empty")) map.removeLayer("sat-empty");
+  }
+  function markSceneMode(mode) {
+    S.recent = mode === "recent"; S.imageYear = mode === "past" ? Number(imageYear.value) : null;
+    for (const [id, active] of [["#btnRecent", S.recent], ["#btnPast", S.imageYear != null]]) {
+      const button = $(id); button.classList.toggle("on", active); button.setAttribute("aria-pressed", String(active));
+    }
   }
   function mosaicStatus() { imageryStatus(S.sat ? "Sentinel-2 cloudless mosaic: 2025, 10 m. The time slider changes the model, not the imagery." : ""); }
   function scheduleRecent() {
-    if (!S.recent || !S.sat || !mapReady) return;
-    if (map.getZoom() < 8) { removeRecent(); imageryStatus("Zoom in to load a recent scene at the map center. The 2025 mosaic is shown meanwhile."); return; }
+    if ((!S.recent && S.imageYear == null) || !S.sat || !mapReady) return;
+    const past = S.imageYear != null, year = S.imageYear, mode = past ? `year:${year}` : "recent";
     const center = map.getCenter();
-    if (BL.Imagery.contains(recentScene, center.lng, center.lat, E.pointInPoly)) return;
+    if (sceneMode === mode && BL.Imagery.contains(recentScene, center.lng, center.lat, E.pointInPoly)) return;
     removeRecent();
-    imageryStatus("Finding a recent Sentinel-2 scene at the map center…");
+    map.setLayoutProperty("sat", "visibility", past ? "none" : "visible");
+    if (past) map.addLayer({ id: "sat-empty", type: "background", paint: { "background-color": "#273341" } }, "d-fill");
+    if (map.getZoom() < 8) { imageryStatus(past ? `Zoom in to load a ${year} scene. Grey means no image is shown.` : "Zoom in to load a recent scene at the map center. The 2025 mosaic is shown meanwhile."); return; }
+    imageryStatus(past ? `Finding a ${year} satellite scene at the map center…` : "Finding a recent Sentinel-2 scene at the map center…");
     const version = recentVersion;
     recentTimer = setTimeout(async () => {
       const controller = new AbortController(); recentAbort = controller;
       const timeout = setTimeout(() => controller.abort(), 20000);
       try {
-        const scene = await BL.Imagery.recentScene(center.lng, center.lat, { signal: controller.signal });
-        if (version !== recentVersion || !S.recent || !S.sat) return;
+        const cached = sceneCache.find((item) => item.mode === mode && Date.now() - item.saved < 30 * 60 * 1000 && BL.Imagery.contains(item.scene, center.lng, center.lat, E.pointInPoly));
+        const scene = cached ? cached.scene : past ? await BL.Imagery.yearScene(center.lng, center.lat, year, { signal: controller.signal }) : await BL.Imagery.recentScene(center.lng, center.lat, { signal: controller.signal });
+        if (version !== recentVersion || !S.sat || (past ? S.imageYear !== year : !S.recent)) return;
         const current = map.getCenter();
         if (!BL.Imagery.contains(scene, current.lng, current.lat, E.pointInPoly)) { scheduleRecent(); return; }
-        map.addSource("sat-recent", { type: "raster", tiles: scene.tiles, bounds: scene.bounds, tileSize: 256, maxzoom: scene.maxzoom, attribution: 'Contains modified Copernicus Sentinel data, served by <a href="https://planetarycomputer.microsoft.com/" target="_blank" rel="noopener">Microsoft Planetary Computer</a>' });
+        if (!cached) { sceneCache.push({ mode, scene, saved: Date.now() }); if (sceneCache.length > 12) sceneCache.shift(); }
+        const attribution = scene.collection === "landsat-c2-l2" ? 'Landsat data courtesy of the <a href="https://www.usgs.gov/landsat-missions" target="_blank" rel="noopener">U.S. Geological Survey</a>, served by <a href="https://planetarycomputer.microsoft.com/" target="_blank" rel="noopener">Microsoft Planetary Computer</a>' : 'Contains modified Copernicus Sentinel data, served by <a href="https://planetarycomputer.microsoft.com/" target="_blank" rel="noopener">Microsoft Planetary Computer</a>';
+        map.addSource("sat-recent", { type: "raster", tiles: scene.tiles, bounds: scene.bounds, tileSize: 256, maxzoom: scene.maxzoom, attribution });
         map.addLayer({ id: "sat-recent", type: "raster", source: "sat-recent" }, "d-fill");
-        recentScene = scene;
+        recentScene = scene; sceneMode = mode;
         const date = new Date(scene.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-        imageryStatus(`Recent scene at map center: ${date}${scene.cloud == null ? "" : ` · ${scene.cloud.toFixed(1)}% scene-wide cloud`} · 10 m. Clouds may remain; 2025 mosaic outside the scene. The time slider changes the model only.`, scene);
+        const source = scene.collection === "landsat-c2-l2" ? (scene.scanGaps ? "Landsat 7; stripe gaps possible" : "Landsat") : "Sentinel-2";
+        imageryStatus(past ? `Past scene: ${date} · ${source} · ${scene.resolution} m · ${scene.cloud.toFixed(1)}% scene-wide cloud. Grey means no image. Clouds, season and resolution affect comparisons; the model time slider does not change imagery.` : `Recent scene at map center: ${date} · ${scene.cloud.toFixed(1)}% scene-wide cloud · 10 m. Clouds may remain; 2025 mosaic outside the scene. The time slider changes the model only.`, scene);
       } catch (error) {
-        if (version !== recentVersion || !S.recent || !S.sat) return;
+        if (version !== recentVersion || !S.sat || (past ? S.imageYear !== year : !S.recent)) return;
         const message = error.name === "AbortError" ? "Image search timed out" : error.message;
-        imageryStatus(`${message}. Showing the 2025 mosaic; move the map or try again.`);
+        imageryStatus(past ? `${message}. Grey means no past image is shown; try another year or location.` : `${message}. Showing the 2025 mosaic; move the map or try again.`);
       } finally { clearTimeout(timeout); if (recentAbort === controller) recentAbort = null; }
     }, 350);
   }
@@ -778,14 +798,22 @@
     map.setLayoutProperty("sat", "visibility", S.sat ? "visible" : "none");
     // Satellite is for seeing the ground: hide the colour overlay while it is on, restore it after.
     if (S.sat) { S.tintBeforeSat = S.tint; if (S.tint) $("#btnTint").click(); mosaicStatus(); toast("2025 satellite mosaic on. Turn Colours back on to overlay the analysis."); }
-    else { if (S.recent) { S.recent = false; $("#btnRecent").classList.remove("on"); $("#btnRecent").setAttribute("aria-pressed", "false"); removeRecent(); } mosaicStatus(); if (S.tintBeforeSat && !S.tint) $("#btnTint").click(); }
+    else { if (S.recent || S.imageYear != null) { markSceneMode(null); removeRecent(); } mosaicStatus(); if (S.tintBeforeSat && !S.tint) $("#btnTint").click(); }
     paint();
   });
   $("#btnRecent").addEventListener("click", (e) => {
     if (!S.sat) $("#btnSat").click();
-    S.recent = !S.recent; e.currentTarget.classList.toggle("on", S.recent);
-    e.currentTarget.setAttribute("aria-pressed", String(S.recent));
-    if (S.recent) scheduleRecent(); else { removeRecent(); mosaicStatus(); }
+    const turnOn = !S.recent; markSceneMode(turnOn ? "recent" : null);
+    if (turnOn) scheduleRecent(); else { removeRecent(); map.setLayoutProperty("sat", "visibility", "visible"); mosaicStatus(); }
+  });
+  $("#btnPast").addEventListener("click", () => {
+    if (!S.sat) $("#btnSat").click();
+    const turnOn = S.imageYear == null; markSceneMode(turnOn ? "past" : null);
+    if (turnOn) scheduleRecent(); else { removeRecent(); map.setLayoutProperty("sat", "visibility", "visible"); mosaicStatus(); }
+  });
+  imageYear.addEventListener("change", () => {
+    if (!S.sat) $("#btnSat").click();
+    markSceneMode("past"); scheduleRecent();
   });
   $("#btnProj").addEventListener("click", (e) => {
     S.proj = !S.proj; e.currentTarget.classList.toggle("on", S.proj);
@@ -1327,8 +1355,8 @@
   function pMethod() {
     const BT = window.BL_BACKTEST, VS = window.BL_VERIFIED_SUMMARY;
     const btHtml = BT ? `<h3>Historical calibration cases</h3>
-      <p>These cases were used to adjust the model, so they are not an independent test of future forecasts or causal project effects. Each row compares a documented price change with the old and re-fitted formula. Average log error on these cases fell from ${BT.oldLoss} to ${BT.newLoss}.</p>
-      <table class="cmp"><tr><th>Place</th><th>Years</th><th>Actual</th><th>Old</th><th>New</th></tr>${BT.rows.map((r) => `<tr><td title="${esc(r.project)}"><a href="${esc(r.src)}" target="_blank" rel="noopener">${esc(r.loc.slice(0, 30))}</a></td><td>${r.y0}-${String(r.y1).slice(2)}</td><td>${r.obs.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.old / r.obs)) < 0.15 ? "best" : ""}">${r.old == null ? "-" : r.old.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.now / r.obs)) < 0.15 ? "best" : ""}">${r.now == null ? "-" : r.now.toFixed(2)}x</td></tr>`).join("")}</table>
+      <p>Some cases informed model adjustments; they are not an independent test of future forecasts or causal project effects. Reported prices, periods and comparison benchmarks differ, and some cases have no model calculation. The displayed average log errors apply to fitted cases, not an independent test.</p>
+      <table class="cmp"><tr><th>Place</th><th>Years</th><th>Reported</th><th>Old</th><th>New</th></tr>${BT.rows.map((r) => `<tr><td title="${esc(r.project)}"><a href="${esc(r.src)}" target="_blank" rel="noopener">${esc(r.loc.slice(0, 30))}</a></td><td>${r.y0}-${String(r.y1).slice(2)}</td><td>${r.obs.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.old / r.obs)) < 0.15 ? "best" : ""}">${r.old == null ? "-" : r.old.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.now / r.obs)) < 0.15 ? "best" : ""}">${r.now == null ? "-" : r.now.toFixed(2)}x</td></tr>`).join("")}</table>
       <p style="margin-top:8px">What changed (24 Oct 2026 re-fit): airport max uplift 0.85 to 1.8, expressway 0.42 to 1.1, ring road 0.5 to 1.5, metro and rapid rail restored to 0.35 (the earlier cut to 0.2 under-predicted Namo Bharat), and cheap rural land gets up to 2.3x the percentage boost of built-up land. About 85% of the effect is priced in by opening. Average log error is now ${BT.newLoss} versus ${BT.oldLoss} for the original model. Still under-predicted: speculative peaks like Yamuna Expressway plots (actual 1.9x vs model 1.16x) and the Hyderabad ORR belt, where the IT corridor also drove prices.</p>` : "";
     const vsHtml = VS ? `<h3>Real-data calibration across India</h3>
       <p>Tamil Nadu village layer: ${VS.tnVillagesCrawled ? VS.tnVillagesCrawled.toLocaleString("en-IN") : ""} villages crawled from all 595 sub-registrar offices, ${VS.tnVillages ? VS.tnVillages.toLocaleString("en-IN") : ""} automatically geocoded and loaded as very-low-weight derived evidence (official guideline value x ${VS.tnMult}).</p>
