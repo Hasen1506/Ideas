@@ -168,6 +168,13 @@ const server = http.createServer(async (req, res) => {
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });
     const area = await page.evaluate(() => ({ n: BhoomiLens.S.area.n, sampled: BhoomiLens.S.area.sampled }));
     assert.ok(area.n > 0 && area.n <= area.sampled);
+    const areaBeforeSimulation = await page.evaluate(() => BhoomiLens.S.area.cells.map((c) => c.mult));
+    const areaDownloadPromise = page.waitForEvent('download');
+    await page.locator('[data-act="area-csv"]').click();
+    const areaDownload = await areaDownloadPromise;
+    const areaCSV = (await fs.readFile(await areaDownload.path())).toString();
+    assert.match(areaCSV.split('\n')[0], /model_price_inr_sqft.*validation_status/);
+    assert.match(areaCSV, /unvalidated heuristic/);
     await page.locator('#rail [data-tool="simulate"]').click();
     await page.locator("#simEffect").evaluate((el) => { el.value = "-30"; el.dispatchEvent(new Event("input", { bubbles: true })); });
     await page.locator("#simProbability").evaluate((el) => { el.value = "75"; el.dispatchEvent(new Event("input", { bubbles: true })); });
@@ -178,8 +185,31 @@ const server = http.createServer(async (req, res) => {
     assert.equal(simulation.cat.assumedEffect, -0.3);
     assert.equal(simulation.cat.assumedProbability, 0.75);
     assert.equal(simulation.hasDecrease, true);
+    const areaAfterSimulation = await page.evaluate(() => ({
+      multipliers: BhoomiLens.S.area.cells.map((c) => c.mult),
+      cellGrowth: BhoomiLens.S.area.cells[0].cagr,
+      mappedGrowth: BhoomiLens.map.getSource('cells').serialize().data.features[0].properties.g
+    }));
+    assert.ok(areaAfterSimulation.multipliers.some((v, i) => Math.abs(v - areaBeforeSimulation[i]) > 1e-9), 'area results refresh after a simulated project is added');
+    assert.equal(areaAfterSimulation.cellGrowth, areaAfterSimulation.mappedGrowth, 'map cells match refreshed area results');
     assert.equal(await page.evaluate(() => BhoomiLens.map.getPaintProperty("d-fill", "fill-opacity")[0]), "interpolate", "opacity stays a zoom-and-feature expression when switching lenses");
     assert.match(await page.locator("#panelBody").innerText(), /not measured project effects or validated probabilities/i);
+    await page.locator('#panelBody [data-act="sim-remove"]').first().click();
+    let restoredArea = await page.evaluate(() => BhoomiLens.S.area.cells.map((c) => c.mult));
+    assert.ok(restoredArea.every((v, i) => Math.abs(v - areaBeforeSimulation[i]) < 1e-9), 'area results refresh when a simulation is removed');
+    await page.locator('[data-act="sim-place"]').click();
+    await page.mouse.click(720, 450);
+    await page.waitForFunction(() => BhoomiLens.S.userCats.length === 1, null, { timeout: 15000 });
+    await page.locator('[data-act="sim-clear"]').click();
+    restoredArea = await page.evaluate(() => BhoomiLens.S.area.cells.map((c) => c.mult));
+    assert.ok(restoredArea.every((v, i) => Math.abs(v - areaBeforeSimulation[i]) < 1e-9), 'area results refresh when simulations are cleared');
+    await page.locator('#rail [data-tool="screener"]').click();
+    const districtDownloadPromise = page.waitForEvent('download');
+    await page.locator('[data-act="csv"]').click();
+    const districtDownload = await districtDownloadPromise;
+    const districtCSV = (await fs.readFile(await districtDownload.path())).toString();
+    assert.match(districtCSV.split('\n')[0], /model_price_inr_sqft.*model_circle_rate_inr_sqft.*validation_status/);
+    assert.match(districtCSV, /unvalidated heuristic/);
     await page.locator('#rail [data-tool="explore"]').click();
     await page.locator('#panelBody [data-act="open-d"]').first().click();
     const districtDetail = await page.locator('#detailBody').innerText();

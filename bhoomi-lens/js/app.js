@@ -418,7 +418,7 @@
       ${c.path ? c.user ? '<div class="small muted" style="margin:4px 0">This route was drawn by you and is not an official alignment.</div>' : '<div class="small muted" style="margin:4px 0">Line drawn from published alignment maps: approximate, not the surveyed route. Turn on Infra layers > Expressway routes (live) for mapped geometry.</div>' : ""}${c.cancelled ? "" : `<div class="row sb small"><span class="muted">Assumed completion probability</span><b>${Math.round(p * 100)}%</b></div><div class="small muted">${c.user ? "Chosen by you for this scenario." : "Heuristic model input; not a validated probability."}</div>`}
       ${c.cancelled ? "" : `<div class="row sb small"><span class="muted">${c.user ? "Assumed completion year" : `${c.stage >= 4 ? "Opened" : "Expected"} (${esc(BL.SCENARIOS[S.scenario].label)})`}</span><b>${eta}</b></div>`}
       ${c.user ? `<div class="small muted">Assumed effect at project ${pct(c.assumedEffect)}; distance scale ${c.assumedDistance} km; ${Math.round(c.assumedPricedIn * 100)}% already reflected.</div>` : `<div class="row sb small"><span class="muted">Agency credibility</span><b>${Math.round(c.cred * 100)} / 100</b></div>`}
-      ${c.cancelled ? '<div class="small down" style="margin-top:6px"><b>Cancelled / dropped.</b> Any price premium should unwind.</div>' : ""}
+      ${c.cancelled ? '<div class="small down" style="margin-top:6px"><b>Cancelled / dropped.</b> The model assumes its project contribution unwinds; the actual price effect is unknown.</div>' : ""}
       ${c.status ? `<p class="small" style="margin:8px 0 0;line-height:1.5">${esc(c.status)}</p>` : ""}
       <p class="small muted" style="margin:6px 0 0;line-height:1.5">${esc(c.note || "")}</p>
       ${c.events && c.events.length ? `<div class="small" style="margin-top:8px"><b>Timeline</b>${c.events.slice(-5).map((ev) => `<div class="row" style="gap:6px;padding:2px 0"><span class="muted" style="width:54px;flex:none">${esc(ev.date)}</span><span class="${/scrap|cancel|delay|halt|stay/.test(ev.kind) ? "down" : /open/.test(ev.kind) ? "up" : ""}">${esc(ev.kind.replace(/_/g, " "))}</span><span class="muted grow">${ev.src ? `<a href="${esc(ev.src)}" target="_blank" rel="noopener">${esc(ev.note || "source")}</a>` : esc(ev.note || "")}</span></div>`).join("")}</div>` : ""}
@@ -598,14 +598,14 @@
     }
     S.area.ring = ring;
     S.area.ms = Math.round(performance.now() - t0);
-    map.getSource("cells").setData({ type: "FeatureCollection", features: S.area.cells.map((c) => ({ type: "Feature", properties: { g: c.cagr, p: c.price }, geometry: { type: "Point", coordinates: [c.lon, c.lat] } })) });
+    setAreaCells(S.area);
     const b = ring.reduce((bb, p) => bb.extend(p), new maplibregl.LngLatBounds(ring[0], ring[0]));
     map.fitBounds(b, { padding: padFor(), duration: 900, maxZoom: 12 });
     openTool("draw", true);
   }
   function clearArea() {
     S.area = null;
-    map.getSource("cells").setData(emptyFC());
+    setAreaCells(null);
     map.getSource("draw").setData(emptyFC());
     refreshPanel();
   }
@@ -650,6 +650,7 @@
     if (nameEl) nameEl.value = "";
     recompute();
     refreshCatalystSources();
+    if (S.area) reanalyse();
     S.layer = "impact"; renderLayerSeg();
     paint();
     ripple(markerPos(c));
@@ -659,7 +660,7 @@
   function removeUserCat(id) {
     S.userCats = S.userCats.filter((c) => c.id !== id);
     if (popup) popup.remove();
-    recompute(); refreshCatalystSources();
+    recompute(); refreshCatalystSources(); if (S.area) reanalyse();
     if (!S.userCats.length && S.layer === "impact") { S.layer = "growth"; renderLayerSeg(); }
     paint();
   }
@@ -729,7 +730,18 @@
 
   $("#scenario").addEventListener("change", (e) => { S.scenario = e.target.value; recompute(); setYear(S.year); if (S.heat) map.getSource("heat").setData(heatFC()); paint(); if (S.area) reanalyse(); });
   $("#horizon").addEventListener("change", (e) => { S.horizon = +e.target.value; recompute(); paint(); if (S.area) reanalyse(); });
-  function reanalyse() { const ring = S.area.ring; const area = E.analyseArea(ring, allCats(), models, opts()); if (area) { S.area = area; S.area.ring = ring; } refreshPanel(); }
+  function setAreaCells(area) {
+    map.getSource("cells").setData(area ? { type: "FeatureCollection", features: area.cells.map((c) => ({ type: "Feature", properties: { g: c.cagr, p: c.price }, geometry: { type: "Point", coordinates: [c.lon, c.lat] } })) } : emptyFC());
+  }
+  function reanalyse() {
+    if (!S.area) return;
+    const t0 = performance.now(), ring = S.area.ring;
+    const area = E.analyseArea(ring, allCats(), models, opts());
+    if (area) { S.area = area; S.area.ring = ring; S.area.ms = Math.round(performance.now() - t0); }
+    else { S.area = null; toast("No mapped district land in this area. Select another area."); }
+    setAreaCells(S.area);
+    if (S.tool) refreshPanel();
+  }
 
   $("#btn3d").addEventListener("click", (e) => {
     S.three = !S.three; e.currentTarget.classList.toggle("on", S.three);
@@ -1132,7 +1144,7 @@
   }
   function catRow(c, sub) {
     const T = BL.TYPES[c.t];
-    return `<div class="cat-row" data-act="fly-cat" data-id="${esc(c.id)}"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><div class="cn ellipsis">${esc(c.n)}</div><div class="row small muted" style="gap:8px;margin-top:3px">${c.cancelled ? '<span class="down">Cancelled / dropped</span>' : `${C.stage(c.stage)}<span>${esc(BL.STAGES[c.stage])}</span><span>| ${c.stage >= 4 ? "open" : "ETA " + E.effEta(c, S.scenario)}</span>`}</div>${sub ? `<div class="small muted" style="margin-top:2px">${esc(sub)}</div>` : ""}${c.cancelled ? '<div class="small down">Cancelled: premium unwinding</div>' : c.delays ? `<div class="small warn">Delayed ${c.delays}x | as of ${esc(c.asof || "")}</div>` : c.asof ? `<div class="small muted">as of ${esc(c.asof)}</div>` : ""}</div><span class="pill ${E.completionP(c, S.scenario) < 0.5 ? "r" : ""}">${Math.round(E.completionP(c, S.scenario) * 100)}%</span></div>`;
+    return `<div class="cat-row" data-act="fly-cat" data-id="${esc(c.id)}"><span class="cat-ico" style="background:${T.color}">${esc(T.icon)}</span><div class="grow"><div class="cn ellipsis">${esc(c.n)}</div><div class="row small muted" style="gap:8px;margin-top:3px">${c.cancelled ? '<span class="down">Cancelled / dropped</span>' : `${C.stage(c.stage)}<span>${esc(BL.STAGES[c.stage])}</span><span>| ${c.stage >= 4 ? "open" : "ETA " + E.effEta(c, S.scenario)}</span>`}</div>${sub ? `<div class="small muted" style="margin-top:2px">${esc(sub)}</div>` : ""}${c.cancelled ? '<div class="small down">Cancelled: model assumes its contribution unwinds</div>' : c.delays ? `<div class="small warn">Delayed ${c.delays}x | as of ${esc(c.asof || "")}</div>` : c.asof ? `<div class="small muted">as of ${esc(c.asof)}</div>` : ""}</div><span class="pill ${E.completionP(c, S.scenario) < 0.5 ? "r" : ""}" title="Assumed model input, not a validated probability">${Math.round(E.completionP(c, S.scenario) * 100)}% assumed</span></div>`;
   }
 
   /* ------------------------------------------------------------------ */
@@ -1409,7 +1421,7 @@
     const btHtml = BT ? `<h3>Historical calibration cases</h3>
       <p>Some cases informed model adjustments; they are not an independent test of future forecasts or causal project effects. Reported prices, periods and comparison benchmarks differ, and some cases have no model calculation. The displayed average log errors apply to fitted cases, not an independent test.</p>
       <table class="cmp"><tr><th>Place</th><th>Years</th><th>Reported</th><th>Old</th><th>New</th></tr>${BT.rows.map((r) => `<tr><td title="${esc(r.project)}"><a href="${esc(r.src)}" target="_blank" rel="noopener">${esc(r.loc.slice(0, 30))}</a></td><td>${r.y0}-${String(r.y1).slice(2)}</td><td>${r.obs.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.old / r.obs)) < 0.15 ? "best" : ""}">${r.old == null ? "-" : r.old.toFixed(2)}x</td><td class="${Math.abs(Math.log(r.now / r.obs)) < 0.15 ? "best" : ""}">${r.now == null ? "-" : r.now.toFixed(2)}x</td></tr>`).join("")}</table>
-      <p style="margin-top:8px">What changed (24 Oct 2026 re-fit): airport max uplift 0.85 to 1.8, expressway 0.42 to 1.1, ring road 0.5 to 1.5, metro and rapid rail restored to 0.35 (the earlier cut to 0.2 under-predicted Namo Bharat), and cheap rural land gets up to 2.3x the percentage boost of built-up land. About 85% of the effect is priced in by opening. Average log error is now ${BT.newLoss} versus ${BT.oldLoss} for the original model. Still under-predicted: speculative peaks like Yamuna Expressway plots (actual 1.9x vs model 1.16x) and the Hyderabad ORR belt, where the IT corridor also drove prices.</p>` : "";
+      <p style="margin-top:8px">What changed (24 Oct 2026 re-fit): airport max uplift 0.85 to 1.8, expressway 0.42 to 1.1, ring road 0.5 to 1.5, metro and rapid rail restored to 0.35 (the earlier cut to 0.2 under-predicted a Namo Bharat case), and cheap rural land gets up to 2.3x the percentage boost of built-up land. The model assumes about 85% of its project effect is priced in by opening. Average log error is now ${BT.newLoss} versus ${BT.oldLoss} for the original model on these selected cases. Some cases, including Yamuna Expressway plots and the Hyderabad ORR belt, remain under-predicted; their reported changes are not independently established project effects.</p>` : "";
     const vsHtml = VS ? `<h3>Real-data calibration across India</h3>
       <p>Tamil Nadu village layer: ${VS.tnVillagesCrawled ? VS.tnVillagesCrawled.toLocaleString("en-IN") : ""} villages crawled from all 595 sub-registrar offices, ${VS.tnVillages ? VS.tnVillages.toLocaleString("en-IN") : ""} automatically geocoded and loaded as very-low-weight derived evidence (official guideline value x ${VS.tnMult}).</p>
       <p>${VS.total} reference localities: ${VS.pricePoints} price references and ${VS.govtPoints} official rates. Price references include listings and reported deals. Before calibration the reported typical error was ${Math.round(VS.errBefore * 100)}%; hiding individual points gave ${Math.round(VS.errLOO * 100)}%. Nearby points and shared sources may be related, so this is not an independent geographic or future-period validation.</p>
@@ -1423,7 +1435,7 @@
       <p><b>What this is.</b> Bhoomi Lens is a modelled land-intelligence map. It turns public reference points into an estimate of what land is worth today, where it is heading and what could go wrong. It is not a record of registered transactions.</p>
       <h3>Where every number comes from</h3>
       <p>Prices shown by the model are estimates. Reference points are tagged by type, date and source link (click a dot with Real data on):</p>
-      <p>- <b>Govt auction / allotment</b> (gold): an actual sale or allotment price by a government authority.<br/>- <b>Registered / reported deal</b> (teal): reported registrations or land deals.<br/>- <b>Listing</b> (light grey): portal asking prices, cut by 10% to approximate sale prices.<br/>- <b>Official govt rate</b> (shown inside each point): guideline, circle, ready reckoner or jantri value.<br/>- <b>Derived village value</b> (dark grey, Tamil Nadu only): the official guideline median x ${VS ? VS.tnMult : 2}x, the median market-to-guideline ratio across ${VS ? VS.tnPairs : 0} Tamil Nadu localities with both numbers. Used at a third of the weight of a real price.</p>
+      <p>- <b>Govt auction / allotment</b> (gold): reported auction or allotment figures; an auction figure can be a reserve rather than a completed sale.<br/>- <b>Registered / reported deal</b> (teal): reported registrations or land deals.<br/>- <b>Listing</b> (light grey): portal asking prices, cut by an unvalidated 10% assumption for the model.<br/>- <b>Official govt rate</b> (shown inside each point): guideline, circle, ready reckoner or jantri value.<br/>- <b>Derived village value</b> (dark grey, Tamil Nadu only): the official guideline median x ${VS ? VS.tnMult : 2}x, the observed-reference market-to-guideline ratio across ${VS ? VS.tnPairs : 0} Tamil Nadu localities with both numbers. Used at a third of the weight of a market reference.</p>
       <p>Individual sale deeds are not included. Location estimates use a model adjusted by nearby reference data, including guideline-derived estimates. The location card shows the model inputs and their weights; it is not a valuation of a specific plot.</p>
       <h3>1. Price today</h3>
       <p>Each district's price combines a rural baseline (typical agricultural land per acre in that state) with urban gravity: the pull of ${BL.ANCHORS.length} city anchors, each decaying with distance. Circle rates are modelled from state-level guidance-to-market ratios.</p>
@@ -1515,7 +1527,7 @@
       case "sim-finish": finishPlacement(); break;
       case "place-cancel": cancelPlacement(); refreshPanel(); break;
       case "sim-remove": removeUserCat(id); break;
-      case "sim-clear": S.userCats = []; recompute(); refreshCatalystSources(); if (S.layer === "impact") S.layer = "growth"; renderLayerSeg(); paint(); break;
+      case "sim-clear": S.userCats = []; recompute(); refreshCatalystSources(); if (S.area) reanalyse(); if (S.layer === "impact") S.layer = "growth"; renderLayerSeg(); paint(); break;
       case "csv": allCSV(); break;
       case "tool": openTool(a.dataset.tool); break;
     }
@@ -1537,13 +1549,13 @@
   }
   const csvCell = BL.CSV.escapeCell;
   function allCSV() {
-    const head = ["district", "state", "lat", "lon", "price_inr_sqft", "price_inr_acre", "circle_rate_sqft", "gap_pct", `mult_${S.horizon}y`, "illustrative_low_unvalidated", "illustrative_high_unvalidated", "cagr_pct", "opportunity", "risk", "liquidity", "top_catalyst", "analogue"];
-    const rows = models.map((m) => [m.name, m.state, m.lat, m.lon, Math.round(m.priceNow), Math.round(m.priceNow * E.SQFT_PER_ACRE), Math.round(m.circle), Math.round(m.gap * 100), m.mult.toFixed(3), m.lo.toFixed(3), m.hi.toFixed(3), (m.cagr * 100).toFixed(2), m.opp, Math.round(m.risk.total), Math.round(m.liq), m.links[0] ? m.links[0].c.n : "", E.analogueFor(m.vec).a.n]);
+    const head = ["district", "state", "lat", "lon", "model_price_inr_sqft", "model_price_inr_acre", "model_circle_rate_inr_sqft", "model_gap_pct", `model_multiple_${S.horizon}y`, "illustrative_low_unvalidated", "illustrative_high_unvalidated", "model_growth_pct_per_year", "model_opportunity_score", "model_risk_score", "model_liquidity_score", "top_model_project", "model_analogue", "scenario", "horizon_years", "model_base_year", "validation_status"];
+    const rows = models.map((m) => [m.name, m.state, m.lat, m.lon, Math.round(m.priceNow), Math.round(m.priceNow * E.SQFT_PER_ACRE), Math.round(m.circle), Math.round(m.gap * 100), m.mult.toFixed(3), m.lo.toFixed(3), m.hi.toFixed(3), (m.cagr * 100).toFixed(2), m.opp, Math.round(m.risk.total), Math.round(m.liq), m.links[0] ? m.links[0].c.n : "", E.analogueFor(m.vec).a.n, S.scenario, S.horizon, MY, "unvalidated heuristic"]);
     download(`bhoomi-lens-districts-${S.scenario}-${S.horizon}y.csv`, [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\n"));
   }
   function areaCSV() {
     if (!S.area) return;
-    const rows = [["lat", "lon", "district", "state", "price_inr_sqft", "mult", "cagr_pct", "top_catalyst"], ...S.area.cells.map((c) => [c.lat.toFixed(4), c.lon.toFixed(4), c.district, c.state, Math.round(c.price), c.mult.toFixed(3), (c.cagr * 100).toFixed(2), c.top || ""])];
+    const rows = [["lat", "lon", "district", "state", "model_price_inr_sqft", "model_multiple", "model_growth_pct_per_year", "top_model_project", "scenario", "horizon_years", "model_base_year", "validation_status"], ...S.area.cells.map((c) => [c.lat.toFixed(4), c.lon.toFixed(4), c.district, c.state, Math.round(c.price), c.mult.toFixed(3), (c.cagr * 100).toFixed(2), c.top || "", S.scenario, S.horizon, MY, "unvalidated heuristic"])];
     download("bhoomi-lens-area.csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"));
   }
   function report(m) {
