@@ -15,6 +15,7 @@ sys.path.insert(0, str(scripts))
 import tn_retry_gaps as retry
 import tn_rera_health as rera
 import tn_verify_sample as verify
+import tn_source_status as health
 
 
 def page(count=1, street='Main Road', price='120 / சதுரடி', pagination=''):
@@ -123,23 +124,42 @@ class RetryTests(unittest.TestCase):
 
     def test_sample_backs_off_and_reports_the_number_attempted(self):
         samples = [(None, ('D', 'sro', '2002', str(i), 'Village'), {'items': 1}, []) for i in range(5)]
-        with patch.object(verify.collector, 'Store', return_value=types.SimpleNamespace()), \
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(verify.collector, 'Store', return_value=types.SimpleNamespace()), \
              patch.object(verify, 'select_samples', return_value=samples), \
              patch.object(verify.collector, 'street_query', return_value={}), \
              patch.object(verify, 'collect_complete', side_effect=urllib.error.URLError('timeout')) as collect, \
              patch.object(verify.time, 'sleep'), \
              patch.object(sys, 'stdout', new_callable=io.StringIO) as output, \
-             patch.object(sys, 'argv', ['tn_verify_sample.py']):
+             patch.object(sys, 'argv', ['tn_verify_sample.py', '--status-file', str(Path(directory) / 'status.json')]):
             verify.main()
+            recorded = json.loads((Path(directory) / 'status.json').read_text())
         self.assertEqual(collect.call_count, 3)
         self.assertIn('Attempted 3 of 5', output.getvalue())
         self.assertIn('stopping this sample early', output.getvalue())
+        self.assertEqual(recorded['unavailable'], 3)
+        self.assertEqual(recorded['matched'], 0)
+        self.assertTrue(health.problems(recorded, {label: True for label in rera.PAGES}))
 
     def test_rera_check_does_not_mistake_error_or_generic_page_for_data(self):
         self.assertIn('unavailable', rera.classify(503, 'TN/11/Building/0301/2024'))
         self.assertIn('unconfirmed', rera.classify(200, '<html>Welcome</html>'))
         self.assertIn('identifier found', rera.classify(200, '<td>TN/11/Building/0301/2024</td>'))
         self.assertIn('unavailable', rera.classify(200, 'Error Page TN/11/Building/0301/2024'))
+
+    def test_health_requires_complete_sample_and_both_rera_checks(self):
+        sample = {'expected': 14, 'selected': 14, 'attempted': 14,
+                  'matched': 14, 'different': 0, 'unavailable': 0}
+        pages = {label: True for label in rera.PAGES}
+        self.assertEqual(health.problems(sample, pages), [])
+        for incomplete in (
+            dict(sample, selected=13), dict(sample, attempted=3, matched=0, unavailable=3),
+            dict(sample, matched=13, different=1), dict(sample, expected=0), {},
+        ):
+            with self.subTest(incomplete=incomplete):
+                self.assertTrue(health.problems(incomplete, pages))
+        self.assertTrue(health.problems(sample, {label: False for label in rera.PAGES}))
+        self.assertTrue(health.problems(sample, {}))
 
 
 if __name__ == '__main__':

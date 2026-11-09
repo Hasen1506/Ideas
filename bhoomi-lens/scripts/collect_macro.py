@@ -210,9 +210,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--source', choices=('all', 'cpi', 'worldbank'), default='all')
+    parser.add_argument('--status-file', type=Path, help='write aggregate source status for the workflow')
     args = parser.parse_args()
     sources = [('cpi', collect_cpi, 'macro_cpi.js', 'BL_MACRO_CPI'), ('worldbank', collect_worldbank, 'macro_worldbank.js', 'BL_MACRO_WB')]
-    succeeded, failed = 0, 0
+    succeeded, failed, statuses = 0, 0, {}
     for name, collect, filename, global_name in sources:
         if args.source not in ('all', name):
             continue
@@ -222,11 +223,15 @@ def main():
             changed = save_if_changed(filename, global_name, result) if args.apply else False
             print(f'{name}: {len(result["series"])} checked series, {count} observations; ' + ('saved changes' if changed else 'no files written'), flush=True)
             succeeded += 1
+            statuses[name] = 'ok'
         except (SourceError, OSError, ValueError, TypeError, KeyError) as error:
             failed += 1
+            statuses[name] = 'unavailable'
             print(f'{name}: unavailable or incomplete ({type(error).__name__}: {str(error)[:120]}). Previous snapshot retained.', flush=True)
             if os.environ.get('GITHUB_ACTIONS') == 'true':
                 print(f'::warning::{name} source unavailable or incomplete; previous snapshot retained.', flush=True)
+    if args.status_file:
+        args.status_file.write_text(json.dumps(statuses, sort_keys=True) + '\n', encoding='utf-8')
     if not succeeded:
         return 1
     if failed:

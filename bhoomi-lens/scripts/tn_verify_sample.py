@@ -8,10 +8,12 @@ import argparse
 from collections import Counter
 import datetime as dt
 import hashlib
+import json
 import os
 import re
 import time
 import urllib.error
+from pathlib import Path
 
 import tn_gv_collect as collector
 from tn_retry_gaps import Fetcher, IncompleteResult, collect_complete, is_transport_failure, NETWORK_FAILURE_LIMIT
@@ -55,6 +57,7 @@ def main():
     parser.add_argument('--per-revision', type=int, choices=(1, 2), default=2)
     parser.add_argument('--seed', default=dt.date.today().strftime('%G-W%V'),
                         help='seed recorded in output, defaults to ISO week')
+    parser.add_argument('--status-file', type=Path, help='write aggregate check status for the workflow')
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,32}', args.seed):
         parser.error('seed must contain 1–32 letters, numbers, underscores or hyphens')
@@ -84,6 +87,11 @@ def main():
                 break
         time.sleep(0.2)
     print(f'Attempted {sum(counts.values())} of {len(sample)}; matched {counts["matched"]}; different {counts["different: requires review"]}; unavailable {counts["unavailable"]}. Read-only, small-result sample, not a statewide accuracy estimate.', flush=True)
+    if args.status_file:
+        status = {'expected': len(collector.REV_ORDER) * args.per_revision, 'selected': len(sample),
+                  'attempted': sum(counts.values()), 'matched': counts['matched'],
+                  'different': counts['different: requires review'], 'unavailable': counts['unavailable']}
+        args.status_file.write_text(json.dumps(status, sort_keys=True) + '\n', encoding='utf-8')
     if os.environ.get('GITHUB_ACTIONS') == 'true' and (counts['different: requires review'] or counts['unavailable']):
         print('::warning::Some TN guideline spot-checks differed or could not be completed; review the run summary.', flush=True)
 

@@ -23,9 +23,9 @@
   };
   const LAYERS = {
     price: { label: "Price", title: "Estimated market price", norm: (m) => (Math.log10(Math.max(m.price, 5)) - 1) / 3.5, val: (m) => fmtINR(m.price) + " / sq ft", ll: ["\u20B910", "\u20B9300", "\u20B930k+"] },
-    growth: { label: "Growth", title: "Forecast growth per year", norm: (m) => (m.cagr - 0.035) / 0.09, val: (m) => pct(m.cagr) + " / yr", ll: ["3.5%", "8%", "12.5%+"] },
-    opp: { label: "Opportunity", title: "Opportunity score", norm: (m) => m.opp / 100, val: (m) => m.opp + " / 100", ll: ["0", "50", "100"] },
-    risk: { label: "Risk", title: "Composite risk", norm: (m) => (m.risk.total - 22) / 36, val: (m) => Math.round(m.risk.total) + " / 100", ll: ["Low", "Medium", "High"] },
+    growth: { label: "Growth", title: "Modelled growth per year", norm: (m) => (m.cagr - 0.035) / 0.09, val: (m) => pct(m.cagr) + " / yr", ll: ["3.5%", "8%", "12.5%+"] },
+    opp: { label: "Opportunity", title: "Modelled opportunity score", norm: (m) => m.opp / 100, val: (m) => m.opp + " / 100", ll: ["0", "50", "100"] },
+    risk: { label: "Risk", title: "Modelled composite risk", norm: (m) => (m.risk.total - 22) / 36, val: (m) => Math.round(m.risk.total) + " / 100", ll: ["Low", "Medium", "High"] },
     liq: { label: "Liquidity", title: "Modelled liquidity score", norm: (m) => m.liq / 100, val: (m) => Math.round(m.liq) + " / 100", ll: ["Lower score", "", "Higher score"] },
     gap: { label: "Circle gap", title: "Modelled circle-rate gap", norm: (m) => (m.gap - 0.3) / 0.3, val: (m) => "modelled gap " + Math.round(m.gap * 100) + "%", ll: ["30%", "45%", "60%"] },
     impact: { label: "Sim impact", title: "Assumed scenario change", norm: (m) => clamp((m.delta + 0.5) / 1.0), val: (m) => pct(m.delta), ll: ["-50%", "0%", "+50%"] }
@@ -1029,7 +1029,7 @@
   }
   function landTypeHTML(lt) {
     if (!lt) return "";
-    const row = (k, x) => x ? `<div class="row sb small" style="margin-top:4px"><span class="muted">${k} <span class="tag" style="padding:0 5px;color:${x.conf === "High" ? "#5bd18b" : x.conf === "Medium" ? "#ffd166" : "#ff8a5c"}">${x.conf}</span></span><b>${fmtINR(x.value)} ${x.unit === "Rs/acre" ? "/acre" : "/sq ft"}</b></div><div class="small muted">${esc(x.method)}${x.ratio ? ` Farm land here sells at about ${Math.round(x.ratio * 1000) / 10}% of residential plot prices per sq ft.` : ""}</div>` : "";
+    const row = (k, x) => x ? `<div class="row sb small" style="margin-top:4px"><span class="muted">${k} <span class="tag" style="padding:0 5px;color:${x.conf === "High" ? "#5bd18b" : x.conf === "Medium" ? "#ffd166" : "#ff8a5c"}">${x.conf}</span></span><b>${fmtINR(x.value)} ${x.unit === "Rs/acre" ? "/acre" : "/sq ft"}</b></div><div class="small muted">${esc(x.method)}${x.ratio ? ` The model uses ${Math.round(x.ratio * 1000) / 10}% of residential plot prices per sq ft; this is not a verified sale ratio.` : ""}</div>` : "";
     return `<div style="margin-top:6px"><b class="small">By land type</b>${row("Farm land", lt.farm)}${row("Commercial land", lt.comm)}${lt.rev ? `<div class="small muted">Guideline revision on record: ${esc(lt.rev)}</div>` : ""}</div>`;
   }
   // Every displayed rate carries its source, method and retrieval timestamp.
@@ -1086,16 +1086,16 @@
           <button class="icon-btn" data-act="close-detail" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
         <div class="score-row">
-          <div class="score">${C.gauge(m.opp, { color: "#2ee6c5" })}<div><div class="lab">Opportunity</div><div class="txt">${m.opp >= 75 ? "Strong" : m.opp >= 60 ? "Above average" : m.opp >= 40 ? "Average" : "Below average"}</div></div></div>
-          <div class="score">${C.gauge(R.total, { color: "#ff5c7a" })}<div><div class="lab">Risk</div><div class="txt">${R.total < 38 ? "Contained" : R.total < 50 ? "Moderate" : "Elevated"}</div></div></div>
+          <div class="score">${C.gauge(m.opp, { color: "#2ee6c5" })}<div><div class="lab">Model opportunity</div><div class="txt">${m.opp >= 75 ? "Strong" : m.opp >= 60 ? "Above average" : m.opp >= 40 ? "Average" : "Below average"}</div></div></div>
+          <div class="score">${C.gauge(R.total, { color: "#ff5c7a" })}<div><div class="lab">Model risk</div><div class="txt">${R.total < 38 ? "Lower score" : R.total < 50 ? "Middle score" : "Higher score"}</div></div></div>
           <div class="score">${C.gauge(m.liq, { color: "#5ad1ff" })}<div><div class="lab">Liquidity score</div><div class="txt">${m.liq > 65 ? "Higher" : m.liq > 40 ? "Middle" : "Lower"} model score</div></div></div>
         </div>
       </div>
       <div class="d-body">
-        <h3>Value today</h3>
+        <h3>Modelled value inputs</h3>
         <div class="kpis">
-          <div class="kpi"><div class="k">Market price</div><div class="v">${fmtINR(m.priceNow)}<span class="small muted"> /sq ft</span></div><div class="s">${fmtINR(m.priceNow * E.SQFT_PER_ACRE)} per acre</div></div>
-          <div class="kpi"><div class="k">Circle rate</div><div class="v">${fmtINR(m.circle)}<span class="small muted"> /sq ft</span></div><div class="s warn">Circle rate is ${Math.round(m.gap * 100)}% below market (market is ${Math.round((1 / Math.max(0.01, 1 - m.gap) - 1) * 100)}% above it)</div></div>
+          <div class="kpi"><div class="k">Modelled market price</div><div class="v">${fmtINR(m.priceNow)}<span class="small muted"> /sq ft</span></div><div class="s">${fmtINR(m.priceNow * E.SQFT_PER_ACRE)} per acre</div></div>
+          <div class="kpi"><div class="k">Modelled circle-rate input</div><div class="v">${fmtINR(m.circle)}<span class="small muted"> /sq ft</span></div><div class="s warn">Assumed gap ${Math.round(m.gap * 100)}%; not a verified difference between actual rates.</div></div>
           <div class="kpi"><div class="k">${S.horizon}-yr value multiple</div><div class="v">${m.mult.toFixed(2)}x</div><div class="s">Illustrative range ${m.lo.toFixed(2)}x to ${m.hi.toFixed(2)}x</div></div>
           <div class="kpi"><div class="k">Growth per year</div><div class="v ${m.cagr > 0.09 ? "up" : ""}">${pct(m.cagr)}</div><div class="s">${esc(BL.SCENARIOS[S.scenario].label)} case</div></div>
           ${yrPrice}
@@ -1108,9 +1108,9 @@
         <div class="card">${C.bars(con.parts)}<div class="row sb small" style="margin-top:9px;border-top:1px solid var(--line);padding-top:8px"><span class="muted">Total modelled change</span><b class="up">${pct(con.total)}</b></div><div class="small muted">Inputs are model assumptions, not causal project effects.</div></div>
         <h3>Looks like</h3>
         <div class="analogue">
-          <div class="small muted">Closest historical match (${Math.round(an.similarity * 100)}% similar)</div>
+          <div class="small muted">Closest case by model pattern score (${Math.round(an.similarity * 100)}%)</div>
           <b>${esc(an.a.n)} in ${an.a.y}</b>
-          <p class="small" style="margin:6px 0 0;line-height:1.5;color:var(--tx-2)">${esc(an.a.why)} Over the next decade, land there moved roughly <b style="color:var(--tx)">${an.a.mult}x</b>. This is an illustrative pattern match, not a promise.</p>
+          <p class="small" style="margin:6px 0 0;line-height:1.5;color:var(--tx-2)">${esc(an.a.why)} The case input uses <b style="color:var(--tx)">${an.a.mult}x</b> over the following decade. The match and the case input are not independently validated.</p>
         </div>
         <h3>Modelled risk profile</h3><p class="small muted">Heuristic district-level indicators, not a site inspection or measured plot risk.</p>
         <div class="card"><div class="row" style="align-items:center">
@@ -1118,10 +1118,10 @@
           <div class="grow small">
             ${[["Flood", R.flood], ["Heat", R.heat], ["Water stress", R.water], ["Title and records", R.title], ["Buyer restrictions", R.reg]].map(([k, v]) => `<div class="row sb" style="padding:3px 0"><span class="muted">${k}</span><span class="${v >= 0.6 ? "down" : v >= 0.33 ? "warn" : "up"}">${riskWord(v)}</span></div>`).join("")}
           </div></div>
-          ${R.reg > 0.6 ? `<p class="small warn" style="margin:8px 0 0">${esc(m.state)} restricts who can buy agricultural land. Check eligibility before you transact.</p>` : ""}
+          ${R.reg > 0.6 ? `<p class="small warn" style="margin:8px 0 0">The model indicates possible buyer restrictions. Check current law and eligibility for the specific land.</p>` : ""}
         </div>
         <h3>Projects in range (${m.links.length})</h3>
-        <div class="card" style="padding:4px 12px">${m.links.length ? m.links.slice(0, 8).map((L) => catRow(L.c, `${Math.round(L.d)} km away`)).join("") : '<div class="empty">No major tracked catalyst is close enough to move prices here. Growth comes from general land inflation.</div>'}</div>
+        <div class="card" style="padding:4px 12px">${m.links.length ? m.links.slice(0, 8).map((L) => catRow(L.c, `${Math.round(L.d)} km away`)).join("") : '<div class="empty">No tracked project is within the model’s assumed reach. This does not establish whether projects affect prices here.</div>'}</div>
         <h3>Act on it</h3>
         <div class="btn-row">
           <button class="btn sm" data-act="radius" data-id="${m.id}">Analyse 15 km around</button>
@@ -1179,12 +1179,12 @@
       <div class="kpis">
         <div class="kpi"><div class="k">Districts modelled</div><div class="v">${models.length}</div><div class="s">${Object.keys(BL.STATES).length} states and UTs</div></div>
         <div class="kpi"><div class="k">Projects tracked</div><div class="v">${allCats().length}</div><div class="s">${allCats().filter((c) => c.stage < 4).length} still in the pipeline</div></div>
-        <div class="kpi wide"><div class="k">National average growth (${S.horizon} yrs)</div><div class="v">${pct(nat)} <span class="small muted">per year, ${esc(BL.SCENARIOS[S.scenario].label.toLowerCase())} case</span></div></div>
+        <div class="kpi wide"><div class="k">Mean model growth across districts (${S.horizon} yrs)</div><div class="v">${pct(nat)} <span class="small muted">per year, ${esc(BL.SCENARIOS[S.scenario].label.toLowerCase())} case</span></div></div>
       </div>
       <h3>Highest model opportunity scores</h3>${top.map((m, i) => listItem(m, i, `<span class="pill">${m.opp}</span>`)).join("")}
-      <h3>Emerging: cheap land with a pipeline</h3>${emerging.map((m, i) => listItem(m, i, `<span class="pill s">${pct(m.cagr)}</span>`)).join("")}
-      <h3>Widest circle-rate gaps (revision risk)</h3>${gaps.map((m, i) => listItem(m, i, `<span class="pill r">${Math.round(m.gap * 100)}%</span>`)).join("")}
-      <h3>Most expensive land</h3>${priced.map((m, i) => listItem(m, i, `<span class="pill s">${fmtINR(m.priceNow)}</span>`)).join("")}`;
+      <h3>Lower model prices near tracked projects</h3>${emerging.map((m, i) => listItem(m, i, `<span class="pill s">${pct(m.cagr)}</span>`)).join("")}
+      <h3>Widest modelled circle-rate gaps</h3>${gaps.map((m, i) => listItem(m, i, `<span class="pill r">${Math.round(m.gap * 100)}%</span>`)).join("")}
+      <h3>Highest modelled land prices</h3>${priced.map((m, i) => listItem(m, i, `<span class="pill s">${fmtINR(m.priceNow)}</span>`)).join("")}`;
   }
 
   function pDraw() {
@@ -1280,7 +1280,7 @@
     list = list.sort(sorters[sc.sort]).slice(0, 40);
     const states = [...new Set(models.map((m) => m.state))].sort();
     const right = (m) => sc.sort === "cagr" ? `<span class="pill">${pct(m.cagr)}</span>` : sc.sort === "cheap" ? `<span class="pill s">${fmtINR(m.priceNow)}</span>` : sc.sort === "risk" ? `<span class="pill r">${Math.round(m.risk.total)}</span>` : sc.sort === "gap" ? `<span class="pill r">${Math.round(m.gap * 100)}%</span>` : sc.sort === "liq" ? `<span class="pill">${Math.round(m.liq)}</span>` : `<span class="pill">${m.opp}</span>`;
-    return `<p class="lead">Filter India down to the districts that fit your thesis.</p>
+    return `<p class="lead">Filter districts using unvalidated model scores and price estimates. Results are not verified rankings or plot valuations.</p>
       <div class="field"><label><span>State</span></label><select id="scrState"><option value="all">All of India</option>${states.map((s) => `<option ${sc.state === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></div>
       <div class="field"><label><span>Rank by</span></label><select id="scrSort">${[["opp", "Opportunity score"], ["cagr", "Forecast growth"], ["cheap", "Cheapest land"], ["risk", "Lowest risk"], ["gap", "Widest circle gap"], ["liq", "Most liquid"]].map(([k, l]) => `<option value="${k}" ${sc.sort === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
       <div class="field"><label><span>Max risk</span><span>${sc.maxRisk}</span></label><input type="range" id="scrRisk" min="20" max="100" value="${sc.maxRisk}"/></div>
@@ -1293,17 +1293,17 @@
     const out = [];
     for (const L of m.links.slice(0, 5)) {
       const eta = E.effEta(L.c, S.scenario);
-      if (!L.c.cancelled && L.c.stage < 4 && eta <= MY + 3) out.push({ k: "up", t: `${L.c.n} expected by ${eta} (${Math.round(E.completionP(L.c, S.scenario) * 100)}% likely)` });
+      if (!L.c.cancelled && L.c.stage < 4 && eta <= MY + 3) out.push({ k: "up", t: `${L.c.n}: scenario opening ${eta}, assumed delivery factor ${Math.round(E.completionP(L.c, S.scenario) * 100)}%` });
       if (!L.c.cancelled && L.c.stage <= 1 && L.c.cred < 0.55) out.push({ k: "warn", t: `${L.c.n} is early-stage with low delivery credibility` });
     }
-    if (m.opp >= 75) out.push({ k: "up", t: "Strong opportunity score" });
-    if (m.risk.total >= 55) out.push({ k: "down", t: "Elevated composite risk. Check title and flood exposure." });
-    if (m.gap >= 0.5) out.push({ k: "warn", t: "Wide circle-rate gap. A rate revision would raise stamp duty." });
-    if (m.liq < 35) out.push({ k: "warn", t: "Thin market. Exits may take time." });
+    if (m.opp >= 75) out.push({ k: "up", t: "High model opportunity score; not a verified investment signal." });
+    if (m.risk.total >= 55) out.push({ k: "down", t: "High model risk score; it does not verify title or flood exposure." });
+    if (m.gap >= 0.5) out.push({ k: "warn", t: "Wide modelled circle-rate gap; check actual prices and official rates." });
+    if (m.liq < 35) out.push({ k: "warn", t: "Low model liquidity score; transaction volumes were not measured." });
     return out.slice(0, 4);
   }
   function pWatch() {
-    if (!S.watch.length) return `<div class="empty">Star districts from their detail card to track them here.<br/>You will see live signals: upcoming project openings, risk flags and circle-rate revision exposure.</div>`;
+    if (!S.watch.length) return `<div class="empty">Star districts from their detail card to track them here.<br/>You will see modelled signals based on the tracked-project snapshot.</div>`;
     return S.watch.map((id) => byId.get(id)).filter(Boolean).map((m) => `<div class="card click" data-act="open-d" data-id="${m.id}">
       <div class="row sb"><div><b style="font-family:var(--display);font-size:14px">${esc(m.name)}</b> <span class="small muted">${esc(m.state)}</span></div><span class="pill">${m.opp}</span></div>
       <div class="row small muted" style="gap:12px;margin:5px 0 7px"><span>${fmtINR(m.priceNow)}/sq ft</span><span class="up">${pct(m.cagr)}/yr</span><span>risk ${Math.round(m.risk.total)}</span></div>

@@ -176,6 +176,13 @@ const server = http.createServer(async (req, res) => {
     assert.equal(simulation.hasDecrease, true);
     assert.equal(await page.evaluate(() => BhoomiLens.map.getPaintProperty("d-fill", "fill-opacity")[0]), "interpolate", "opacity stays a zoom-and-feature expression when switching lenses");
     assert.match(await page.locator("#panelBody").innerText(), /not measured project effects or validated probabilities/i);
+    await page.locator('#rail [data-tool="explore"]').click();
+    await page.locator('#panelBody [data-act="open-d"]').first().click();
+    const districtDetail = await page.locator('#detailBody').innerText();
+    assert.match(districtDetail, /Modelled market price/i);
+    assert.match(districtDetail, /Modelled circle-rate input/i);
+    assert.match(districtDetail, /not a verified difference between actual rates/i);
+    assert.doesNotMatch(districtDetail, /Circle rate is \d+% below market/i);
     assert.deepEqual(errors, [], "uncaught browser errors");
     await page.close();
 
