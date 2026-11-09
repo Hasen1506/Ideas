@@ -33,7 +33,7 @@ jobs:
         run: |
           set -o pipefail
           echo '## Economic data refresh' >> "$GITHUB_STEP_SUMMARY"
-          python -u bhoomi-lens/scripts/collect_macro.py --apply | tee -a "$GITHUB_STEP_SUMMARY"
+          python -u bhoomi-lens/scripts/collect_macro.py --apply --status-file "$RUNNER_TEMP/macro-status.json" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Detect changed observations
         id: changes
         run: |
@@ -65,3 +65,7 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
           gh workflow run bhoomi-deploy.yml --ref main -R "$GITHUB_REPOSITORY"
+      - name: Report source health after publishing checked updates
+        run: |
+          set -o pipefail
+          python -u bhoomi-lens/scripts/macro_source_status.py "$RUNNER_TEMP/macro-status.json" | tee -a "$GITHUB_STEP_SUMMARY"
