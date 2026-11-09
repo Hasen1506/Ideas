@@ -15,6 +15,7 @@ on:
       - 'bhoomi-lens/scripts/tn_rera_health.py'
       - 'bhoomi-lens/scripts/tn_source_status.py'
       - 'bhoomi-lens/scripts/collect_macro.py'
+      - 'bhoomi-lens/scripts/collect_tn_district_cpi.py'
       - 'bhoomi-lens/scripts/macro_source_status.py'
       - 'bhoomi-lens/scripts/market_model.py'
       - 'bhoomi-lens/scripts/market_predict.py'
@@ -28,6 +29,7 @@ on:
       - '.github/workflows/bhoomi-tests.yml'
       - '.github/workflows/tn-source-retry.yml'
       - '.github/workflows/macro-data.yml'
+      - '.github/workflows/tn-district-cpi.yml'
       - '.github/workflows/market-model.yml'
   pull_request:
     paths:
@@ -43,6 +45,7 @@ on:
       - 'bhoomi-lens/scripts/tn_rera_health.py'
       - 'bhoomi-lens/scripts/tn_source_status.py'
       - 'bhoomi-lens/scripts/collect_macro.py'
+      - 'bhoomi-lens/scripts/collect_tn_district_cpi.py'
       - 'bhoomi-lens/scripts/macro_source_status.py'
       - 'bhoomi-lens/scripts/market_model.py'
       - 'bhoomi-lens/scripts/market_predict.py'
@@ -56,6 +59,7 @@ on:
       - '.github/workflows/bhoomi-tests.yml'
       - '.github/workflows/tn-source-retry.yml'
       - '.github/workflows/macro-data.yml'
+      - '.github/workflows/tn-district-cpi.yml'
       - '.github/workflows/market-model.yml'
   workflow_dispatch:
 

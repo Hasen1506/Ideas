@@ -59,7 +59,7 @@
     userCats: [], watch: store.get("bl_watch", []), compare: store.get("bl_compare", []),
     playing: false, draw: null, placing: null, area: null, catFilter: "all", catStage: "all",
     simType: "airport", simEffect: 25, simProbability: 50, simDistance: 20, simPricedIn: 35, simYear: MY + 5, hoverId: null, radiusKm: 10, loc: null, real: false, proj: false, tint: true, labels: false,
-    scr: { state: "all", sort: "opp", maxRisk: 100, maxPrice: 0 }
+    scr: { state: "all", sort: "opp", maxRisk: 100, maxPrice: 0 }, tnCpiArea: "Tamil Nadu"
   };
   const opts = () => ({ year: S.year, horizon: S.horizon, scenario: S.scenario });
   const allCats = () => BL.CATALYSTS.concat(S.userCats);
@@ -1356,6 +1356,11 @@
     const gv = window.BL_TN_GV || { rows: [] }, updates = window.BL_UPDATES || {}, gazette = window.BL_GAZETTE || {};
     const coverage = updates.coverage;
     const cpi = window.BL_MACRO_CPI || { series: [] }, wb = window.BL_MACRO_WB || { series: [] };
+    const tnCpi = window.BL_TN_DISTRICT_CPI || { series: [] };
+    const tnArea = tnCpi.series.find((x) => x.area === S.tnCpiArea) || tnCpi.series[0];
+    const tnLatest = tnArea && [...tnArea.points].reverse().find((p) => p[1] != null);
+    const tnNow = new Date(), tnMonth = tnLatest && /^(\d{4})-(\d{2})$/.exec(tnLatest[0]);
+    const tnLag = tnMonth ? 12 * (tnNow.getUTCFullYear() - Number(tnMonth[1])) + tnNow.getUTCMonth() + 1 - Number(tnMonth[2]) : 0;
     const latestCPI = ["Tamil Nadu", "Maharashtra", "All India"].map((geo) => {
       const series = cpi.series.find((x) => x.geo === geo && x.base === "2024" && x.series === "Current");
       const point = series && [...series.points].reverse().find((p) => p[1] != null);
@@ -1384,6 +1389,15 @@
         ${latestCPI || '<div class="muted">No checked CPI data available.</div>'}
         <p class="muted">Source: <a href="https://esankhyiki.mospi.gov.in/macroindicators?product=cpi" target="_blank" rel="noopener">MoSPI</a>. Consumer inflation is not a land-price trend. The latest values may be provisional; historical bases and back-series are kept separate and values can be revised.</p>
         <p class="muted">${n(wb.series.length)} India-wide <a href="https://data.worldbank.org/country/india" target="_blank" rel="noopener">World Bank</a> population and economic series are recorded as background, not district data. Captured ${esc((wb.captured_utc || "unknown").slice(0, 10))}.</p></div>
+      <h3>Tamil Nadu district consumer prices</h3><div class="card small" style="line-height:1.6">
+        ${tnArea ? `<label for="tnCpiArea">Published area</label>
+          <select id="tnCpiArea">${tnCpi.series.map((x) => `<option value="${esc(x.area)}" ${x.area === tnArea.area ? "selected" : ""}>${esc(x.area)}</option>`).join("")}</select>
+          <div class="row sb" id="tnDistrictCpiCurrent"><span>Latest available · ${esc(tnLatest ? tnLatest[0] : "Unavailable")}</span><b>${tnLatest ? Number(tnLatest[1]).toFixed(1) : "Unavailable"}</b></div>
+          ${tnLag >= 4 ? `<div class="warn">The latest observation is ${tnLag} months before this device’s current month.</div>` : ""}
+          <div class="muted">Combined rural and urban consumer-price index · ${esc(tnCpi.base)}. These figures describe household prices, not land prices. The state series differs from the MoSPI series above.</div>
+          <details class="more"><summary>Monthly index values</summary><div>${[...tnArea.points].reverse().map(([month, value]) => `<div class="row sb"><span>${esc(month)}</span><b>${value == null ? "Unavailable" : Number(value).toFixed(1)}</b></div>`).join("")}</div></details>
+          <p class="muted">The report names 32 areas; their boundaries have not been matched to the current district map. <a href="${esc(tnCpi.source_url)}" target="_blank" rel="noopener">Tamil Nadu Department of Economics and Statistics</a> · captured ${esc((tnCpi.captured_utc || "unknown").slice(0, 10))}.</p>` : '<p class="muted">No checked district CPI data available.</p>'}
+      </div>
       <h3>Earth observation</h3><div class="card small" style="line-height:1.6">
         <p><b>Satellite:</b> <a href="https://maps.eox.at/" target="_blank" rel="noopener">2025 cloudless mosaic</a>. Recent scene mode searches for a dated Sentinel-2 observation at the map center; clouds may remain.</p>
         <p><b>Water history:</b> <a href="https://global-surface-water.appspot.com/download" target="_blank" rel="noopener">Global Surface Water 1984–2024</a>. Both layers are coarse satellite observations, not plot boundaries or flood clearance.</p></div>
@@ -1455,6 +1469,7 @@
     else if (t.id === "scrState") { S.scr.state = t.value; refreshPanel(); }
     else if (t.id === "scrSort") { S.scr.sort = t.value; refreshPanel(); }
     else if (t.id === "scrPrice") { S.scr.maxPrice = Math.max(0, +t.value || 0); refreshPanel(); }
+    else if (t.id === "tnCpiArea") { S.tnCpiArea = t.value; refreshPanelKeepScroll(); }
     else if (t.id === "budget") { store.set("bl_budget", Math.max(100000, +t.value || 0)); refreshPanelKeepScroll(); }
   });
   function keepName(fn) { const v = $("#simName") ? $("#simName").value : ""; fn(); if ($("#simName")) $("#simName").value = v; }
