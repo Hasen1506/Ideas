@@ -5,15 +5,19 @@ on:
     paths:
       - 'bhoomi-lens/scripts/market_model.py'
       - 'bhoomi-lens/scripts/market_predict.py'
+      - 'bhoomi-lens/scripts/landlens_stage.py'
       - 'bhoomi-lens/scripts/requirements-market.txt'
       - 'bhoomi-lens/tests/test_market_model.py'
+      - 'bhoomi-lens/tests/test_landlens_stage.py'
       - '.github/workflows/market-model.yml'
   pull_request:
     paths:
       - 'bhoomi-lens/scripts/market_model.py'
       - 'bhoomi-lens/scripts/market_predict.py'
+      - 'bhoomi-lens/scripts/landlens_stage.py'
       - 'bhoomi-lens/scripts/requirements-market.txt'
       - 'bhoomi-lens/tests/test_market_model.py'
+      - 'bhoomi-lens/tests/test_landlens_stage.py'
       - '.github/workflows/market-model.yml'
   workflow_dispatch:
 
@@ -33,3 +37,5 @@ jobs:
         run: python -m pip install -r bhoomi-lens/scripts/requirements-market.txt
       - name: Check data gates, leakage controls and model training
         run: python bhoomi-lens/tests/test_market_model.py
+      - name: Check private sale-report staging
+        run: python bhoomi-lens/tests/test_landlens_stage.py

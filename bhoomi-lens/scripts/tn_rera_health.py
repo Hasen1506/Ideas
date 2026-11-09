@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Check two official TNRERA pages; this does not collect project records."""
+import argparse
+import json
 import os
 import re
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 PAGES = {
     'building 2024': 'https://rera.tn.gov.in/registered-building/tn?year=2024',
@@ -21,6 +24,10 @@ def classify(status, html):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--status-file', type=Path, help='write aggregate page status for the workflow')
+    args = parser.parse_args()
+    statuses = {}
     for label, url in PAGES.items():
         try:
             request = urllib.request.Request(url, headers={'User-Agent': 'BhoomiLens/1.0 (+https://github.com/Hasen1506/Ideas)'})
@@ -33,9 +40,12 @@ def main():
         except (urllib.error.URLError, OSError, ValueError) as exc:
             result = f'unavailable ({type(exc).__name__})'
         print(f'{label}: {result}', flush=True)
+        statuses[label] = result.startswith('registration identifier found')
         if os.environ.get('GITHUB_ACTIONS') == 'true' and not result.startswith('registration identifier found'):
             print(f'::warning::TNRERA {label}: {result}', flush=True)
     print('A successful page alone does not establish a complete historical dataset.', flush=True)
+    if args.status_file:
+        args.status_file.write_text(json.dumps(statuses, sort_keys=True) + '\n', encoding='utf-8')
 
 
 if __name__ == '__main__':

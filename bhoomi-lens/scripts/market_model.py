@@ -22,7 +22,8 @@ REQUIRED = {'event_id_hash', 'parcel_group_hash', 'event_date', 'state', 'distri
             'land_class', 'latitude', 'longitude', 'location_precision', 'area_sqft',
             'consideration_inr', 'source_url', 'rights_status', 'source_check'}
 HASH = re.compile(r'^[a-f0-9]{64}$')
-MINIMUM = {'training': 1000, 'future': 100, 'geography': 100, 'future_and_geography': 50}
+MINIMUM = {'training': 1000, 'calibration': 100, 'future': 100, 'geography': 100, 'future_and_geography': 50}
+INTERVAL_ALPHA = 0.20
 DISTRICTS = {name.casefold(): name for name in (
     'Ariyalur', 'Chengalpattu', 'Chennai', 'Coimbatore', 'Cuddalore', 'Dharmapuri',
     'Dindigul', 'Erode', 'Kallakurichi', 'Kancheepuram', 'Kanniyakumari', 'Karur',
@@ -91,20 +92,28 @@ def read_sales(path):
 
 
 def make_splits(records):
-    """Future time, an unseen district, and both together; no parcel crosses training/test."""
+    """Reserve a prior year for calibration and hold out future and geographic tests."""
     districts = sorted({r['district'] for r in records}, key=lambda d: hashlib.sha256(d.casefold().encode()).hexdigest())
     if len(districts) < 3:
         raise DataError('at least three districts are required for a geographic holdout')
     held_out = districts[0]
     test_year = max(r['date'].year for r in records)
-    splits = {'training': [], 'future': [], 'geography': [], 'future_and_geography': []}
+    prior_years = sorted({r['date'].year for r in records if r['date'].year < test_year and r['district'] != held_out})
+    if not prior_years:
+        raise DataError('a prior calibration year is required')
+    calibration_year = prior_years[-1]
+    splits = {'training': [], 'calibration': [], 'future': [], 'geography': [], 'future_and_geography': []}
     for row in records:
         future, geo = row['date'].year >= test_year, row['district'] == held_out
-        key = 'future_and_geography' if future and geo else 'future' if future else 'geography' if geo else 'training'
+        key = ('future_and_geography' if future and geo else 'future' if future else 'geography' if geo
+               else 'calibration' if row['date'].year == calibration_year else 'training')
         splits[key].append(row)
-    test_groups = {r['group'] for k, rows in splits.items() if k != 'training' for r in rows}
-    removed = sum(r['group'] in test_groups for r in splits['training'])
-    splits['training'] = [r for r in splits['training'] if r['group'] not in test_groups]
+    test_groups = {r['group'] for k in ('future', 'geography', 'future_and_geography') for r in splits[k]}
+    removed = sum(r['group'] in test_groups for r in splits['calibration'])
+    splits['calibration'] = [r for r in splits['calibration'] if r['group'] not in test_groups]
+    held_groups = test_groups | {r['group'] for r in splits['calibration']}
+    removed += sum(r['group'] in held_groups for r in splits['training'])
+    splits['training'] = [r for r in splits['training'] if r['group'] not in held_groups]
     return splits, held_out, test_year, removed
 
 
@@ -136,6 +145,34 @@ def metrics(rows, predictions):
             'within_25_percent': round(sum(x <= .25 for x in errors) / len(errors) * 100, 2)}
 
 
+def calibration_radius(rows, log_predictions, alpha=INTERVAL_ALPHA):
+    """Use one maximum absolute log residual per parcel; never reuse test rows."""
+    if len(rows) != len(log_predictions) or not rows or not 0 < alpha < 1:
+        raise DataError('cannot calibrate empty or mismatched predictions')
+    by_group = {}
+    for row, prediction in zip(rows, log_predictions):
+        error = abs(math.log(row['price']) - float(prediction))
+        if not math.isfinite(error):
+            raise DataError('non-finite calibration residual')
+        by_group[row['group']] = max(error, by_group.get(row['group'], 0.0))
+    errors = sorted(by_group.values())
+    rank = math.ceil((len(errors) + 1) * (1 - alpha))
+    if rank > len(errors):
+        raise DataError('too few calibration groups for the requested interval')
+    return errors[rank - 1], len(errors)
+
+
+def interval_metrics(rows, predictions, radius):
+    if len(rows) != len(predictions) or not rows or not math.isfinite(radius) or radius < 0:
+        raise DataError('cannot score invalid prediction intervals')
+    low, high = math.exp(-radius), math.exp(radius)
+    covered = sum(p * low <= row['price'] <= p * high for row, p in zip(rows, predictions))
+    widths = [(p * high - p * low) / row['price'] * 100 for row, p in zip(rows, predictions)]
+    return {'nominal_percent': round((1 - INTERVAL_ALPHA) * 100),
+            'empirical_coverage_percent': round(covered / len(rows) * 100, 2),
+            'median_width_as_percent_of_actual_price': round(statistics.median(widths), 2)}
+
+
 def evaluate(records):
     splits, held_out, test_year, removed = make_splits(records)
     require_sufficient(splits)
@@ -152,6 +189,9 @@ def evaluate(records):
     model = HistGradientBoostingRegressor(max_iter=200, max_leaf_nodes=31, min_samples_leaf=20,
                                            l2_regularization=1.0, random_state=2026)
     model.fit(features(train), [math.log(r['price']) for r in train], sample_weight=weights)
+    calibration = splits['calibration']
+    radius, calibration_groups = calibration_radius(calibration, model.predict(features(calibration)))
+    model._bhoomi_calibration_log_radius = radius
     model._bhoomi_domain = {
         'latitude': [min(r['lat'] for r in train), max(r['lat'] for r in train)],
         'longitude': [min(r['lon'] for r in train), max(r['lon'] for r in train)],
@@ -172,19 +212,22 @@ def evaluate(records):
         rows = splits[label]
         baseline = [medians.get(r['district'], state_median) for r in rows]
         predicted = [math.exp(v) for v in model.predict(features(rows))]
-        result[label] = {'baseline': metrics(rows, baseline), 'gradient_boosting': metrics(rows, predicted)}
+        result[label] = {'baseline': metrics(rows, baseline), 'gradient_boosting': metrics(rows, predicted),
+                         'experimental_interval': interval_metrics(rows, predicted, radius)}
     report = {
         'target': 'registered consideration per square foot for residential plots, not inferred total payment',
         'algorithm': 'HistGradientBoostingRegressor on log registered price per square foot',
         'scikit_learn_version': sklearn.__version__,
         'training_rows': len(train), 'training_parcel_groups': len(group_counts),
         'training_years': sorted({r['date'].year for r in train}),
+        'calibration_year': calibration[0]['date'].year, 'calibration_rows': len(calibration),
+        'calibration_parcel_groups': calibration_groups,
         'held_out_district': held_out, 'held_out_year': test_year,
-        'training_rows_removed_for_parcel_overlap': removed,
+        'training_or_calibration_rows_removed_for_parcel_overlap': removed,
         'features': ['latitude', 'longitude', 'log area', 'transaction year and month'],
         'tests': result,
         'production_ready': False,
-        'limitations': 'Experimental assessment only. Thresholds are minimum engineering gates, not proof of statistical adequacy. Source checks are asserted by the data provider; spatial joins, temporal availability, accuracy, rights and external validation still need independent review. Does not estimate undisclosed payment or causal project effects.',
+        'limitations': 'Experimental assessment only. Intervals are calibrated on an earlier year and must be checked for coverage and width under time and geographic shift; nominal coverage is not guaranteed. Thresholds are engineering gates, not proof of statistical adequacy. Source checks are asserted by the data provider; spatial joins, temporal availability, accuracy, rights and external validation still need independent review. Does not estimate undisclosed payment or causal project effects.',
     }
     return report, model
 
@@ -203,7 +246,7 @@ def main():
         report, model = evaluate(read_sales(args.csv))
         if args.model_out:
             import joblib
-            joblib.dump({'model': model, 'features': report['features'], 'target': report['target'], 'scikit_learn_version': report['scikit_learn_version'], 'training_domain': model._bhoomi_domain}, args.model_out)
+            joblib.dump({'model': model, 'features': report['features'], 'target': report['target'], 'scikit_learn_version': report['scikit_learn_version'], 'training_domain': model._bhoomi_domain, 'calibration_log_radius': model._bhoomi_calibration_log_radius, 'interval_nominal_percent': round((1 - INTERVAL_ALPHA) * 100)}, args.model_out)
         output = json.dumps(report, indent=2, allow_nan=False) + '\n'
         if args.report:
             args.report.write_text(output, encoding='utf-8')
