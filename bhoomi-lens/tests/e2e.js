@@ -217,6 +217,14 @@ const server = http.createServer(async (req, res) => {
     assert.match(districtDetail, /Modelled circle-rate input/i);
     assert.match(districtDetail, /not a verified difference between actual rates/i);
     assert.doesNotMatch(districtDetail, /Circle rate is \d+% below market/i);
+    await page.evaluate(() => localStorage.removeItem('bl_intro'));
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
+    await page.locator('#introGo').waitFor({ state: 'visible', timeout: 60000 });
+    const firstVisit = await page.locator('#intro').innerText();
+    assert.match(firstVisit, /past values are not recorded sale histories/i);
+    assert.doesNotMatch(firstVisit, /full investment read-out/i);
+    await page.locator('#introGo').click();
+    assert.equal(await page.locator('#intro').isVisible(), false);
     assert.deepEqual(errors, [], "uncaught browser errors");
     await page.close();
 
