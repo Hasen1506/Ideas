@@ -1,5 +1,6 @@
 """Check provenance, pagination, source validation and no-change writes."""
 import json
+import io
 import sys
 import tempfile
 import unittest
@@ -9,6 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import collect_macro as macro
+import macro_source_status as health
 
 
 def page(number, total, rows, pages):
@@ -67,6 +69,28 @@ class MacroTests(unittest.TestCase):
             self.assertFalse(macro.save_if_changed('x.js', 'X', payload, '2026-02-01T00:00:00Z'))
             self.assertEqual((Path(d) / 'x.js').read_text(), before)
             self.assertTrue(macro.save_if_changed('x.js', 'X', {'series': []}, '2026-02-01T00:00:00Z'))
+
+    def test_partial_or_missing_source_cannot_be_reported_healthy(self):
+        self.assertTrue(health.healthy({'cpi': 'ok', 'worldbank': 'ok'}))
+        self.assertFalse(health.healthy({'cpi': 'unavailable', 'worldbank': 'ok'}))
+        self.assertFalse(health.healthy({'worldbank': 'ok'}))
+        self.assertFalse(health.healthy(None))
+
+    def test_partial_refresh_saves_successful_data_before_reporting_outage(self):
+        with tempfile.TemporaryDirectory() as d:
+            status = Path(d) / 'status.json'
+            worldbank = {'series': [{'points': [[2024, 3]]}]}
+            with patch.object(macro, 'DATA', Path(d)), \
+                 patch.object(macro, 'collect_cpi', side_effect=macro.SourceError('unavailable')), \
+                 patch.object(macro, 'collect_worldbank', return_value=worldbank), \
+                 patch.object(sys, 'stdout', new_callable=io.StringIO), \
+                 patch.object(sys, 'argv', ['collect_macro.py', '--apply', '--status-file', str(status)]):
+                self.assertEqual(macro.main(), 0)
+            self.assertTrue((Path(d) / 'macro_worldbank.js').exists())
+            self.assertFalse((Path(d) / 'macro_cpi.js').exists())
+            recorded = json.loads(status.read_text())
+            self.assertEqual(recorded, {'cpi': 'unavailable', 'worldbank': 'ok'})
+            self.assertFalse(health.healthy(recorded))
 
 
 if __name__ == '__main__':
