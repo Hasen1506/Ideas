@@ -25,12 +25,12 @@ concurrency:
 
 jobs:
   retry:
-    runs-on: ${{ inputs.runner == 'portal' && 'bhoomi-portal' || 'ubuntu-latest' }}
+    runs-on: ${{ (inputs.runner == 'portal' || (github.event_name == 'schedule' && vars.BHOOMI_PORTAL_SCHEDULED == 'true')) && 'bhoomi-portal' || 'ubuntu-latest' }}
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        if: inputs.runner != 'portal'
+        if: runner.environment == 'github-hosted'
         with:
           python-version: '3.12'
       - name: Install collector dependency in a temporary environment
@@ -68,7 +68,7 @@ jobs:
             echo 'changed=true' >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/setup-node@v4
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.changed == 'true' && runner.environment == 'github-hosted'
         with:
           node-version: '22'
       - name: Test before committing recovered data
