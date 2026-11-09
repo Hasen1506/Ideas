@@ -159,6 +159,10 @@ const server = http.createServer(async (req, res) => {
     assert.match(await page.locator("#panelBody").innerText(), /Consumer price index/i);
     assert.match(await page.locator("#panelBody").innerText(), /Consumer inflation is not a land-price trend/i);
     assert.match(await page.locator("#panelBody").innerText(), /Tamil Nadu.*2026-/i);
+    await page.selectOption('#tnCpiArea', 'Chennai');
+    assert.match(await page.locator('#tnDistrictCpiCurrent').innerText(), /2026-05.*127\.4/s);
+    assert.match(await page.locator('#panelBody').innerText(), /household prices, not land prices/i);
+    assert.equal(await page.locator('#tnCpiArea option[value="Chengalpattu"]').count(), 0, 'unpublished district boundaries must not be guessed');
     await page.locator('#rail [data-tool="draw"]').click();
     await page.locator('[data-act="quick-area"]').first().click();
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });
