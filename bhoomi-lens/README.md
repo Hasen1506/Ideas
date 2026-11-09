@@ -60,6 +60,8 @@ The experimental registered-sale model accepts an independently checked, de-iden
 
 `data/overrides.js` can demonstrate public, non-sensitive district-level inputs; its values feed the existing heuristic model and are not automatically validated. Do not put private sale documents, party names, credentials or restricted records in the public app or repository.
 
+District and drawn-area CSV exports label calculated fields with `model_` and include the scenario, horizon, model base year and `unvalidated heuristic` status. The renamed headers distinguish these outputs from observed sales or official circle rates; existing scripts that consumed the old export headers need updating.
+
 ## Project structure
 
 ```
