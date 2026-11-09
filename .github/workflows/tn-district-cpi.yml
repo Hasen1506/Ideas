@@ -1,0 +1,79 @@
+name: Tamil Nadu district consumer prices
+
+on:
+  schedule:
+    - cron: '45 3 23 * *'
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Choose a GitHub-hosted or explicitly connected data-access runner"
+        type: choice
+        options: [hosted, portal]
+        default: hosted
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: bhoomi-tn-district-cpi
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ${{ inputs.runner == 'portal' && 'bhoomi-portal' || 'ubuntu-latest' }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        if: inputs.runner != 'portal'
+        with:
+          python-version: '3.12'
+      - name: Ensure PDF extraction is available
+        env:
+          RUNNER_CHOICE: ${{ inputs.runner }}
+        run: |
+          if ! command -v pdftotext >/dev/null; then
+            if [ "$RUNNER_CHOICE" = 'portal' ]; then
+              echo '::error::The connected runner requires pdftotext (poppler-utils).'
+              exit 1
+            fi
+            sudo apt-get update -q
+            sudo apt-get install -y poppler-utils
+          fi
+      - name: Read and validate the official report
+        run: |
+          set -o pipefail
+          echo '## Tamil Nadu district CPI refresh' >> "$GITHUB_STEP_SUMMARY"
+          python -u bhoomi-lens/scripts/collect_tn_district_cpi.py --apply | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Detect changed observations
+        id: changes
+        run: |
+          git add bhoomi-lens/data/tn_district_cpi.js
+          if git diff --cached --quiet; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No changed observations: no commit or deployment.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.changed == 'true' && inputs.runner != 'portal'
+        with:
+          node-version: '22'
+      - name: Test changed data
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: bhoomi-lens
+        run: |
+          npm ci
+          npm test
+      - name: Commit and publish changed observations
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'bhoomi-data'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Update TN district consumer prices'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run bhoomi-deploy.yml --ref main -R "$GITHUB_REPOSITORY"
