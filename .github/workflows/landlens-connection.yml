@@ -47,6 +47,18 @@ jobs:
                   sys.exit('LandLens returned an unexpectedly large response.')
               result = json.loads(raw)
               if not isinstance(result, dict) or result.get('ok') is not True or result.get('status') != 'ok':
+                  # Only fixed, allowlisted field names and status values are safe
+                  # to report; never print the provider response or its values.
+                  if isinstance(result, dict):
+                      known = ('ok', 'status', 'data', 'account', 'user', 'wallet',
+                               'key', 'credential', 'balance', 'credits', 'error',
+                               'message', 'request_id')
+                      print('Recognized top-level fields: ' + ', '.join(k for k in known if k in result))
+                      ok = result.get('ok')
+                      print('ok field: ' + ('true' if ok is True else 'false' if ok is False else 'other-or-missing'))
+                      status = result.get('status')
+                      allowed_statuses = ('ok', 'error', 'unauthorized', 'scope_denied', 'not_found')
+                      print('status field: ' + (status if status in allowed_statuses else 'other-or-missing'))
                   sys.exit('LandLens did not confirm authentication; check the key and account.')
           except urllib.error.HTTPError as error:
               if error.code == 401:
