@@ -27,6 +27,12 @@ python bhoomi-lens/scripts/landlens_stage.py --input-json /private/path/report.j
 
 Inputs and outputs must be outside this repository; the output is created with owner-only permissions and cannot overwrite an existing file. The importer discards names, addresses and raw identifiers, uses keyed fingerprints to flag repeat documents, quarantines conflicting duplicates, and records when the provider reports more land deeds than its 250-row response contains. The stage still contains exact dates, amounts and areas and must remain private. The same source deed can appear in multiple reports, and document fingerprints are provisional until independently checked. Review each candidate's underlying authorized source, deed identity, land class, precise location and parcel grouping; a Price Map's search parcel is not every deed's location. The staged JSON deliberately cannot be fed directly to `market_model.py`, and no report is labelled training-ready. Do not assume truncated, newest-first reports represent a complete history.
 
+## Checking a LandLens connection
+
+For a manual authentication check, add a restricted LandLens API key as the GitHub Actions repository secret `LANDLENS_KEY`. The manually dispatched `.github/workflows/landlens-connection.yml` performs the provider's documented free `GET /me` call. It does not use a repository checkout, print account data, create or download reports, or schedule collection. The public run log records only success or a general failure. This check does not verify tool permissions, data rights or whether saved Price Maps exist.
+
+The key remains accessible to workflows that are authorized to use the repository secret, so limit who can modify and run those workflows. Do not put the key in the public repository, app, issue, workflow log or chat. This connection check is separate from the private staging and model-training process above; a successful check does not supply a transaction dataset.
+
 ## Evaluation
 
 Run only on records that have the necessary rights and checks:
