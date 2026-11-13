@@ -1286,7 +1286,14 @@
       .sort((a, b) => E.effEta(a, S.scenario) - E.effEta(b, S.scenario));
     const types = ["all", ...Object.keys(BL.TYPES)];
     const delayed = allCats().filter((c) => c.stage < 4 && E.effEta(c, "bear") - c.eta >= 3).length;
+    const timeline = window.BL_PROJECT_TIMELINES || { projects: [] };
+    const officialHistory = timeline.projects.length ? `<details class="more"><summary>Official project timelines · ${timeline.projects.length} selected examples</summary>
+      <p class="small muted">Source: ${esc(timeline.publisher)}. These are selected reports, last reviewed ${esc(timeline.reviewed)}, not complete project histories or live status. Project announcements and estimated costs are not construction, spending, or evidence of a land-price effect. Events below are separate from the model and map.</p>
+      ${timeline.projects.map((project) => `<details class="more"><summary>${esc(project.name)} · ${esc(project.state)}</summary><p class="small muted">${esc(project.note)}</p>
+        ${project.events.map((event) => `<div class="card small"><b>${esc(event.kind)}</b><div class="muted">${event.published ? `Published ${esc(event.published)}` : "Publication date not established"}${event.event ? ` · event ${esc(event.event)}` : " · event date not established"}</div><div>${esc(event.detail)}</div><a href="${esc(event.url)}" target="_blank" rel="noopener noreferrer">PIB source</a></div>`).join("")}
+      </details>`).join("")}</details>` : "";
     return `<p class="lead">Tracked projects and their recorded stages. Statuses are a snapshot and the credibility scores are model assumptions; verify current status with each source.</p>
+      ${officialHistory}
       <div class="kpis" style="margin-bottom:10px">
         <div class="kpi"><div class="k">In pipeline</div><div class="v">${allCats().filter((c) => c.stage < 4).length}</div><div class="s">${allCats().filter((c) => c.stage === 3).length} under construction</div></div>
         <div class="kpi"><div class="k">Delay-prone</div><div class="v warn">${delayed}</div><div class="s">3+ years late in the bear case</div></div>
