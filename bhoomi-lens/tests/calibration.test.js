@@ -50,3 +50,18 @@ test('the two acquisition offers remain visible as compensation, not sales', () 
   assert.equal(grouped.compensation.length, 2);
   assert.equal(grouped.reported.length, 0);
 });
+
+test('a computed midpoint is a model input, not a reported guideline rate', () => {
+  const range = ['Example', 'SRO', 'Chennai', 13, 80, 1000, 4000, null, 10, 0, 'sro/example', 2, 'example'];
+  const median = ['Median', 'SRO', 'Chennai', 13, 80, 1000, 4000, 1800, 10, 0, 'sro/median', 2, 'example'];
+  const [a, b] = E.expandTNVillages([range, median], 2);
+  assert.equal(a.price, 4000); // 2,000 geometric midpoint x 2, unchanged model input.
+  assert.equal(a.govt_sqyd, null);
+  assert.equal(a.govt_low_sqft, 1000);
+  assert.equal(a.govt_high_sqft, 4000);
+  assert.match(a.method, /calculated geometric midpoint.*not an official rate/);
+  assert.equal(a.govt_date, '');
+  assert.equal(a.govt_retrieved, '2026-10-25');
+  assert.equal(b.govt_sqyd, 1800 * 9);
+  assert.equal(C.groups([{ p: b, i: 1, d: 0 }]).official.length, 1);
+});

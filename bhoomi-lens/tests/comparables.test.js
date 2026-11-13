@@ -36,3 +36,15 @@ test('does not invent a raw asking price or link to an unsafe source', () => {
   assert.equal(result.official[0].source, '');
   assert.equal(C.safeUrl('https://example.com/a'), 'https://example.com/a');
 });
+
+test('shows a guideline range without converting it to a single rate', () => {
+  const p = { type: 'derived_gv', derived: true, price: 3000, govt_low_sqft: 1000, govt_high_sqft: 4000, govt_retrieved: '2026-10-25', govt_src: 'https://example.com/rates' };
+  const result = C.groups([{ p, i: 3, d: 1 }]);
+  assert.equal(result.official.length, 1);
+  assert.equal(result.official[0].officialKind, 'guideline-range');
+  assert.equal(result.official[0].value, null);
+  assert.equal(result.official[0].low, 1000);
+  assert.equal(result.official[0].high, 4000);
+  assert.equal(result.official[0].retrieved, '2026-10-25');
+  assert.equal(result.proxy[0].value, 3000);
+});

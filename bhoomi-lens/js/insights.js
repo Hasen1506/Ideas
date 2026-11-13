@@ -38,14 +38,15 @@
         </div>
         <div id="fpcOut"></div>
       </div>
-      <h3>Official rate vs market</h3>
+      <h3>Guideline reference and duty illustration</h3>
       <div class="card small" style="line-height:1.6">${gov ? `
-        <div class="row sb"><span class="muted">Official guideline/circle rate nearby</span><b>${fmtINR(gov)}/sq ft</b></div>
+        <div class="row sb"><span class="muted">Reported guideline reference nearby</span><b>${fmtINR(gov)}/sq ft</b></div>
         <div class="row sb"><span class="muted">Model estimate here</span><b>${fmtINR(c.pm.basePrice)}/sq ft</b></div>
-        <div class="row sb"><span class="muted">Estimate vs nearby rate</span><b>${Math.round((c.pm.basePrice / gov - 1) * 100)}%</b></div>
-        <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><input id="gapPrice" type="number" placeholder="Agreed Rs/sq ft" style="width:120px"/><input id="gapArea" type="number" placeholder="Area sq ft" style="width:100px"/><input id="gapDuty" type="number" min="0" max="100" step="0.1" placeholder="Rate %" style="width:80px" title="Enter the applicable duty rate"/><button class="btn sm" data-ins="gap">Calculate</button></div>
+        <div class="row sb"><span class="muted">Estimate vs nearby reference</span><b>${Math.round((c.pm.basePrice / gov - 1) * 100)}%</b></div>
+        <div class="muted" style="margin-top:4px">This nearby reference may be a summary across streets and may not apply to this plot. ${c.gov.p.govt_date ? "Recorded " + esc(c.gov.p.govt_date) + ". " : ""}${c.gov.p.govt_retrieved ? "Retrieved " + esc(c.gov.p.govt_retrieved) + ". " : ""}<a href="${esc(c.gov.p.govt_src)}" target="_blank" rel="noopener">Source</a>.</div>` : `<div class="muted">No single guideline reference is recorded within 8 km; a nearby range may still appear under price evidence.</div>`}
+        <div style="margin-top:8px">Enter the plot's own guideline rate and the applicable duty rate for a simple illustration:</div>
+        <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><input id="gapPrice" type="number" min="0" placeholder="Agreed Rs/sq ft" aria-label="Agreed price per square foot" style="width:120px"/><input id="gapGuideline" type="number" min="0" placeholder="Plot guideline Rs/sq ft" aria-label="Plot guideline rate per square foot" style="width:145px"/><input id="gapArea" type="number" min="0" placeholder="Area sq ft" aria-label="Area in square feet" style="width:100px"/><input id="gapDuty" type="number" min="0" max="100" step="0.1" placeholder="Rate %" aria-label="Duty rate percent" style="width:80px" title="Enter the applicable duty rate"/><button class="btn sm" data-ins="gap">Calculate</button></div>
         <div id="gapOut" class="muted"></div>
-        <div class="muted" style="margin-top:4px">The nearby rate may not apply to this plot. Check the exact official value and duty rate. Source rate: ${esc(c.gov.p.govt_date || "")} <a href="${esc(c.gov.p.govt_src)}" target="_blank" rel="noopener">source</a>.</div>` : `<div class="muted">No official rate recorded within 8 km of this spot.</div>`}
       </div>
       <div class="btn-row" style="margin-top:10px"><button class="btn sm" data-ins="report">10-year outlook report</button><button class="btn sm" data-ins="watch">Watch this spot</button></div>`;
   }
@@ -107,11 +108,11 @@
 
   // ---------- Gap calculator ----------
   function gap() {
-    const p = +document.getElementById("gapPrice").value, a = +document.getElementById("gapArea").value, dutyInput = document.getElementById("gapDuty").value, d = +dutyInput;
-    const gov = ctx.gov.p.govt_sqyd / 9, out = document.getElementById("gapOut");
-    if (!(Number.isFinite(p) && p > 0 && Number.isFinite(a) && a > 0 && dutyInput.trim() && Number.isFinite(d) && d >= 0 && d <= 100)) { out.textContent = "Enter the agreed price, area and an applicable rate from 0 to 100%."; return; }
+    const p = +document.getElementById("gapPrice").value, gov = +document.getElementById("gapGuideline").value, a = +document.getElementById("gapArea").value, dutyInput = document.getElementById("gapDuty").value, d = +dutyInput;
+    const out = document.getElementById("gapOut");
+    if (!(Number.isFinite(p) && p > 0 && Number.isFinite(gov) && gov > 0 && Number.isFinite(a) && a > 0 && dutyInput.trim() && Number.isFinite(d) && d >= 0 && d <= 100)) { out.textContent = "Enter the agreed price, this plot's guideline rate, area and an applicable rate from 0 to 100%."; return; }
     const base = Math.max(p, gov) * a, dutyAmt = base * d / 100;
-    out.innerHTML = `Illustration using the higher of the entered price and nearby rate: ${fmtINR(Math.round(base))} x ${d}% = <b>${fmtINR(Math.round(dutyAmt))}</b>. Confirm the plot's actual guideline value, applicable charges and tax treatment with the relevant authority or a professional.`;
+    out.innerHTML = `Illustration using the higher of the two rates you entered: ${fmtINR(Math.round(base))} x ${d}% = <b>${fmtINR(Math.round(dutyAmt))}</b>. This is not a duty quote; rules, additional charges and tax treatment vary. Confirm all inputs and charges with the relevant authority or a professional.`;
   }
 
   // ---------- Watchlist + alerts ----------
