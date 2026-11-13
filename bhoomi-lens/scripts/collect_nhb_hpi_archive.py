@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Read two fixed NHB RESIDEX historical assessment-index publications.
+"""Read fixed NHB RESIDEX historical housing-index publications.
 
-These are city-level housing indices, not land prices or sale records. The two
-base years are kept separate and the historical PDFs are not queried on a
+These are city-level housing indices, not land prices or sale records. The
+base years and legacy methods are kept separate and the PDFs are not queried on a
 schedule. Source values are transcribed with pdftotext and checked before any
 output is written.
 """
@@ -38,6 +38,12 @@ ALIASES = {'Chandigarh(Tricity)': 'Chandigarh (Tricity)', 'MiraBhayander': 'Mira
 MAX_PDF = 8_000_000
 DEFAULT_OUT = Path(__file__).resolve().parents[1] / 'data' / 'nhb_hpi_archive.js'
 DEFAULT_TRANSCRIPT = Path(__file__).resolve().parents[1] / 'data' / 'nhb_hpi_transcribed.json'
+DEFAULT_LEGACY = Path(__file__).resolve().parents[1] / 'data' / 'nhb_hpi_2007_transcribed.json'
+LEGACY_URLS = [
+    'https://www.nhb.org.in/events/nhb-residex-quarterly-update-january-march-2012-20-cities/',
+    'https://www.nhb.org.in/events/nhb-residex-residential-housing-price-index-quarterly-update-january-march-2013-26-cities/',
+    'https://www.nhb.org.in/data-graphs/',
+]
 
 
 class SourceError(Exception):
@@ -162,16 +168,65 @@ def extend_2017_series(series, transcription):
                                   'method': 'official PDF text retrieved through a search index; source bytes unavailable locally'})
 
 
-def build(raw_pdfs, transcription):
+def legacy_series(transcription):
+    """Merge independently published 2007-base tables only where they agree."""
+    if (transcription.get('publisher') != 'National Housing Bank' or
+            transcription.get('measure') != 'NHB RESIDEX legacy city housing index' or
+            transcription.get('base') != '2007 = 100'):
+        raise SourceError('unexpected legacy series metadata')
+    tables = transcription.get('tables')
+    expected_periods = [
+        ['2008-H1', '2008-H2', '2009-H1', '2009-H2'] + periods(2010, 1, 9),
+        periods(2011, 1, 9), periods(2012, 4, 10),
+    ]
+    if not isinstance(tables, list) or len(tables) != 3:
+        raise SourceError('unexpected legacy table count')
+    all_periods = ['2008-H1', '2008-H2', '2009-H1', '2009-H2'] + periods(2010, 1, 21)
+    cities = {}
+    aliases = {'Bhubaneshwar': 'Bhubaneswar', 'Bhubneshwar': 'Bhubaneswar'}
+    sources = []
+    for table, expected, url, count in zip(tables, expected_periods, LEGACY_URLS, (20, 26, 26), strict=True):
+        if table.get('source_url') != url or table.get('periods') != expected:
+            raise SourceError('unexpected legacy source or period headings')
+        rows = table.get('cities')
+        if not isinstance(rows, dict) or len(rows) != count:
+            raise SourceError('incomplete legacy table')
+        seen = set()
+        for raw_name, values in rows.items():
+            name = aliases.get(raw_name, raw_name)
+            if name in seen or not isinstance(values, list) or len(values) != len(expected):
+                raise SourceError('invalid legacy city row')
+            seen.add(name)
+            row = cities.setdefault(name, [None] * len(all_periods))
+            for p, value in zip(expected, values, strict=True):
+                if value is None:
+                    continue
+                if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 < value < 10000:
+                    raise SourceError('invalid legacy index value')
+                index = all_periods.index(p)
+                if row[index] is not None and row[index] != value:
+                    raise SourceError('overlapping legacy publications disagree: ' + name + ' ' + p)
+                row[index] = value
+        sources.append({'from': expected[0], 'to': expected[-1], 'url': url,
+                        'method': 'official page text retrieved through a search index; source bytes unavailable locally'})
+    if (len(cities) != 26 or not {'Chennai', 'Coimbatore', 'Mumbai', 'Pune', 'Nagpur'}.issubset(cities)
+            or sum(v is not None for row in cities.values() for v in row) != 494):
+        raise SourceError('unexpected legacy series coverage')
+    return {'id': 'base2007', 'base': '2007 = 100', 'periods': all_periods,
+            'cities': cities, 'source_url': LEGACY_URLS[0], 'sources': sources,
+            'measure': 'Legacy NHB RESIDEX city housing price index'}
+
+
+def build(raw_pdfs, transcription, legacy):
     series = []
     for spec, raw in zip(SOURCES, raw_pdfs, strict=True):
         cities = parse_table(pdf_text(raw), spec)
         series.append({'id': spec['id'], 'base': spec['base'], 'periods': periods(*spec['first'], spec['count']),
                        'cities': cities, 'source_url': spec['url'], 'source_sha256': hashlib.sha256(raw).hexdigest()})
     extend_2017_series(series[1], transcription)
-    return {'publisher': 'National Housing Bank', 'measure': 'HPI @ Assessment Prices',
-            'description': 'City-level housing index based on lenders’ residential property valuations; not vacant-land prices.',
-            'city_name_aliases': ALIASES, 'series': series}
+    return {'publisher': 'National Housing Bank', 'measure': 'NHB RESIDEX city housing indices',
+            'description': 'City-level housing indices; not vacant-land prices.',
+            'city_name_aliases': ALIASES, 'series': [legacy_series(legacy)] + series}
 
 
 def main():
@@ -180,16 +235,18 @@ def main():
     parser.add_argument('--historic-pdf', type=Path, help='Use an already downloaded official 2013–17 booklet')
     parser.add_argument('--recent-pdf', type=Path, help='Use an already downloaded official 2018–22 booklet')
     parser.add_argument('--transcriptions', type=Path, default=DEFAULT_TRANSCRIPT, help='Checked official annual-report tables')
+    parser.add_argument('--legacy-transcriptions', type=Path, default=DEFAULT_LEGACY, help='Checked official 2007-base tables')
     args = parser.parse_args()
     try:
         files = [args.historic_pdf, args.recent_pdf]
         raw = [p.read_bytes() if p else get_pdf(spec['url']) for p, spec in zip(files, SOURCES, strict=True)]
-        data = build(raw, json.loads(args.transcriptions.read_text(encoding='utf-8')))
+        data = build(raw, json.loads(args.transcriptions.read_text(encoding='utf-8')),
+                     json.loads(args.legacy_transcriptions.read_text(encoding='utf-8')))
         out = '/* National Housing Bank RESIDEX; city housing indices, not land prices. */\nwindow.BL_NHB_HPI_ARCHIVE=' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';\n'
         tmp = args.output.with_name(args.output.name + '.tmp')
         tmp.write_text(out, encoding='utf-8')
         tmp.replace(args.output)
-        print('Validated historical NHB assessment-index series:', ', '.join(f"{s['id']}: {len(s['cities'])} cities, {len(s['periods'])} quarters" for s in data['series']))
+        print('Validated historical NHB housing-index series:', ', '.join(f"{s['id']}: {len(s['cities'])} cities, {len(s['periods'])} periods" for s in data['series']))
     except (SourceError, OSError, ValueError, TypeError) as error:
         print('NHB archive not changed:', error, file=sys.stderr)
         return 1

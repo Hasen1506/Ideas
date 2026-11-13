@@ -180,9 +180,14 @@ const server = http.createServer(async (req, res) => {
     await page.selectOption('#hpiSeries', 'fy2012');
     housing = await page.locator('#panelBody').innerText();
     assert.match(housing, /2013-Q2\s+103/);
-    assert.doesNotMatch(await page.getByRole('table', { name: 'Archived quarterly housing index' }).innerText(), /2022-Q3/);
+    assert.doesNotMatch(await page.getByRole('table', { name: 'Archived housing index' }).innerText(), /2022-Q3/);
     await page.selectOption('#hpiCity', 'Coimbatore');
     assert.match(await page.locator('#panelBody').innerText(), /do not give a separate figure for Coimbatore/i);
+    await page.selectOption('#hpiSeries', 'base2007');
+    housing = await page.getByRole('table', { name: 'Archived housing index' }).innerText();
+    assert.match(housing, /2008-H1\s+Not published/);
+    assert.match(housing, /2013-Q1\s+184/);
+    assert.match(await page.locator('#panelBody').innerText(), /lender valuations from 2010/i);
     await page.selectOption('#hpiCity', 'Pune');
     assert.ok((await page.locator('#panelBody').innerText()).includes(latestHousing.city_yoy_pct.Pune.toFixed(1) + '%'));
     await page.locator('#rail [data-tool="draw"]').click();
