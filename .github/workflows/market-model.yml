@@ -9,6 +9,8 @@ on:
       - 'bhoomi-lens/scripts/requirements-market.txt'
       - 'bhoomi-lens/tests/test_market_model.py'
       - 'bhoomi-lens/tests/test_landlens_stage.py'
+      - 'bhoomi-lens/tests/test_landlens_connection.py'
+      - '.github/workflows/landlens-connection.yml'
       - '.github/workflows/market-model.yml'
   pull_request:
     paths:
@@ -18,6 +20,8 @@ on:
       - 'bhoomi-lens/scripts/requirements-market.txt'
       - 'bhoomi-lens/tests/test_market_model.py'
       - 'bhoomi-lens/tests/test_landlens_stage.py'
+      - 'bhoomi-lens/tests/test_landlens_connection.py'
+      - '.github/workflows/landlens-connection.yml'
       - '.github/workflows/market-model.yml'
   workflow_dispatch:
 
@@ -39,3 +43,5 @@ jobs:
         run: python bhoomi-lens/tests/test_market_model.py
       - name: Check private sale-report staging
         run: python bhoomi-lens/tests/test_landlens_stage.py
+      - name: Check LandLens authentication response handling
+        run: python bhoomi-lens/tests/test_landlens_connection.py
