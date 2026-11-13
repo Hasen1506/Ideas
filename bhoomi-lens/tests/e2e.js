@@ -173,7 +173,11 @@ const server = http.createServer(async (req, res) => {
     assert.match(await page.locator('#panelBody').innerText(), /not vacant-land sale prices/i);
     assert.match(await page.locator('#panelBody').innerText(), /withdrawn while NHB's publication-specific reuse terms are clarified/i);
     assert.equal(await page.locator('#panelBody a[href="https://residex.nhbonline.org.in/"]').count(), 1);
+    await page.evaluate(() => { window.BL_PIB_LEADS = { last_change: '2026-11-13', leads: [{ title: 'Pune Metro project approved', published: '2026-11-03', url: 'https://www.pib.gov.in/PressReleseDetail.aspx?PRID=10' }] }; });
     await page.locator('#rail [data-tool="catalysts"]').click();
+    await page.getByText(/Recently discovered PIB leads/).click();
+    assert.match(await page.locator('#panelBody').innerText(), /Unreviewed keyword matches/i);
+    assert.match(await page.locator('#panelBody').innerText(), /Pune Metro project approved/i);
     await page.getByText(/Official project timelines/).click();
     await page.getByText('Chennai Port–Maduravoyal corridor · Tamil Nadu').click();
     assert.match(await page.locator('#panelBody').innerText(), /Published 2015-03-09 · event 2012-03-29/);
