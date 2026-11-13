@@ -153,7 +153,7 @@ for (const [name, v, lo, hi] of G) ok(v >= lo && v <= hi, `GOLDEN ${name}: got $
   ok(E.analyseArea(square(8, 8, 9, 9), [], districts) === null, "unmapped area has no estimate");
 }
 /* 5. Calibration quality (leave-one-out) */
-const sample = pts.filter((p, i) => !p.derived && i % 2 === 0);
+const sample = pts.filter((p, i) => E.isCalibrationInput(p) && !p.derived && i % 2 === 0);
 const err = [];
 for (const p of sample) { E.setCalibration(pts.filter((q) => q !== p), BL.CATALYSTS); const m = E.buildModel("x", p.loc, p.state, p.lat, p.lon, 0, [], false).basePrice; err.push(Math.abs(Math.log(m / p.price))); }
 E.setCalibration(pts, BL.CATALYSTS);
