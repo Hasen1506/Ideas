@@ -44,6 +44,12 @@
         const rate = positive(p[key]);
         if (rate) out.official.push({ ...base, value: rate / 9, kind: "official", officialKind: "guideline", land, date: String(p.govt_date || ""), retrieved: String(p.govt_retrieved || ""), note: String(p.govt_note || ""), source: primarySource(p, true) });
       }
+      // When the source only recorded a range, show the range itself. The
+      // model's geometric midpoint is a calculation, not an official rate.
+      const low = positive(p.govt_low_sqft), high = positive(p.govt_high_sqft);
+      if (!positive(p.govt_sqyd) && low && high && high >= low) {
+        out.official.push({ ...base, value: null, low, high, kind: "official", officialKind: "guideline-range", land: "Type not confirmed", date: String(p.govt_date || ""), retrieved: String(p.govt_retrieved || ""), note: String(p.govt_note || ""), source: primarySource(p, true) });
+      }
     }
     for (const rows of Object.values(out)) rows.sort((a, b) => a.distance - b.distance);
     return out;

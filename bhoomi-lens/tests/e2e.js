@@ -111,8 +111,12 @@ const server = http.createServer(async (req, res) => {
     await page.locator("#gapArea").fill("1000");
     await page.locator("#gapDuty").fill("7");
     await page.locator('[data-ins="gap"]').click();
+    assert.match(await page.locator("#gapOut").innerText(), /this plot's guideline rate/i);
+    await page.locator("#gapGuideline").fill("1200");
+    await page.locator('[data-ins="gap"]').click();
     const duty = await page.locator("#gapOut").innerText();
-    assert.match(duty, /Illustration/);
+    assert.match(duty, /Illustration using the higher of the two rates you entered/i);
+    assert.match(duty, /84,000/);
     assert.doesNotMatch(duty, /no 50C|no .* difference arises/i);
 
     const popupPromise = page.waitForEvent("popup");
@@ -236,6 +240,19 @@ const server = http.createServer(async (req, res) => {
     assert.doesNotMatch(modelInputs, /compensation/i);
     assert.match(contextInputs, /compensation/i);
     await compensationReport.close();
+    await page.goto(url + '?case=tn-history#pt=10.84047,79.55297', { waitUntil: 'domcontentloaded', timeout: 90000 });
+    const history = page.locator('#detailBody [data-tn-history]').first();
+    await history.waitFor({ state: 'visible', timeout: 60000 });
+    const historyText = await history.innerText();
+    assert.match(historyText, /Semmangudi/i);
+    assert.match(historyText, /2017\s+₹17/);
+    assert.match(historyText, /2012\s+₹25/);
+    assert.match(historyText, /2002\s+Not recorded/i);
+    assert.match(await page.locator('#detailBody').innerText(), /not market sales or estimates for the selected plot/i);
+    await page.locator('#searchBtn').click();
+    await page.locator('#paletteInput').fill('Semmangudi');
+    await page.locator('#paletteList .p-item').filter({ hasText: 'TN rate' }).filter({ hasText: 'Semmangudi' }).first().click();
+    assert.match(await page.locator('#detailBody [data-tn-history]').first().innerText(), /Semmangudi/i);
     await page.evaluate(() => localStorage.removeItem('bl_intro'));
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
     await page.locator('#introGo').waitFor({ state: 'visible', timeout: 60000 });
