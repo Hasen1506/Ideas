@@ -1,4 +1,6 @@
 import datetime as dt
+import copy
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -47,6 +49,21 @@ class ArchiveTests(unittest.TestCase):
                  'source_url': 'https://example.test/report.pdf', 'source_sha256': 'a' * 64}
         with self.assertRaises(archive.SourceError):
             archive.extend_2017_series(fresh, transcript)
+
+    def test_legacy_missing_values_stay_missing_and_conflicts_are_rejected(self):
+        transcript = json.loads(archive.DEFAULT_LEGACY.read_text(encoding='utf-8'))
+        legacy = archive.legacy_series(transcript)
+        self.assertEqual(legacy['cities']['Coimbatore'][0], None)
+        self.assertEqual(legacy['cities']['Coimbatore'][legacy['periods'].index('2013-Q1')], 184)
+        self.assertEqual(legacy['cities']['Chennai'][legacy['periods'].index('2011-Q1')], 218)
+        changed = copy.deepcopy(transcript)
+        changed['tables'][1]['cities']['Chennai'][0] = 219
+        with self.assertRaises(archive.SourceError):
+            archive.legacy_series(changed)
+        changed = copy.deepcopy(transcript)
+        changed['tables'][0]['periods'][0] = '2008-Q1'
+        with self.assertRaises(archive.SourceError):
+            archive.legacy_series(changed)
 
 
 class RecentTests(unittest.TestCase):
