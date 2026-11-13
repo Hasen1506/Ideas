@@ -172,8 +172,11 @@
     const c = ctx, evidence = c.evidence, w = window.open("", "_blank");
     if (!w) { toast("Allow pop-ups to open the report"); return; }
     const gov = c.gov ? Math.round(c.gov.p.govt_sqyd / 9) : null;
-    const ev = (c.nearAll || []).filter((x) => x.p.price > 0).slice(0, 12);
-    const srcList = ev.map((x) => `<tr><td>${esc(x.p.loc)}</td><td>${x.d.toFixed(1)} km</td><td>Rs ${Math.round(x.p.price).toLocaleString("en-IN")}</td><td>${esc(x.p.status || x.p.type || "")}</td><td>${esc(x.p.date || "")}</td><td>${x.p.src ? `<a href="${esc(x.p.src)}">source</a>` : ""}</td></tr>`).join("");
+    const priced = (c.nearAll || []).filter((x) => x.p.price > 0);
+    const modelInputs = priced.filter((x) => BL.Engine.isCalibrationInput(x.p)).slice(0, 12);
+    const contextOnly = priced.filter((x) => !BL.Engine.isCalibrationInput(x.p)).slice(0, 12);
+    const sourceRows = (rows) => rows.map((x) => `<tr><td>${esc(x.p.loc)}</td><td>${x.d.toFixed(1)} km</td><td>Rs ${Math.round(x.p.price).toLocaleString("en-IN")}</td><td>${esc(x.p.type || "")}</td><td>${esc(x.p.date || "")}</td><td>${x.p.src ? `<a href="${esc(x.p.src)}">source</a>` : ""}</td></tr>`).join("");
+    const srcList = sourceRows(modelInputs), contextList = sourceRows(contextOnly);
     const drivers = (c.con.parts || []).map((p) => `<tr><td>${esc(p.label || (p.c && p.c.n) || "")}</td><td>${p.c ? esc(p.c.status ? p.c.status.slice(0, 140) : "") : ""}</td><td>${(p.v * 100).toFixed(1)}%</td></tr>`).join("");
     const yrs = c.ser.filter ? c.ser.filter((r) => r.y >= BL.MODEL_YEAR && r.y <= BL.MODEL_YEAR + 10) : [];
     const path = yrs.map((r) => `<tr><td>${r.y}</td><td>Rs ${Math.round(r.lo).toLocaleString("en-IN")}</td><td>Rs ${Math.round(r.p).toLocaleString("en-IN")}</td><td>Rs ${Math.round(r.hi).toLocaleString("en-IN")}</td></tr>`).join("");
@@ -183,7 +186,8 @@
       <h2>Value today</h2><div class="k">Model estimate<b>Rs ${Math.round(c.pm.basePrice).toLocaleString("en-IN")}/sq ft</b></div><div class="k">Market references within 5 km<b>${evidence.market}</b></div><div class="k">Guideline proxies within 5 km<b>${evidence.proxies}</b></div><div class="k">Other priced references within 5 km<b>${evidence.other}</b></div>${gov ? `<div class="k">Official rate nearby<b>Rs ${gov.toLocaleString("en-IN")}/sq ft</b></div>` : ""}<p class="muted">No validated plot-level error range is available. Market references can include asking prices and auctions, and the nearby official rate may not apply to this plot.</p>
       <h2>Illustrative price path</h2>${path ? `<table><tr><th>Year</th><th>Illustrative low</th><th>${esc(((BL.SCENARIOS || {})[c.scenario] || { label: "Base" }).label)} (selected)</th><th>Illustrative high</th></tr>${path}</table>` : ""}<div class="muted">The band is a model assumption, not a validated prediction interval or bear/base/bull scenarios. ${esc(((BL.SCENARIOS || {})[c.scenario] || { label: "Base" }).label)} case ${(c.pm.cagr * 100).toFixed(1)}%/yr over ${c.horizon} years (${c.pm.mult.toFixed(2)}x).</div>
       <h2>What drives it</h2><table><tr><th>Driver</th><th>Status</th><th>Contribution</th></tr>${drivers}</table>
-      <h2>Nearby model inputs (within 12 km)</h2><table><tr><th>Place</th><th>Distance</th><th>Price used /sq ft</th><th>Type</th><th>Date</th><th>Link</th></tr>${srcList || "<tr><td colspan=6>No priced reference points nearby.</td></tr>"}</table>
+      <h2>Nearby model inputs (within 12 km)</h2><table><tr><th>Place</th><th>Distance</th><th>Price used /sq ft</th><th>Type</th><th>Date</th><th>Link</th></tr>${srcList || "<tr><td colspan=6>No model inputs recorded nearby.</td></tr>"}</table>
+      ${contextList ? `<h2>Nearby context excluded from direct calibration</h2><table><tr><th>Place</th><th>Distance</th><th>Reference /sq ft</th><th>Type</th><th>Date</th><th>Link</th></tr>${contextList}</table>` : ""}
       <h2>Method</h2><p>${esc(((G.BL_EVIDENCE || {}).method || {}).rule || "")} ${esc(((G.BL_EVIDENCE || {}).method || {}).discount || "")} ${esc(((G.BL_EVIDENCE || {}).method || {}).official || "")} Forecasts grow today's estimate by the state trend plus each infrastructure project's priced-in effect weighted by its completion odds.</p>
       <p class="muted">This is a statistical estimate from public listings and official rates, not a registered valuer's report, legal opinion or investment advice. Verify title, approvals and the live official rate before transacting.</p></body></html>`);
     w.document.close();
