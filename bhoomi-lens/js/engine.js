@@ -616,14 +616,16 @@
       const m = rm || mult;
       const src = "https://proquiro.com/tools/tamil-nadu-guideline-value/" + path;
       return {
-        loc: v, district: dist, taluk: sro + " SRO", state: "Tamil Nadu", lat, lon, land: "plot",
-        govt_sqyd: gv * 9, govt_date: "2026-10", govt_src: src,
-        govt_note: `TNREGINET guideline values, ${streets} streets, Rs${gmin}-${gmax}/sq ft` + (gmed ? `, median Rs${gmed}` : `, value used = midpoint Rs${gv}`) + (fuzzy ? ". Location matched approximately by name." : "."),
+        loc: v, district: dist, taluk: sro + " SRO", state: "Tamil Nadu", lat, lon, land: "Land class not verified",
+        // A calculated midpoint is not a published street rate or median.
+        govt_sqyd: gmed ? gmed * 9 : null, govt_low_sqft: gmin, govt_high_sqft: gmax,
+        govt_date: "", govt_retrieved: "2026-10-25", govt_src: src,
+        govt_note: `Third-party summary of TN guideline rates, ${streets} streets, Rs${gmin}-${gmax}/sq ft` + (gmed ? `, reported median Rs${gmed}` : "; no median recorded") + ". Land class and current effective rates require verification." + (fuzzy ? " Location matched approximately by name." : ""),
         derived: true, type: "derived_gv", price: Math.round(gv * m), txn_sqyd: Math.round(gv * m) * 9, w: gmed ? 0.06 : 0.04,
         low: Math.round(gmin * m), high: Math.round(gmax * m), mult: m, multBasis: rbasis || "state default",
         date: "2026-10", retrieved: "2026-10-25", src,
-        method: `Official street guideline Rs${gmin}-${gmax}/sq ft (${gmed ? "median Rs" + gmed : "midpoint Rs" + gv}) x ${dist} market-to-guideline multiple ${m} (${rbasis || "state default"}).`,
-        note: `Derived: guideline Rs${gv}/sq ft x ${dist} multiple ${m}`, village: true, path
+        method: `Reported guideline range Rs${gmin}-${gmax}/sq ft (${gmed ? "reported median Rs" + gmed : "calculated geometric midpoint Rs" + gv + ", not an official rate"}) x ${dist} market-to-guideline multiple ${m} (${rbasis || "state default"}).`,
+        note: `Derived: ${gmed ? "reported median" : "calculated geometric midpoint"} Rs${gv}/sq ft x ${dist} multiple ${m}`, village: true, path
       };
     });
   }
