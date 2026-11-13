@@ -21,7 +21,7 @@ The price surface, project effects, risk and liquidity scores are heuristic esti
 | **Ripple simulator** | Add a hypothetical airport, metro, expressway, port, industrial node, new city or ring road and compare modelled district effects, weighted by an assumed completion probability |
 | **Catalyst tracker** | 40+ real projects with stage, completion probability, scenario-adjusted delivery date and agency credibility. Influence zones are drawn on the map |
 | **Time machine** | Scrub or play from 2015 to 2036 and watch growth spread along corridors |
-| **Housing index history** | National Housing Bank city housing indices for 26 cities from 2008–2015 and 50 cities from 2013–2017 and 2018–2025, plus separately published 2026 highlights for seven cities. Earlier coverage varies, methods and index bases differ, and these are not vacant-land prices. |
+| **Housing index sources** | Links to the National Housing Bank's official housing indices. The prior copied archive has been withdrawn while publication-specific reuse terms are clarified. Housing indices are not vacant-land prices. |
 | **Official project timelines** | Selected source-linked Press Information Bureau project reports in Tamil Nadu and Maharashtra; event dates and publication dates are shown separately. These examples are not live status or evidence of causal price effects. |
 | **Scenarios** | Bear, base and bull cases with 3, 5 and 10-year horizons. The bear case adds delays based on each agency's track record |
 | **Screener** | Filter by state, risk and price. Rank by opportunity, growth, price, risk, circle gap or liquidity. Export all districts to CSV |
@@ -60,7 +60,7 @@ The price surface, project effects, risk and liquidity scores are heuristic esti
 
 The experimental registered-sale model accepts an independently checked, de-identified, rights-cleared CSV from a private path outside this public repository. It evaluates future and held-out district errors against a baseline before any possible app integration. See [the input contract and limits](docs/MARKET_MODEL.md). No real Tamil Nadu sales model has yet been trained from this repository.
 
-The separate [NHB housing-index history](docs/NHB_HOUSING_INDEX.md) presents source-linked city indices and recent press-release highlights. It is background evidence and is not used to train or calibrate land prices.
+The [housing-index source note](docs/NHB_HOUSING_INDEX.md) explains the publication-specific reuse issue. No copied NHB historical series is used to train or calibrate land prices.
 
 `data/overrides.js` can demonstrate public, non-sensitive district-level inputs; its values feed the existing heuristic model and are not automatically validated. Do not put private sale documents, party names, credentials or restricted records in the public app or repository.
 
@@ -91,4 +91,4 @@ For browser checks, run `npm ci`, `npx playwright install chromium`, and `npm ru
 
 ## Disclaimer
 
-Price estimates and scenario figures are modelled from public reference points; they are not registered transaction data or investment, legal or valuation advice. The separately attributed NHB series are published housing indices, not land prices. Project statuses are a snapshot. Verify title, zoning, encumbrances and project status independently before transacting.
+Price estimates and scenario figures are modelled from public reference points; they are not registered transaction data or investment, legal or valuation advice. NHB housing indices are not land prices. Project statuses are a snapshot. Verify title, zoning, encumbrances and project status independently before transacting.
