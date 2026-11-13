@@ -1,0 +1,60 @@
+name: Bhoomi Lens LandLens connection check
+
+on:
+  workflow_dispatch:
+
+# The job uses no repository checkout, third-party actions, or GitHub token.
+# It must never print the credential or response body to the public run log.
+permissions: {}
+
+jobs:
+  check-connection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Check LandLens authentication without creating reports
+        env:
+          LANDLENS_KEY: ${{ secrets.LANDLENS_KEY }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          endpoint = 'https://verified.realestate/api/v1/me'
+          key = os.environ.get('LANDLENS_KEY', '')
+          if not key.startswith('llk_') or '\n' in key or '\r' in key:
+              sys.exit('LANDLENS_KEY is missing or is not a LandLens API key.')
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          request = urllib.request.Request(endpoint, headers={
+              'Authorization': 'Bearer ' + key,
+              'Accept': 'application/json',
+              'User-Agent': 'BhoomiLens-connection-check/1.0',
+          })
+          try:
+              with urllib.request.build_opener(NoRedirect()).open(request, timeout=20) as response:
+                  if response.geturl() != endpoint or response.status != 200:
+                      sys.exit('LandLens returned an unexpected response.')
+                  raw = response.read(131073)
+              if len(raw) > 131072:
+                  sys.exit('LandLens returned an unexpectedly large response.')
+              result = json.loads(raw)
+              if not isinstance(result, dict) or result.get('ok') is not True or result.get('status') != 'ok':
+                  sys.exit('LandLens did not confirm authentication; check the key and account.')
+          except urllib.error.HTTPError as error:
+              if error.code == 401:
+                  sys.exit('LandLens rejected the key. Check that it has not been revoked.')
+              sys.exit('LandLens returned an HTTP error. No response details were logged.')
+          except (urllib.error.URLError, OSError, ValueError):
+              sys.exit('LandLens could not be reached or returned invalid JSON.')
+
+          print('LandLens authentication succeeded. No account details were logged.')
+          print('No reports were created or downloaded; tool permissions are not verified by this check.')
+          PY
