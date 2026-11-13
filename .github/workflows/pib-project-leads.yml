@@ -1,0 +1,84 @@
+name: PIB project lead discovery
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'bhoomi-lens/scripts/collect_pib_leads.py'
+      - 'bhoomi-lens/tests/test_pib_discovery.py'
+      - 'bhoomi-lens/data/pib_leads.js'
+      - '.github/workflows/pib-project-leads.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bhoomi-pib-project-leads
+  cancel-in-progress: false
+
+jobs:
+  validate-source:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python bhoomi-lens/tests/test_pib_discovery.py
+      - name: Validate the official listing without writing data
+        run: python -u bhoomi-lens/scripts/collect_pib_leads.py
+
+  refresh:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Collect only complete, current listing results
+        run: |
+          set -o pipefail
+          echo '## PIB project lead discovery' >> "$GITHUB_STEP_SUMMARY"
+          python -u bhoomi-lens/scripts/collect_pib_leads.py --apply | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Detect changed leads
+        id: changes
+        run: |
+          git add bhoomi-lens/data/pib_leads.js
+          if git diff --cached --quiet; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No changed leads: no commit or deployment.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.changed == 'true'
+        with:
+          node-version: '22'
+      - name: Test before publishing the lead list
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: bhoomi-lens
+        run: |
+          npm ci
+          npm test
+      - name: Commit and deploy changed leads
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'bhoomi-data'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Update PIB project discovery leads'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run bhoomi-deploy.yml --ref main -R "$GITHUB_REPOSITORY"
