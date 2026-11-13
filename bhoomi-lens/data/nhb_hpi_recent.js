@@ -1,0 +1,2 @@
+/* National Housing Bank RESIDEX press-release highlights; housing, not land prices. */
+window.BL_NHB_HPI_RECENT={"publisher":"National Housing Bank","measure":"HPI @ Assessment Prices","releases":[{"period":"2026-Q2","base":"FY 2024-25 = 100","source_url":"https://residex.nhbonline.org.in/DataUploadFormats/PressRelease_English/Press%20Release%20April-June%202026.pdf","source_sha256":"89ff3e60865d2f04e54936ca789f8353a4f042ae127d4017c6e7e376d20bb2be","city_yoy_pct":{"Ahmedabad":7.9,"Bengaluru":21.5,"Chennai":10.8,"Hyderabad":5.2,"Kolkata":6.9,"Mumbai":6.2,"Pune":3.7}}]};

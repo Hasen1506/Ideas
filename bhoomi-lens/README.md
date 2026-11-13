@@ -21,6 +21,7 @@ The price surface, project effects, risk and liquidity scores are heuristic esti
 | **Ripple simulator** | Add a hypothetical airport, metro, expressway, port, industrial node, new city or ring road and compare modelled district effects, weighted by an assumed completion probability |
 | **Catalyst tracker** | 40+ real projects with stage, completion probability, scenario-adjusted delivery date and agency credibility. Influence zones are drawn on the map |
 | **Time machine** | Scrub or play from 2015 to 2036 and watch growth spread along corridors |
+| **Housing index history** | National Housing Bank city-wide residential valuation indices for 50 cities, 2013–2017 and 2018–2025, plus separately published 2026 highlights for seven cities. These are not vacant-land prices. |
 | **Scenarios** | Bear, base and bull cases with 3, 5 and 10-year horizons. The bear case adds delays based on each agency's track record |
 | **Screener** | Filter by state, risk and price. Rank by opportunity, growth, price, risk, circle gap or liquidity. Export all districts to CSV |
 | **Watchlist and signals** | Star districts to get signals for upcoming openings, credibility flags, circle-rate revision exposure and thin markets |
@@ -58,6 +59,8 @@ The price surface, project effects, risk and liquidity scores are heuristic esti
 
 The experimental registered-sale model accepts an independently checked, de-identified, rights-cleared CSV from a private path outside this public repository. It evaluates future and held-out district errors against a baseline before any possible app integration. See [the input contract and limits](docs/MARKET_MODEL.md). No real Tamil Nadu sales model has yet been trained from this repository.
 
+The separate [NHB housing-index history](docs/NHB_HOUSING_INDEX.md) presents source-linked city indices and recent press-release highlights. It is background evidence and is not used to train or calibrate land prices.
+
 `data/overrides.js` can demonstrate public, non-sensitive district-level inputs; its values feed the existing heuristic model and are not automatically validated. Do not put private sale documents, party names, credentials or restricted records in the public app or repository.
 
 District and drawn-area CSV exports label calculated fields with `model_` and include the scenario, horizon, model base year and `unvalidated heuristic` status. The renamed headers distinguish these outputs from observed sales or official circle rates; existing scripts that consumed the old export headers need updating.
@@ -87,4 +90,4 @@ For browser checks, run `npm ci`, `npx playwright install chromium`, and `npm ru
 
 ## Disclaimer
 
-All figures are modelled, indicative estimates built from public reference points. They are not registered transaction data and are not investment, legal or valuation advice. Project statuses are a snapshot. Verify title, zoning, encumbrances and project status independently before transacting.
+Price estimates and scenario figures are modelled from public reference points; they are not registered transaction data or investment, legal or valuation advice. The separately attributed NHB series are published housing indices, not land prices. Project statuses are a snapshot. Verify title, zoning, encumbrances and project status independently before transacting.

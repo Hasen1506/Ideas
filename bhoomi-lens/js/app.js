@@ -39,6 +39,7 @@
     { id: "shortlist", label: "Infra-led shortlist", icon: '<path d="M4 6h16M4 12h10M4 18h6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M17 15l2 2 3-4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>' },
     { id: "alerts", label: "Spot alerts", icon: '<path d="M6 16V11a6 6 0 1112 0v5l1.5 2h-15z M10 20a2 2 0 004 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' },
     { id: "track", label: "Track record", icon: '<path d="M4 19h16M6 16l4-5 3 3 5-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { id: "housing", label: "Housing index history", icon: '<path d="M3 11l9-7 9 7M5 10v9h14v-9M9 19v-5h6v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
     { id: "data", label: "Data sources and freshness", icon: '<ellipse cx="12" cy="5" rx="7" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5 5v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5M5 12v7c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-7" fill="none" stroke="currentColor" stroke-width="1.7"/>' },
     "sep",
     { id: "watchlist", label: "Watchlist and signals", icon: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' },
@@ -59,7 +60,7 @@
     userCats: [], watch: store.get("bl_watch", []), compare: store.get("bl_compare", []),
     playing: false, draw: null, placing: null, area: null, catFilter: "all", catStage: "all",
     simType: "airport", simEffect: 25, simProbability: 50, simDistance: 20, simPricedIn: 35, simYear: MY + 5, hoverId: null, radiusKm: 10, loc: null, real: false, proj: false, tint: true, labels: false,
-    scr: { state: "all", sort: "opp", maxRisk: 100, maxPrice: 0 }, tnCpiArea: "Tamil Nadu"
+    scr: { state: "all", sort: "opp", maxRisk: 100, maxPrice: 0 }, tnCpiArea: "Tamil Nadu", hpiCity: "Chennai", hpiSeries: "fy2017"
   };
   const opts = () => ({ year: S.year, horizon: S.horizon, scenario: S.scenario });
   const allCats = () => BL.CATALYSTS.concat(S.userCats);
@@ -1162,7 +1163,7 @@
   /* ------------------------------------------------------------------ */
   /* Tool panels                                                          */
   /* ------------------------------------------------------------------ */
-  const PANEL_TITLES = { track: "Track record: past projects", data: "Data sources and freshness", shortlist: "Infra-led shortlist", alerts: "Spot alerts", explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
+  const PANEL_TITLES = { track: "Track record: past projects", housing: "Housing index history", data: "Data sources and freshness", shortlist: "Infra-led shortlist", alerts: "Spot alerts", explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
   function openTool(id, force) {
     if (S.tool === id && !force) { closeTool(); return; }
     if (id !== "draw") cancelDraw();
@@ -1184,7 +1185,7 @@
   function refreshPanel() {
     if (!S.tool) return;
     const body = $("#panelBody");
-    const fn = { track: () => BL.Infra.trackPanel(), data: pDataHealth, shortlist: () => BL.Insights.shortlistPanel(models), alerts: () => BL.Insights.alertsPanel((la, lo) => { const q = E.pointModel(la, lo, allCats(), models, opts()); return q; }), explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
+    const fn = { track: () => BL.Infra.trackPanel(), housing: pHousingHistory, data: pDataHealth, shortlist: () => BL.Insights.shortlistPanel(models), alerts: () => BL.Insights.alertsPanel((la, lo) => { const q = E.pointModel(la, lo, allCats(), models, opts()); return q; }), explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
     body.innerHTML = fn();
     renderRail();
   }
@@ -1360,6 +1361,29 @@
       <div class="btn-row">${ms.map((m) => `<button class="btn sm" data-act="cmp" data-id="${m.id}">Remove ${esc(m.name)}</button>`).join("")}</div>`;
   }
 
+  function pHousingHistory() {
+    const data = window.BL_NHB_HPI_ARCHIVE || { series: [], city_name_aliases: {} };
+    const newer = data.series.find((x) => x.id === "fy2017");
+    if (!newer) return '<p class="muted">No historical housing-index data available.</p>';
+    const cities = Object.keys(newer.cities).sort((a, b) => a.localeCompare(b));
+    const city = cities.includes(S.hpiCity) ? S.hpiCity : cities[0];
+    const series = data.series.find((x) => x.id === S.hpiSeries) || newer;
+    const sourceName = Object.keys(series.cities).find((name) => name === city || (data.city_name_aliases || {})[name] === city || (city === "Chandigarh" && name === "Chandigarh(Tricity)"));
+    const values = sourceName && series.cities[sourceName];
+    const sources = series.sources || [{ from: series.periods[0], to: series.periods[series.periods.length - 1], url: series.source_url }];
+    const sourceLinks = sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.from)}–${esc(s.to)}</a>`).join(" · ");
+    const releases = ((window.BL_NHB_HPI_RECENT || {}).releases || []).filter((x) => Number.isFinite(x.city_yoy_pct && x.city_yoy_pct[city]));
+    const latest = releases[releases.length - 1];
+    const latestText = latest ? `<div class="row sb"><span>${esc(latest.period)} · change from a year earlier</span><b>${latest.city_yoy_pct[city] > 0 ? "+" : ""}${latest.city_yoy_pct[city].toFixed(1)}%</b></div><div class="muted">NHB assessment index, ${esc(latest.base)}. <a href="${esc(latest.source_url)}" target="_blank" rel="noopener noreferrer">Source press release</a>.</div>` : `<div class="muted">The latest collected press-release highlights do not give a separate figure for ${esc(city)}.</div>`;
+    return `<p class="lead">Explore National Housing Bank's city-wide housing indices. These describe residential property valuations, not vacant-land sale prices, plot valuations or the effect of a project.</p>
+      <div class="card small" style="line-height:1.6"><label for="hpiCity">Published city</label><select id="hpiCity">${cities.map((c) => `<option value="${esc(c)}" ${c === city ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
+      <h3>Latest NHB release highlights</h3>${latestText}<p class="muted">The press release lists seven major cities; the absence of another city here does not mean NHB has no data for it. Annual change is NHB's published figure, not a land-price forecast.</p></div>
+      <h3>Archived quarterly indices</h3><div class="card small" style="line-height:1.6"><label for="hpiSeries">Publication and base</label><select id="hpiSeries">${data.series.map((x) => `<option value="${esc(x.id)}" ${x.id === series.id ? "selected" : ""}>${esc(x.periods[0])}–${esc(x.periods[x.periods.length - 1])} · ${esc(x.base)}</option>`).join("")}</select>
+      <p class="muted">These are archived snapshots ending in ${esc(series.periods[series.periods.length - 1])}, not the latest observations. Quarters use calendar years (Q2 = April–June). Different base years and methods are kept separate; missing periods are not filled. City boundaries may differ between publications.</p>
+      ${values ? `<div class="muted">Source name: ${esc(sourceName)} · index, ${esc(series.base)}</div><table class="cmp" aria-label="Archived quarterly housing index"><thead><tr><th>Quarter</th><th>Index</th></tr></thead><tbody>${series.periods.map((period, i) => `<tr><td>${esc(period)}</td><td>${Number(values[i]).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td></tr>`).join("")}</tbody></table>` : '<div class="muted">No matching city was found in this historical publication.</div>'}
+      <p class="muted">Source: National Housing Bank RESIDEX. Publications for ${sourceLinks}. The FY 2017–18 series uses a four-quarter weighted moving average. Index points are not rupees per square foot, and individual observations can be revised.</p></div>`;
+  }
+
   function pDataHealth() {
     const market = VERIFIED.filter(E.isMarketReference);
     const proxies = VERIFIED.filter((p) => p.derived && p.price > 0);
@@ -1413,7 +1437,7 @@
         <div class="muted">Consumer price index · combined rural and urban · 2024 = 100</div>
         ${latestCPI || '<div class="muted">No checked CPI data available.</div>'}
         <p class="muted">Source: <a href="https://esankhyiki.mospi.gov.in/macroindicators?product=cpi" target="_blank" rel="noopener">MoSPI</a>. Consumer inflation is not a land-price trend. The latest values may be provisional; historical bases and back-series are kept separate and values can be revised.</p>
-        <p class="muted">${n(wb.series.length)} India-wide <a href="https://data.worldbank.org/country/india" target="_blank" rel="noopener">World Bank</a> population and economic series are recorded as background, not district data. Captured ${esc((wb.captured_utc || "unknown").slice(0, 10))}.</p></div>
+        <p class="muted">${n(wb.series.length)} India-wide <a href="https://data.worldbank.org/country/india" target="_blank" rel="noopener">World Bank</a> population and economic series are recorded as background, not district data. Captured ${esc((wb.captured_utc || "unknown").slice(0, 10))}.</p><button class="btn sm" data-act="tool" data-tool="housing">Explore NHB housing history</button></div>
       <h3>Tamil Nadu district consumer prices</h3><div class="card small" style="line-height:1.6">
         ${tnArea ? `<label for="tnCpiArea">Published area</label>
           <select id="tnCpiArea">${tnCpi.series.map((x) => `<option value="${esc(x.area)}" ${x.area === tnArea.area ? "selected" : ""}>${esc(x.area)}</option>`).join("")}</select>
@@ -1496,6 +1520,8 @@
     else if (t.id === "scrSort") { S.scr.sort = t.value; refreshPanel(); }
     else if (t.id === "scrPrice") { S.scr.maxPrice = Math.max(0, +t.value || 0); refreshPanel(); }
     else if (t.id === "tnCpiArea") { S.tnCpiArea = t.value; refreshPanelKeepScroll(); }
+    else if (t.id === "hpiCity") { S.hpiCity = t.value; refreshPanelKeepScroll(); }
+    else if (t.id === "hpiSeries") { S.hpiSeries = t.value; refreshPanelKeepScroll(); }
     else if (t.id === "budget") { store.set("bl_budget", Math.max(100000, +t.value || 0)); refreshPanelKeepScroll(); }
   });
   function keepName(fn) { const v = $("#simName") ? $("#simName").value : ""; fn(); if ($("#simName")) $("#simName").value = v; }
