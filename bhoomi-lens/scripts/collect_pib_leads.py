@@ -119,6 +119,8 @@ def fetch():
             if final.scheme != 'https' or final.hostname != 'www.pib.gov.in' or final.port not in (None, 443) or final.path.lower() != '/allrelease.aspx':
                 raise SourceError('unexpected source redirect')
             return response.read(MAX_BYTES + 1)
+    except urllib.error.HTTPError as error:
+        raise SourceError(f'PIB listing returned HTTP {error.code}') from None
     except (OSError, urllib.error.URLError):
         raise SourceError('PIB listing unavailable') from None
 
