@@ -15,7 +15,9 @@ Keep the input and model artifacts in access-controlled storage **outside this p
 
 ## Staging saved LandLens reports
 
-`scripts/landlens_stage.py` can privately stage either already-downloaded saved-report JSON files or one existing LandLens Price Map report through the provider's [saved-report API](https://verified.realestate/landlens/docs/price-map-transactions-api). It never creates a new Price Map. The provider documents the saved-report read as free, but prices and account terms can change; the response must report zero credits charged before the script stages it. Creating the underlying report is a separate, paid action. The API and this importer have not been verified against a real account in this project.
+`scripts/landlens_stage.py` can privately stage either already-downloaded saved-report JSON files or one existing LandLens Price Map report through the provider's [saved-report API](https://verified.realestate/landlens/docs/price-map-transactions-api). It never creates a new Price Map. The provider documents the saved-report read as free, but prices and account terms can change; the response must report zero credits charged before the script stages it. Creating the underlying report is a separate, paid action. Authentication and the saved-report endpoint have been reached with a real account, but this importer has not yet been verified against a real saved report.
+
+The provider's [published terms](https://verified.realestate/landlens/terms) limit report use and restrict public display and derivative works without written consent. Confirm rights for this app, including model training and evaluation, before staging or publishing provider data for that purpose. API access alone is not a licence to build a public dataset.
 
 Set `LANDLENS_KEY` and a securely stored, randomly generated 32-byte key encoded as 64 hexadecimal characters in `BHOOMI_SALES_HASH_KEY` in the private execution environment. Use the same protected hashing key across imports to detect repeat candidates; never put either key in the repository, logs or chat. With access rights confirmed and an existing report ID:
 
