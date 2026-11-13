@@ -2,7 +2,7 @@
   "name": "bhoomi-lens",
   "private": true,
   "scripts": {
-    "test": "node tests/run.js && node --test tests/*.test.js && python3 tests/test_tn_gv_history.py && python3 tests/test_tn_gv_collect.py && python3 tests/test_recheck.py && python3 tests/test_tn_retry_gaps.py && python3 tests/test_collect_macro.py && python3 tests/test_tn_district_cpi.py && python3 tests/test_nhb_hpi.py && python3 tests/test_market_model.py && python3 tests/test_landlens_stage.py",
+    "test": "node tests/run.js && node --test tests/*.test.js && python3 tests/test_tn_gv_history.py && python3 tests/test_tn_gv_collect.py && python3 tests/test_recheck.py && python3 tests/test_tn_retry_gaps.py && python3 tests/test_collect_macro.py && python3 tests/test_tn_district_cpi.py && python3 tests/test_nhb_hpi.py && python3 tests/test_pib_source_status.py && python3 tests/test_market_model.py && python3 tests/test_landlens_stage.py",
     "test:browser": "node tests/e2e.js",
     "audit:evidence": "node scripts/audit_market_evidence.js",
     "audit:projects": "node scripts/audit_project_cases.js"
