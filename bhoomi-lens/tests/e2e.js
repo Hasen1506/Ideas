@@ -190,6 +190,11 @@ const server = http.createServer(async (req, res) => {
     assert.match(await page.locator('#panelBody').innerText(), /lender valuations from 2010/i);
     await page.selectOption('#hpiCity', 'Pune');
     assert.ok((await page.locator('#panelBody').innerText()).includes(latestHousing.city_yoy_pct.Pune.toFixed(1) + '%'));
+    await page.locator('#rail [data-tool="catalysts"]').click();
+    await page.getByText(/Official project timelines/).click();
+    await page.getByText('Chennai Port–Maduravoyal corridor · Tamil Nadu').click();
+    assert.match(await page.locator('#panelBody').innerText(), /Published 2015-03-09 · event 2012-03-29/);
+    assert.match(await page.locator('#panelBody').innerText(), /not complete project histories or live status/i);
     await page.locator('#rail [data-tool="draw"]').click();
     await page.locator('[data-act="quick-area"]').first().click();
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });
