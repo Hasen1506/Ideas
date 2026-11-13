@@ -144,10 +144,11 @@
     return { d, w };
   }
 
-  /* ---------------- Real-data calibration ----------------
-   * Verified price points (registered sales, govt auctions) pull the modelled surface
-   * toward reality: residual r = ln(real / model) is spread with an exponential kernel
-   * (about 9 km) and shrinks back to zero where there is no evidence.
+  /* ---------------- Reference calibration ----------------
+   * Market-related references and explicitly labelled guideline-derived proxies
+   * adjust the surface through a roughly 9 km kernel. They are not all sales.
+   * Standalone official rates and acquisition compensation are context, not
+   * comparable market-price inputs.
    */
   let CAL = [];
   // Spatial buckets (0.4 deg) so thousands of village points stay fast.
@@ -158,12 +159,21 @@
     for (let i = i0 - 2; i <= i0 + 2; i++) for (let j = j0 - 2; j <= j0 + 2; j++) { const b = BUCK.get(i + ":" + j); if (b) for (const c of b) out.push(c); }
     return out;
   }
+  function isCalibrationInput(p) {
+    if (!p || !Number.isFinite(p.price) || p.price <= 0 ||
+        !Number.isFinite(p.lat) || Math.abs(p.lat) > 90 ||
+        !Number.isFinite(p.lon) || Math.abs(p.lon) > 180 ||
+        !(isMarketReference(p) || (p.derived === true && p.type === "derived_gv"))) return false;
+    const weight = p.w == null ? 1 : p.w;
+    return Number.isFinite(weight) && weight > 0;
+  }
   function setCalibration(points, catalysts) {
     CAL = []; BUCK = new Map();
     for (const p of points || []) {
-      if (!(p.price > 0)) continue;
+      if (!isCalibrationInput(p)) continue;
+      const weight = p.w == null ? 1 : p.w;
       const m = buildModel("cal", p.loc || "cal", p.state || "", p.lat, p.lon, 0, catalysts, true);
-      const c = { lat: p.lat, lon: p.lon, real: p.price, model: m.basePrice, res: Math.log(p.price / m.basePrice), w: p.w || 1, loc: p.loc };
+      const c = { lat: p.lat, lon: p.lon, real: p.price, model: m.basePrice, res: Math.log(p.price / m.basePrice), w: weight, loc: p.loc };
       CAL.push(c);
       const k = bk(p.lat, p.lon); if (!BUCK.has(k)) BUCK.set(k, []); BUCK.get(k).push(c);
     }
@@ -207,6 +217,7 @@
     const all = [], byState = {};
     for (const p of points || []) {
       if (!isMarketReference(p) || !(p.govt_sqyd > 0 && p.txn_sqyd > 0)) continue;
+      if (p.w != null && (!Number.isFinite(p.w) || p.w <= 0)) continue;
       const ratio = p.govt_sqyd / p.txn_sqyd;
       if (!(ratio > 0.08 && ratio < 1.3)) continue;
       all.push(ratio);
@@ -655,6 +666,6 @@
     hav, segDist, distToCatalyst, eff, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
     prepare, relink, evaluate, priceAt, sigmaAt, series, contributions, riskOf, momentum, analogueFor,
     pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,
-    setCalibration, calibFactor, calibContrib, calibrationEvidence, isMarketReference, observedCircleRatios, calibrateDistricts, oppScore, buildModel, districtAt
+    setCalibration, isCalibrationInput, calibFactor, calibContrib, calibrationEvidence, isMarketReference, observedCircleRatios, calibrateDistricts, oppScore, buildModel, districtAt
   };
 })(typeof window !== "undefined" ? window : globalThis);
