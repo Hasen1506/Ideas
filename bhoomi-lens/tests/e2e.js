@@ -189,6 +189,44 @@ const server = http.createServer(async (req, res) => {
     assert.match(await page.locator('#panelBody').innerText(), /not complete project histories or live status/i);
     await page.locator('#rail [data-tool="draw"]').click();
     assert.match(await page.locator('#panelBody').innerText(), /not official survey boundaries or proof of ownership/i);
+    const clickMap = async (lon, lat) => {
+      const p = await page.evaluate(([x, y]) => {
+        const point = BhoomiLens.map.project([x, y]), rect = BhoomiLens.map.getCanvas().getBoundingClientRect();
+        return { x: rect.left + point.x, y: rect.top + point.y };
+      }, [lon, lat]);
+      await page.mouse.click(p.x, p.y);
+    };
+    await page.locator('[data-act="set-radius"][data-r="0.05"]').click();
+    assert.match(await page.locator('#panelBody').innerText(), /50 m/);
+    await page.locator('[data-act="draw-mode"][data-mode="circle"]').click();
+    await page.evaluate(() => BhoomiLens.map.stop().jumpTo({ center: [80.26, 13.08], zoom: 16 }));
+    await clickMap(80.26, 13.08);
+    await page.waitForFunction(() => BhoomiLens.S.area && BhoomiLens.S.area.n === 1);
+    let smallAreaText = await page.locator('#panelBody').innerText();
+    assert.match(smallAreaText, /Single model output/i);
+    assert.match(smallAreaText, /at least 20 are needed/i);
+    assert.match(smallAreaText, /not a plot valuation/i);
+    assert.doesNotMatch(smallAreaText, /Distribution of model outputs|Highest modelled growth among samples/i);
+    assert.equal(await page.evaluate(() => BhoomiLens.S.area.sampleMode), 'interior-point');
+    await page.waitForFunction(() => BhoomiLens.map.getZoom() > 12, null, { timeout: 10000 });
+
+    await page.locator('[data-act="draw-mode"][data-mode="rect"]').click();
+    await page.evaluate(() => BhoomiLens.map.stop().jumpTo({ center: [80.260092, 13.0800905], zoom: 18 }));
+    await clickMap(80.26, 13.08);
+    await clickMap(80.260184, 13.080181);
+    smallAreaText = await page.locator('#panelBody').innerText();
+    assert.match(smallAreaText, /\b\d{3} m²/i, 'a roughly 20 m by 20 m area is not rounded to zero');
+    assert.match(smallAreaText, /0\.\d+ acres/i);
+    assert.ok(await page.evaluate(() => BhoomiLens.S.area.areaKm2 * 1e6 > 320 && BhoomiLens.S.area.areaKm2 * 1e6 < 500));
+
+    await page.locator('[data-act="draw-mode"][data-mode="poly"]').click();
+    await page.evaluate(() => BhoomiLens.map.stop().jumpTo({ center: [80.2605, 13.0805], zoom: 16 }));
+    for (const [lon, lat] of [[80.26,13.08],[80.261,13.081],[80.26,13.081],[80.261,13.08]]) await clickMap(lon, lat);
+    await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    assert.match(await page.locator('#toast').innerText(), /boundary crosses or touches itself/i);
+    assert.equal(await page.evaluate(() => BhoomiLens.S.draw.mode), 'poly', 'an invalid drawing remains editable');
+    await page.locator('[data-act="draw-cancel"]').click();
+    await page.locator('[data-act="clear-area"]').click();
     await page.locator('[data-act="quick-area"]').first().click();
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });
     const area = await page.evaluate(() => ({ n: BhoomiLens.S.area.n, sampled: BhoomiLens.S.area.sampled }));
