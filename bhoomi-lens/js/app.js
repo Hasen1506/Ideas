@@ -1424,7 +1424,7 @@
     const multi = [...byPlace.values()].filter((s) => s.size > 1).length;
     const datedYears = Object.keys(years).filter((y) => /^\d{4}$/.test(y)).sort().reverse();
     const yearSummary = datedYears.slice(0, 2).map((y) => `${n(years[y])} rows have a ${esc(y)} date`).join(", ");
-    const gv = window.BL_TN_GV || { rows: [] }, updates = window.BL_UPDATES || {}, gazette = window.BL_GAZETTE || {};
+    const gv = window.BL_TN_GV || { rows: [] }, updates = window.BL_UPDATES || {};
     const coverage = updates.coverage;
     const cpi = window.BL_MACRO_CPI || { series: [] }, wb = window.BL_MACRO_WB || { series: [] };
     const tnCpi = window.BL_TN_DISTRICT_CPI || { series: [] };
@@ -1452,8 +1452,7 @@
         <div class="row sb"><span>TN rate-history locations</span><b>${n((gv.rows || []).length)}</b></div>
         <div class="row sb"><span>Tracked projects, snapshot</span><b>${n(BL.CATALYSTS.length)} · ${esc(BL.DATA_ASOF)}</b></div>
         <div class="row sb"><span>Weekly re-check, last generated</span><b>${esc(updates.gen || "Unavailable")}</b></div>
-        <div class="row sb"><span>Gazette data, last generated</span><b>${esc(gazette.gen || "Unavailable")}</b></div>
-        <p class="muted">Gazette refresh is paused while reuse rights for its third-party source are reviewed. Existing notices are a historical snapshot.</p>
+        <p class="muted">The large third-party Gazette extract has been withdrawn after data-quality and privacy problems were found. The remaining selected notice references are incomplete and require verification against original sources.</p>
         <p class="muted">${coverage ? `Latest re-check: ${n(coverage.news_ok)} of ${n(coverage.news_attempted)} news searches and ${n(coverage.sources_ok)} of ${n(coverage.sources_attempted)} source pages succeeded.` : "This older re-check did not record how many source requests succeeded."}</p>
         <p class="muted">Guideline values are official reference rates, not market transactions. Acquisition compensation and standalone official rates are shown as context and excluded from direct price calibration; labelled guideline-derived proxies still influence it. Village locations can be approximate name matches. Some TN history was collected without HTTPS certificate verification; check the official records before relying on it. <a href="https://github.com/Hasen1506/Ideas/blob/main/bhoomi-lens/docs/SOURCE_AUDIT.md" target="_blank" rel="noopener">Source audit</a>. News leads are unconfirmed; project statuses do not update automatically.</p></div>
       <h3>Economic context</h3><div class="card small" style="line-height:1.6">
