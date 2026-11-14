@@ -210,7 +210,8 @@ const server = http.createServer(async (req, res) => {
     assert.match(smallAreaText, /not a plot valuation/i);
     assert.doesNotMatch(smallAreaText, /Distribution of model outputs|Highest modelled growth among samples/i);
     assert.equal(await page.evaluate(() => BhoomiLens.S.area.sampleMode), 'interior-point');
-    await page.waitForFunction(() => BhoomiLens.map.getZoom() > 12, null, { timeout: 10000 });
+    await page.waitForFunction(() => BhoomiLens.map.getZoom() > 16.5, null, { timeout: 10000 });
+    assert.equal(await page.evaluate(() => BhoomiLens.map.getMaxZoom()), 18);
 
     await page.locator('[data-act="draw-mode"][data-mode="rect"]').click();
     await page.evaluate(() => BhoomiLens.map.stop().jumpTo({ center: [80.260092, 13.0800905], zoom: 18 }));
@@ -219,7 +220,7 @@ const server = http.createServer(async (req, res) => {
     smallAreaText = await page.locator('#panelBody').innerText();
     assert.match(smallAreaText, /\b\d{3} m²/i, 'a roughly 20 m by 20 m area is not rounded to zero');
     assert.match(smallAreaText, /0\.\d+ acres/i);
-    assert.ok(await page.evaluate(() => BhoomiLens.S.area.areaKm2 * 1e6 > 320 && BhoomiLens.S.area.areaKm2 * 1e6 < 500));
+    assert.ok(await page.evaluate(() => BhoomiLens.S.area.areaKm2 * 1e6 > 370 && BhoomiLens.S.area.areaKm2 * 1e6 < 430));
 
     await page.locator('[data-act="draw-mode"][data-mode="poly"]').click();
     await page.evaluate(() => BhoomiLens.map.stop().jumpTo({ center: [80.2605, 13.0805], zoom: 16 }));
@@ -231,6 +232,11 @@ const server = http.createServer(async (req, res) => {
     await page.locator('[data-act="clear-area"]').click();
     await page.locator('[data-act="quick-area"]').first().click();
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });
+    assert.match(await page.locator('#panelBody').innerText(), /2026 baseline.*time slider changes the map, not this panel/i);
+    const baseAreaPrice = await page.evaluate(() => BhoomiLens.S.area.cells[0].price);
+    await page.locator('#year').evaluate((el) => { el.value = '2015'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    assert.equal(await page.evaluate(() => BhoomiLens.S.area.cells[0].price), baseAreaPrice, 'area results state they remain at the baseline when the map year changes');
+    await page.locator('#year').evaluate((el) => { el.value = String(BL.MODEL_YEAR); el.dispatchEvent(new Event('input', { bubbles: true })); });
     const area = await page.evaluate(() => ({ n: BhoomiLens.S.area.n, sampled: BhoomiLens.S.area.sampled }));
     assert.ok(area.n > 0 && area.n <= area.sampled);
     const areaBeforeSimulation = await page.evaluate(() => BhoomiLens.S.area.cells.map((c) => c.mult));
