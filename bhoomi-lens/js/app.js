@@ -556,7 +556,12 @@
   }
   function drawClick(ll) {
     const d = S.draw;
-    if (d.mode === "poly") { d.pts.push(ll); renderDraw(d.pts, "poly"); }
+    if (d.mode === "poly") {
+      const last = d.pts[d.pts.length - 1];
+      if (last && Math.abs(last[0] - ll[0]) < 1e-10 && Math.abs(last[1] - ll[1]) < 1e-10) return;
+      if (d.pts.length >= 500) { toast("Use at most 500 corners, then finish the selection."); return; }
+      d.pts.push(ll); renderDraw(d.pts, "poly");
+    }
     else if (d.mode === "circle") { finishArea(E.circleRing(ll[0], ll[1], S.radiusKm, 72)); }
     else if (!d.a) { d.a = ll; }
     else {
@@ -581,9 +586,13 @@
   function rectRing(a, b) { return [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]], [a[0], a[1]]]; }
   function finishPoly() {
     const d = S.draw; if (!d || d.pts.length < 3) { toast("Add at least three points"); return; }
-    finishArea(d.pts.concat([d.pts[0]]));
+    const pts = d.pts.slice(), first = pts[0], last = pts[pts.length - 1];
+    if (Math.abs(first[0] - last[0]) < 1e-10 && Math.abs(first[1] - last[1]) < 1e-10) pts.pop();
+    finishArea(pts.concat([pts[0]]));
   }
   function finishArea(ring) {
+    const error = E.validateSelection(ring);
+    if (error) { toast(`${error} Adjust the corners or cancel and redraw.`); return; }
     S.draw = null; hideHint();
     map.getCanvas().style.cursor = "";
     setTimeout(() => map.doubleClickZoom.enable(), 300);
@@ -593,7 +602,7 @@
     if (!S.area) {
       map.getSource("draw").setData(emptyFC());
       map.getSource("cells").setData(emptyFC());
-      toast("No mapped district land in this area. Select an area within India.");
+      toast("No sample fell inside a mapped district. Try a different or larger area.");
       openTool("draw", true);
       return;
     }
@@ -601,7 +610,7 @@
     S.area.ms = Math.round(performance.now() - t0);
     setAreaCells(S.area);
     const b = ring.reduce((bb, p) => bb.extend(p), new maplibregl.LngLatBounds(ring[0], ring[0]));
-    map.fitBounds(b, { padding: padFor(), duration: 900, maxZoom: 12 });
+    map.fitBounds(b, { padding: padFor(), duration: 900, maxZoom: 18 });
     openTool("draw", true);
   }
   function clearArea() {
@@ -739,7 +748,7 @@
     const t0 = performance.now(), ring = S.area.ring;
     const area = E.analyseArea(ring, allCats(), models, opts());
     if (area) { S.area = area; S.area.ring = ring; S.area.ms = Math.round(performance.now() - t0); }
-    else { S.area = null; toast("No mapped district land in this area. Select another area."); }
+    else { S.area = null; toast("No sample fell inside a mapped district. Try a different or larger area."); }
     setAreaCells(S.area);
     if (S.tool) refreshPanel();
   }
@@ -1220,12 +1229,13 @@
       <h3>Highest modelled land prices</h3>${priced.map((m, i) => listItem(m, i, `<span class="pill s">${fmtINR(m.priceNow)}</span>`)).join("")}`;
   }
 
+  function formatRadius(km) { return km < 1 ? Math.round(km * 1000) + " m" : km + " km"; }
   function pDraw() {
     const modes = [["poly", "Lasso"], ["circle", "Radius"], ["rect", "Box"]];
     const tools = `<p class="small muted">Shapes drawn here are approximate analysis areas, not official survey boundaries or proof of ownership.</p><div class="tabs">${modes.map(([k, l]) => `<button class="${S.draw && S.draw.mode === k ? "on" : ""}" data-act="draw-mode" data-mode="${k}">${l}</button>`).join("")}</div>
-      <div class="field"><label><span>Radius for the Radius tool</span><span>${S.radiusKm} km</span></label><input type="range" id="radiusKm" min="1" max="60" step="1" value="${S.radiusKm}"/>
-      <div class="btn-row" style="margin-top:6px">${[2, 5, 10, 15, 25, 50].map((r) => `<button class="btn sm ${S.radiusKm === r ? "primary" : ""}" data-act="set-radius" data-r="${r}">${r} km</button>`).join("")}</div></div>`;
-    if (!S.area) return `<p class="lead">Pick a shape and outline any patch of land: a village cluster, a corridor or a whole taluk. Bhoomi Lens samples it on a fine grid and runs the full model on every cell.</p>${tools}
+      <div class="field"><label><span>Radius for the Radius tool</span><span>${formatRadius(S.radiusKm)}</span></label><input type="range" id="radiusKm" min="0.05" max="60" step="0.05" value="${S.radiusKm}"/>
+      <div class="btn-row" style="margin-top:6px">${[0.05, 0.5, 1, 5, 15, 50].map((r) => `<button class="btn sm ${S.radiusKm === r ? "primary" : ""}" data-act="set-radius" data-r="${r}">${formatRadius(r)}</button>`).join("")}</div></div>`;
+    if (!S.area) return `<p class="lead">Outline an area to explore a limited set of model sample locations. Small or narrow selections may have only one sample.</p>${tools}
       <div class="empty">${S.draw ? "Drawing in progress. Follow the hint at the top of the map." : "Choose Lasso, Radius or Box to begin."}</div>
       <h3>Try a hotspot</h3>
       <div class="btn-row">
@@ -1239,30 +1249,35 @@
     const budget = +(store.get("bl_budget", 5000000));
     const acres = budget / (A.p50 * E.SQFT_PER_ACRE);
     const mid = budget * A.multMean;
+    const enoughSamples = A.n >= 20;
+    const areaLabel = A.areaKm2 < 0.01 ? (A.areaKm2 * 1000000).toLocaleString("en-IN", { maximumSignificantDigits: 3 }) + " m\u00B2" : A.areaKm2.toLocaleString("en-IN", { maximumSignificantDigits: 3 }) + " km\u00B2";
+    const acreLabel = A.acres.toLocaleString("en-IN", { maximumSignificantDigits: 3 });
     return `${tools}
+      <p class="warn">This is a coarse, unvalidated model sampled at selected locations. It is not a plot valuation, a distribution of sales, or a reliable forecast.</p>
       <div class="kpis">
-        <div class="kpi"><div class="k">Area</div><div class="v">${A.areaKm2 >= 100 ? Math.round(A.areaKm2).toLocaleString("en-IN") : A.areaKm2.toFixed(1)} km\u00B2</div><div class="s">${Math.round(A.acres).toLocaleString("en-IN")} acres | ${A.n} grid cells</div></div>
-        <div class="kpi"><div class="k">Median price</div><div class="v">${fmtINR(A.p50)}<span class="small muted">/sq ft</span></div><div class="s">${fmtINR(A.p50 * E.SQFT_PER_ACRE)} per acre</div></div>
-        <div class="kpi"><div class="k">Price spread (P10 to P90)</div><div class="v" style="font-size:15px">${fmtINR(A.p10)} to ${fmtINR(A.p90)}</div><div class="s">per sq ft</div></div>
-        <div class="kpi"><div class="k">${A.horizon}-yr outlook</div><div class="v up">${A.multMean.toFixed(2)}x</div><div class="s">${pct(A.cagrMean)} per year on average</div></div>
+        <div class="kpi"><div class="k">Approximate area</div><div class="v">${areaLabel}</div><div class="s">${acreLabel} acres | ${A.n} model sample${A.n === 1 ? "" : "s"}</div></div>
+        <div class="kpi"><div class="k">${A.n === 1 ? "Single model output" : "Median model output"}</div><div class="v">${fmtINR(A.p50)}<span class="small muted">/sq ft</span></div><div class="s">${fmtINR(A.p50 * E.SQFT_PER_ACRE)} per acre</div></div>
+        ${enoughSamples ? `<div class="kpi"><div class="k">Sampled model spread (P10 to P90)</div><div class="v" style="font-size:15px">${fmtINR(A.p10)} to ${fmtINR(A.p90)}</div><div class="s">per sq ft; not sales</div></div>` : ""}
+        <div class="kpi"><div class="k">${A.horizon}-yr model scenario</div><div class="v up">${A.multMean.toFixed(2)}x</div><div class="s">${pct(A.cagrMean)} per year on average</div></div>
       </div>
-      <h3>Price distribution</h3><div class="card">${C.histogram(A.cells.map((c) => c.price))}</div>
+      ${enoughSamples ? `<h3>Distribution of model outputs</h3><p class="small muted">These are sample points on the model surface, not individual plots or observed transactions.</p><div class="card">${C.histogram(A.cells.map((c) => c.price))}</div>` : `<p class="small muted">Only ${A.n} mapped sample${A.n === 1 ? "" : "s"}; at least 20 are needed to show a model-output distribution or rankings. More samples would not validate the model.</p>`}
       <h3>Illustrative budget scenario</h3>
       <div class="card">
         <div class="field"><label><span>Budget (INR)</span><span>${fmtINR(budget)}</span></label><input type="number" id="budget" value="${budget}" min="100000" step="100000"/></div>
-        <div class="small muted">At the modelled median, this budget corresponds to about <b style="color:var(--tx)">${acres >= 1 ? acres.toFixed(1) + " acres" : Math.round(acres * E.SQFT_PER_ACRE).toLocaleString("en-IN") + " sq ft"}</b>. Applying the model's average ${A.horizon}-year multiple gives <b style="color:var(--tx)">${fmtINR(mid)}</b>.</div><div class="small muted" style="margin-top:6px">This is arithmetic using unvalidated model assumptions, not a quote or return forecast. Land class, fees, taxes and plot characteristics are not included.</div>
+        <div class="small muted">At the ${A.n === 1 ? "single model output" : "median model output"}, this budget corresponds to about <b style="color:var(--tx)">${acres >= 1 ? acres.toFixed(1) + " acres" : Math.round(acres * E.SQFT_PER_ACRE).toLocaleString("en-IN") + " sq ft"}</b>. Applying the model's average ${A.horizon}-year multiple gives <b style="color:var(--tx)">${fmtINR(mid)}</b>.</div><div class="small muted" style="margin-top:6px">This is arithmetic using unvalidated model assumptions, not a quote or return forecast. Land class, fees, taxes and plot characteristics are not included.</div>
       </div>
-      <h3>Hottest cells (fastest growth)</h3>
+      ${enoughSamples ? `<h3>Highest modelled growth among samples</h3>
       ${A.hotspots.map((c, i) => `<div class="list-item" data-act="fly-pt" data-lon="${c.lon}" data-lat="${c.lat}"><span class="rank">${i + 1}</span><div class="grow"><div style="font-weight:600">${c.lat.toFixed(3)}, ${c.lon.toFixed(3)}</div><div class="small muted ellipsis">${esc(c.district)} | ${c.top ? "near " + esc(c.top) : "no catalyst"}</div></div><span class="pill">${pct(c.cagr)}</span></div>`).join("")}
-      <h3>Best value for growth</h3>
-      ${A.value.map((c, i) => `<div class="list-item" data-act="fly-pt" data-lon="${c.lon}" data-lat="${c.lat}"><span class="rank">${i + 1}</span><div class="grow"><div style="font-weight:600">${fmtINR(c.price)}/sq ft</div><div class="small muted ellipsis">${esc(c.district)} | ${c.mult.toFixed(2)}x in ${A.horizon} yrs</div></div><span class="pill s">${pct(c.cagr)}</span></div>`).join("")}
-      <h3>Catalysts inside (${A.inside.length})</h3>
-      <div class="card" style="padding:4px 12px">${A.inside.length ? A.inside.map((c) => catRow(c)).join("") : '<div class="empty">None inside the boundary.</div>'}</div>
-      ${A.nearby.length ? `<h3>Just outside</h3><div class="card" style="padding:4px 12px">${A.nearby.map((x) => catRow(x.c, Math.round(x.d) + " km from the edge")).join("")}</div>` : ""}
-      <h3>Districts covered</h3>
+      <h3>Lower model price relative to assumed growth</h3>
+      ${A.value.map((c, i) => `<div class="list-item" data-act="fly-pt" data-lon="${c.lon}" data-lat="${c.lat}"><span class="rank">${i + 1}</span><div class="grow"><div style="font-weight:600">${fmtINR(c.price)}/sq ft</div><div class="small muted ellipsis">${esc(c.district)} | ${c.mult.toFixed(2)}x in ${A.horizon} yrs</div></div><span class="pill s">${pct(c.cagr)}</span></div>`).join("")}` : ""}
+      <h3>Mapped project points or routes intersecting this area (${A.inside.length})</h3>
+      <p class="small muted">Project locations and routes are simplified and may be outdated. Distances are approximate; verify the actual alignment and status with official sources.</p>
+      <div class="card" style="padding:4px 12px">${A.inside.length ? A.inside.map((c) => catRow(c)).join("") : '<div class="empty">No mapped point or route intersects the selection.</div>'}</div>
+      ${A.nearby.length ? `<h3>Nearby mapped project geometry</h3><div class="card" style="padding:4px 12px">${A.nearby.map((x) => catRow(x.c, (x.d < 10 ? x.d.toFixed(1) : Math.round(x.d)) + " km from the boundary (approx.)")).join("")}</div>` : ""}
+      <h3>Districts of mapped samples</h3>
       ${A.districts.slice(0, 6).map((d) => { const m = models.find((x) => x.name === d.name && x.state === d.state); return `<div class="list-item" ${m ? `data-act="open-d" data-id="${m.id}"` : ""}><div class="grow"><b>${esc(d.name)}</b> <span class="small muted">${esc(d.state)}</span></div><span class="small muted">${Math.round(d.share * 100)}%</span></div>`; }).join("")}
       <div class="btn-row" style="margin-top:12px"><button class="btn sm" data-act="area-csv">Export cells (CSV)</button><button class="btn sm danger" data-act="clear-area">Clear area</button></div>
-      <p class="small muted">Computed in ${A.ms || 0} ms on a ${(A.step * 111).toFixed(1)} km grid. Estimates use ${A.n} of ${A.sampled} sampled cells inside mapped districts; selected area includes any land or water outside the map.</p>`;
+      <p class="small muted">Computed in ${A.ms || 0} ms ${A.sampleMode === "interior-point" ? "using one point inside the selection because the grid missed it" : `on an approximately ${(A.step * 111).toFixed(1)} km grid`}. Estimates use ${A.n} of ${A.sampled} sampled cells inside mapped districts; selected area includes any land or water outside the map. District percentages describe these samples, not surveyed land area.</p>`;
   }
 
   function pSimulate() {
@@ -1511,7 +1526,7 @@
       if (label) label.textContent = t.value + (t.id === "simDistance" ? " km" : t.id === "simYear" ? "" : "%");
     }
     else if (t.id === "scrRisk") { S.scr.maxRisk = +t.value; refreshPanelKeepScroll(); }
-    else if (t.id === "radiusKm") { S.radiusKm = +t.value; const lab = t.parentElement.querySelector("label span:last-child"); if (lab) lab.textContent = S.radiusKm + " km"; }
+    else if (t.id === "radiusKm") { S.radiusKm = +t.value; const lab = t.parentElement.querySelector("label span:last-child"); if (lab) lab.textContent = formatRadius(S.radiusKm); }
   });
   $("#panelBody").addEventListener("change", (e) => {
     const t = e.target;

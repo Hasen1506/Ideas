@@ -139,6 +139,31 @@ for (const [name, v, lo, hi] of G) ok(v >= lo && v <= hi, `GOLDEN ${name}: got $
 /* District containment must win over a closer neighbouring centre; holes and
  * unmapped areas must not silently receive a location estimate. */
 {
+  const x = 80.26, y = 13.08, dx = 20 / (111320 * Math.cos(y * Math.PI / 180)), dy = 20 / 110570;
+  const small = [[x, y], [x + dx, y], [x + dx, y + dy], [x, y + dy], [x, y]];
+  ok(Math.abs(E.polyAreaKm2(small) * 1e6 - 400) < 0.01, "small-plot area keeps precision at Indian coordinates");
+  ok(E.validateSelection(small) === null, "small rectangle is a valid selection");
+  const u = [[x,y], [x+0.0003,y], [x+0.0003,y+0.0003], [x+0.0002,y+0.0003], [x+0.0002,y+0.0001], [x+0.0001,y+0.0001], [x+0.0001,y+0.0003], [x,y+0.0003], [x,y]];
+  const fallback = E.sampleGrid(u);
+  ok(E.validateSelection(u) === null && fallback.sampleMode === "interior-point" && fallback.pts.length === 1 && E.pointInPoly(...fallback.pts[0], u), "small concave selection falls back to a point inside the boundary");
+  const narrow = [[60,5], [80,25], [79.99,25], [59.99,5], [60,5]];
+  const bounded = E.sampleGrid(narrow, 100);
+  ok(bounded.examined <= 4096 && bounded.pts.length > 0 && bounded.pts.every(([a,b]) => E.pointInPoly(a,b,narrow)), "long diagonal selection bounds candidate checks and retains only inside samples");
+  const crossed = [[x,y], [x+0.001,y+0.001], [x,y+0.001], [x+0.001,y], [x,y]];
+  const touched = [[x,y], [x+0.001,y], [x+0.001,y+0.001], [x,y+0.001], [x+0.001,y], [x,y]];
+  const line = [[x,y], [x+0.001,y], [x+0.002,y], [x,y]];
+  ok(!!E.validateSelection(crossed) && !!E.validateSelection(touched) && !!E.validateSelection(line), "crossed, self-touching and zero-area boundaries are rejected");
+  ok(E.analyseArea(crossed, [], models) === null, "invalid boundaries do not produce area analysis");
+  ok(E.validateSelection(E.circleRing(x, y, 0.05, 72)) === null, "a small circular selection is valid");
+  const box = [[x-0.001,y-0.001], [x+0.001,y-0.001], [x+0.001,y+0.001], [x-0.001,y+0.001], [x-0.001,y-0.001]];
+  const crossing = { id: "crossing", n: "Crossing", t: "metro", path: [[x-0.01,y], [x+0.01,y]], stage: 1, ann: 2020, eta: 2030, cred: 0.5 };
+  const nearEdge = { id: "near-edge", n: "Near edge", t: "metro", pt: [x,y+0.002], stage: 1, ann: 2020, eta: 2030, cred: 0.5 };
+  const selection = E.analyseArea(box, [crossing, nearEdge], models);
+  const closest = selection && selection.nearby.find((item) => item.c.id === "near-edge");
+  ok(selection && selection.inside.some((c) => c.id === "crossing"), "route crossing the area is detected even when both route vertices are outside");
+  ok(closest && Math.abs(closest.d - 0.11057) < 0.001, "nearby distance is measured to the boundary segment, not just its corners");
+}
+{
   const square = (x0, y0, x1, y1) => [[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]];
   const features = [
     { properties: { id: "a", n: "A", s: "State A", lat: 0.2, lon: 0.2 }, geometry: { type: "Polygon", coordinates: [square(0,0,4,4), square(1,1,2,2)] } },
