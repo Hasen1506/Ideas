@@ -18,6 +18,7 @@ The price surface, project effects, risk and liquidity scores are heuristic esti
 | **Seven lenses** | Price, Growth, Opportunity, Risk, Liquidity, Circle-rate gap and Simulation impact, across 820 districts |
 | **District intelligence card** | Estimated price per sq ft and per acre, modelled circle rate and gap, forecast multiple with an illustrative unvalidated band, a 2015 to 2036 modelled price path, drivers, heuristic risk scores and nearby projects |
 | **Draw an area** | Lasso, radius or box tool. Samples the area on a fine grid and runs the model on every cell: price distribution, hottest cells, best value for growth, catalysts inside and nearby, districts covered, an investment calculator and CSV export |
+| **Tamil Nadu land records** | Location cards and search link to the state's official survey/patta viewer and land-record services. Parcel matching and government account access happen on those sites; drawn areas here are not cadastral boundaries. |
 | **Ripple simulator** | Add a hypothetical airport, metro, expressway, port, industrial node, new city or ring road and compare modelled district effects, weighted by an assumed completion probability |
 | **Catalyst tracker** | 40+ real projects with stage, completion probability, scenario-adjusted delivery date and agency credibility. Influence zones are drawn on the map |
 | **Time machine** | Scrub or play from 2015 to 2036 and watch growth spread along corridors |
