@@ -161,6 +161,24 @@ class RetryTests(unittest.TestCase):
         self.assertTrue(health.problems(sample, {label: False for label in rera.PAGES}))
         self.assertTrue(health.problems(sample, {}))
 
+    def test_health_distinguishes_differences_from_unavailable_checks(self):
+        pages = {label: True for label in rera.PAGES}
+        sample = {'expected': 14, 'selected': 14, 'attempted': 3,
+                  'matched': 1, 'different': 1, 'unavailable': 1}
+        error = health.problems(sample, pages)[0]
+        self.assertIn('1 matched, 1 different, 1 unavailable', error)
+        self.assertIn('3 attempted, 14 selected, 14 expected', error)
+        with tempfile.TemporaryDirectory() as directory:
+            sample_file = Path(directory) / 'sample.json'
+            rera_file = Path(directory) / 'rera.json'
+            sample_file.write_text(json.dumps(sample), encoding='utf-8')
+            rera_file.write_text(json.dumps(pages), encoding='utf-8')
+            out = io.StringIO()
+            with patch.object(sys, 'argv', ['tn_source_status.py', str(sample_file), str(rera_file)]), \
+                 patch.dict('os.environ', {'GITHUB_ACTIONS': 'true'}), patch('sys.stdout', out):
+                self.assertEqual(health.main(), 1)
+            self.assertIn('::warning::Guideline spot-check: 1 matched, 1 different, 1 unavailable', out.getvalue())
+
 
 if __name__ == '__main__':
     unittest.main()
