@@ -503,12 +503,44 @@
   }
 
   function polyAreaKm2(ring) {
-    if (ring.length < 3) return 0;
+    if (!Array.isArray(ring) || ring.length < 3 || ring.some((p) => !Array.isArray(p) || !Number.isFinite(p[0]) || !Number.isFinite(p[1]))) return 0;
     const lat0 = ring.reduce((s, p) => s + p[1], 0) / ring.length;
     const kx = 111.32 * Math.cos(toRad(lat0)), ky = 110.57;
+    // Subtract an origin before the shoelace sum: absolute projected coordinates
+    // lose precision when a plot is tiny compared with its distance from 0,0.
+    const [x0, y0] = ring[0];
     let a = 0;
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += (ring[j][0] * kx) * (ring[i][1] * ky) - (ring[i][0] * kx) * (ring[j][1] * ky);
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += (ring[j][0] - x0) * (ring[i][1] - y0) - (ring[i][0] - x0) * (ring[j][1] - y0);
+    a *= kx * ky;
     return Math.abs(a / 2);
+  }
+
+  function orientation(a, b, c) {
+    const x = (b[0] - a[0]) * (c[1] - a[1]), y = (b[1] - a[1]) * (c[0] - a[0]);
+    const d = x - y, eps = (Math.abs(x) + Math.abs(y)) * 1e-12 + 1e-24;
+    return Math.abs(d) <= eps ? 0 : Math.sign(d);
+  }
+  function onSegment(a, b, p) {
+    return p[0] >= Math.min(a[0], b[0]) - 1e-10 && p[0] <= Math.max(a[0], b[0]) + 1e-10 && p[1] >= Math.min(a[1], b[1]) - 1e-10 && p[1] <= Math.max(a[1], b[1]) + 1e-10;
+  }
+  function segmentsIntersect(a, b, c, d) {
+    const o1 = orientation(a, b, c), o2 = orientation(a, b, d), o3 = orientation(c, d, a), o4 = orientation(c, d, b);
+    return (o1 * o2 < 0 && o3 * o4 < 0) || (!o1 && onSegment(a, b, c)) || (!o2 && onSegment(a, b, d)) || (!o3 && onSegment(c, d, a)) || (!o4 && onSegment(c, d, b));
+  }
+
+  // Validate user-drawn rings before using them for area or model results.
+  function validateSelection(ring) {
+    if (!Array.isArray(ring) || ring.some((p) => !Array.isArray(p) || !Number.isFinite(p[0]) || !Number.isFinite(p[1]) || Math.abs(p[0]) > 180 || Math.abs(p[1]) > 85)) return "The selection has invalid coordinates.";
+    const same = (a, b) => Math.abs(a[0] - b[0]) < 1e-10 && Math.abs(a[1] - b[1]) < 1e-10;
+    const vertices = ring.length > 1 && same(ring[0], ring[ring.length - 1]) ? ring.slice(0, -1) : ring.slice();
+    if (vertices.length < 3) return "Add at least three different corners.";
+    if (vertices.length > 500) return "Use at most 500 corners.";
+    for (let i = 0; i < vertices.length; i++) if (same(vertices[i], vertices[(i + 1) % vertices.length])) return "Remove repeated corners and try again.";
+    for (let i = 0; i < vertices.length; i++) for (let j = i + 1; j < vertices.length; j++) {
+      if (j === i + 1 || (i === 0 && j === vertices.length - 1)) continue;
+      if (segmentsIntersect(vertices[i], vertices[(i + 1) % vertices.length], vertices[j], vertices[(j + 1) % vertices.length])) return "The boundary crosses or touches itself.";
+    }
+    return polyAreaKm2(vertices) > 1e-12 ? null : "The selection has no measurable area.";
   }
 
   function circleRing(lon, lat, rKm, n = 64) {
@@ -521,25 +553,76 @@
   }
 
   function sampleGrid(ring, maxPts = 900) {
+    if (!Array.isArray(ring) || ring.length < 3 || ring.some((p) => !Array.isArray(p) || !Number.isFinite(p[0]) || !Number.isFinite(p[1]))) return { pts: [], step: 0, sampleMode: "none" };
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const [x, y] of ring) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
     const area = polyAreaKm2(ring);
+    if (!(area > 0)) return { pts: [], step: 0, sampleMode: "none" };
+    maxPts = Number.isFinite(maxPts) ? Math.max(1, Math.min(5000, Math.floor(maxPts))) : 900;
     let step = Math.sqrt(Math.max(area, 0.01) / maxPts) / 111;
     step = Math.max(step, 0.004);
+    const width = maxX - minX, height = maxY - minY;
+    const limit = Math.max(4096, maxPts * 8);
+    // Bound work by the bounding box, including extremely long, narrow shapes.
+    step = Math.max(step, width / limit, height / limit, Math.sqrt(width * height / limit));
+    const count = (length) => Math.max(0, Math.ceil(length / step - 0.5));
+    while (count(width) * count(height) > limit) step *= 1.05;
+    const nx = count(width), ny = count(height), examined = nx * ny;
     const pts = [];
-    for (let y = minY + step / 2; y < maxY; y += step)
-      for (let x = minX + step / 2; x < maxX; x += step)
+    for (let iy = 0; iy < ny; iy++) {
+      const y = minY + (iy + 0.5) * step;
+      for (let ix = 0; ix < nx; ix++) {
+        const x = minX + (ix + 0.5) * step;
         if (pointInPoly(x, y, ring)) pts.push([x, y]);
-    if (!pts.length) {
-      const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length, cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
-      pts.push([cx, cy]);
+      }
     }
-    return { pts, step };
+    if (!pts.length) {
+      // A vertex average can lie outside a concave polygon. Choose a horizontal
+      // line between vertex latitudes and sample inside its widest interval.
+      const ys = [...new Set(ring.map((p) => p[1]))].sort((a, b) => a - b);
+      let gap = 0, y = null;
+      for (let i = 1; i < ys.length; i++) if (ys[i] - ys[i - 1] > gap) { gap = ys[i] - ys[i - 1]; y = ys[i - 1] + gap / 2; }
+      const xs = [];
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const a = ring[j], b = ring[i];
+        if ((a[1] > y) !== (b[1] > y)) xs.push(a[0] + (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]));
+      }
+      xs.sort((a, b) => a - b);
+      let widest = 0, x = null;
+      for (let i = 0; i + 1 < xs.length; i += 2) if (xs[i + 1] - xs[i] > widest) { widest = xs[i + 1] - xs[i]; x = xs[i] + widest / 2; }
+      if (x !== null && pointInPoly(x, y, ring)) pts.push([x, y]);
+      return { pts, step, examined, sampleMode: pts.length ? "interior-point" : "none" };
+    }
+    return { pts, step, examined, sampleMode: "grid" };
+  }
+
+  // Distances use the app's simplified mapped geometry, not official alignments.
+  function projectSelectionDistance(c, ring) {
+    const vertices = ring.slice();
+    if (vertices.length > 1 && vertices[0][0] === vertices[vertices.length - 1][0] && vertices[0][1] === vertices[vertices.length - 1][1]) vertices.pop();
+    const edges = vertices.map((p, i) => [p, vertices[(i + 1) % vertices.length]]);
+    const route = c.pt ? [c.pt] : c.path ? c.path : c.ring ? circleRing(c.ring.lon, c.ring.lat, c.ring.rdeg * 111, 72) : [];
+    if (!route.length) return null;
+    for (const p of route) {
+      if (pointInPoly(p[0], p[1], ring) || edges.some(([a, b]) => !orientation(a, b, p) && onSegment(a, b, p))) return { intersects: true, d: 0 };
+    }
+    let d = Infinity;
+    if (route.length === 1) {
+      for (const [a, b] of edges) d = Math.min(d, segDist(route[0][1], route[0][0], a, b));
+    } else for (let i = 0; i < route.length - 1; i++) {
+      const p = route[i], q = route[i + 1];
+      for (const [a, b] of edges) {
+        if (segmentsIntersect(a, b, p, q)) return { intersects: true, d: 0 };
+        d = Math.min(d, segDist(p[1], p[0], a, b), segDist(q[1], q[0], a, b), segDist(a[1], a[0], p, q), segDist(b[1], b[0], p, q));
+      }
+    }
+    return Number.isFinite(d) ? { intersects: false, d } : null;
   }
 
   /* Full area analysis for a drawn polygon ring [[lon,lat],...] */
   function analyseArea(ring, catalysts, models, opts = {}) {
-    const { pts, step } = sampleGrid(ring, opts.maxPts || 700);
+    if (validateSelection(ring)) return null;
+    const { pts, step, sampleMode } = sampleGrid(ring, opts.maxPts || 700);
     const H = opts.horizon ?? 5;
     const cells = pts.map(([lon, lat]) => {
       const pm = pointModel(lat, lon, catalysts, models, opts);
@@ -552,21 +635,17 @@
     const mean = (arr) => arr.reduce((s, v) => s + v, 0) / Math.max(1, arr.length);
     const districts = {};
     for (const c of cells) districts[c.district + "|" + c.state] = (districts[c.district + "|" + c.state] || 0) + 1;
-    const inside = catalysts.filter((c) => {
-      if (c.pt) return pointInPoly(c.pt[0], c.pt[1], ring);
-      if (c.path) return c.path.some((p) => pointInPoly(p[0], p[1], ring));
-      if (c.ring) return circleRing(c.ring.lon, c.ring.lat, c.ring.rdeg * 111, 36).some((p) => pointInPoly(p[0], p[1], ring));
-      return false;
-    });
-    const nearby = catalysts
-      .map((c) => ({ c, d: Math.min(...ring.map((p) => distToCatalyst(c, p[1], p[0]))) }))
-      .filter((x) => !inside.includes(x.c) && x.d < (BL.TYPES[x.c.t]?.r || 10) * 2.5)
+    const proximity = catalysts.map((c) => ({ c, geometry: projectSelectionDistance(c, ring) })).filter((x) => x.geometry);
+    const inside = proximity.filter((x) => x.geometry.intersects).map((x) => x.c);
+    const nearby = proximity
+      .filter((x) => !x.geometry.intersects && x.geometry.d < (BL.TYPES[x.c.t]?.r || 10) * 2.5)
+      .map((x) => ({ c: x.c, d: x.geometry.d }))
       .sort((a, b) => a.d - b.d)
       .slice(0, 6);
     const hotspots = [...cells].sort((a, b) => b.cagr - a.cagr).slice(0, 5);
     const value = [...cells].sort((a, b) => a.price / a.mult - b.price / b.mult).slice(0, 5);
     return {
-      areaKm2: polyAreaKm2(ring), acres: polyAreaKm2(ring) * 247.105, step, n: cells.length, sampled: pts.length, cells,
+      areaKm2: polyAreaKm2(ring), acres: polyAreaKm2(ring) * 247.105, step, sampleMode, n: cells.length, sampled: pts.length, cells,
       priceMean: mean(cells.map((c) => c.price)), p10: q(0.1), p50: q(0.5), p90: q(0.9),
       cagrMean: mean(cells.map((c) => c.cagr)), multMean: mean(cells.map((c) => c.mult)),
       districts: Object.entries(districts).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ name: k.split("|")[0], state: k.split("|")[1], share: v / cells.length })),
@@ -667,7 +746,7 @@
     landTypeFor, expandTNVillages, expandEvidence,
     hav, segDist, distToCatalyst, eff, hash01, completionP, realisation, effEta, urbanGravity, catalystWeight,
     prepare, relink, evaluate, priceAt, sigmaAt, series, contributions, riskOf, momentum, analogueFor,
-    pointModel, pointInPoly, polyAreaKm2, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,
+    pointModel, pointInPoly, polyAreaKm2, validateSelection, circleRing, sampleGrid, analyseArea, hotspotGrid, clamp, SQFT_PER_ACRE,
     setCalibration, isCalibrationInput, calibFactor, calibContrib, calibrationEvidence, isMarketReference, observedCircleRatios, calibrateDistricts, oppScore, buildModel, districtAt
   };
 })(typeof window !== "undefined" ? window : globalThis);
