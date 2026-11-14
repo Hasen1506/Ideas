@@ -166,6 +166,8 @@ const server = http.createServer(async (req, res) => {
     assert.match(await page.locator("#panelBody").innerText(), /Acquisition-compensation references/i);
     assert.match(await page.locator("#panelBody").innerText(), /excluded from direct price calibration/i);
     assert.match(await page.locator("#panelBody").innerText(), /without HTTPS certificate verification/i);
+    assert.match(await page.locator("#panelBody").innerText(), /Gazette extract has been withdrawn after data-quality and privacy problems/i);
+    assert.equal(await page.evaluate(async () => (await fetch('data/gazette.js')).status), 404, 'the withdrawn extract is not served');
     assert.match(await page.locator("#panelBody").innerText(), /8 of 10 news searches and 3 of 5 source pages succeeded/i);
     assert.match(await page.locator("#panelBody").innerText(), /Consumer price index/i);
     assert.match(await page.locator("#panelBody").innerText(), /Consumer inflation is not a land-price trend/i);

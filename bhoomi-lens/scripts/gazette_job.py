@@ -2,7 +2,9 @@
 """Bhoomi Lens gazette job (runs as its own job in .github/workflows/bhoomi-recheck.yml).
 
 Central Gazette land notices (NH 3A/3D) for all states via gazette_scraper.py, incremental and time-capped,
-then villages are placed on Census 2011 village points (approximate). Owner names are never kept.
+then villages are placed on Census 2011 village points (approximate). This old
+parser did not reliably exclude personal information; collection and rebuilding
+are disabled until the data rights and privacy problems are resolved.
 
 Files this job owns (and the only files it commits):
   data/gazette_raw.json  scraper store + checkpoint (records, per-state cursor, skip/pending lists). Not loaded by the page.
@@ -13,6 +15,9 @@ can push in any order without overwriting each other.
 First run after the split: if data/gazette_raw.json does not exist yet, the store is seeded from the
 `gazette.raw` block that older versions of recheck.py wrote into data/updates.js.
 """
+if __name__ == "__main__":
+    raise SystemExit("Gazette collection and rebuilding are disabled: the old extract may contain personal information and its reuse rights are unresolved.")
+
 import json, os, re, sys, datetime, urllib.request, argparse
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
@@ -61,6 +66,7 @@ def build(recs, pts):
     return out, placed
 
 def main():
+    raise SystemExit("Gazette collection and rebuilding are disabled: the old extract may contain personal information and its reuse rights are unresolved.")
     ap = argparse.ArgumentParser()
     ap.add_argument("--max-minutes", type=float, default=float(os.environ.get("GZ_MINUTES", "20")))
     ap.add_argument("--since", default="2024-01-01")
