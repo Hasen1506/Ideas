@@ -123,7 +123,7 @@
     container: "map",
     // Key-free basemap: OpenFreeMap (OpenStreetMap vector tiles, no API key, no sign-up).
     style: "https://tiles.openfreemap.org/styles/dark",
-    center: [80.5, 22.6], zoom: 4.15, minZoom: 3.2, maxZoom: 15.5,
+    center: [80.5, 22.6], zoom: 4.15, minZoom: 3.2, maxZoom: 18,
     maxBounds: [[55, -2], [106, 42]],
     attributionControl: { compact: true },
     dragRotate: true
@@ -1232,7 +1232,7 @@
   function formatRadius(km) { return km < 1 ? Math.round(km * 1000) + " m" : km + " km"; }
   function pDraw() {
     const modes = [["poly", "Lasso"], ["circle", "Radius"], ["rect", "Box"]];
-    const tools = `<p class="small muted">Shapes drawn here are approximate analysis areas, not official survey boundaries or proof of ownership.</p><div class="tabs">${modes.map(([k, l]) => `<button class="${S.draw && S.draw.mode === k ? "on" : ""}" data-act="draw-mode" data-mode="${k}">${l}</button>`).join("")}</div>
+    const tools = `<p class="small muted">Shapes drawn here are approximate analysis areas, not official survey boundaries or proof of ownership. Zooming in does not improve the underlying imagery's resolution.</p><div class="tabs">${modes.map(([k, l]) => `<button class="${S.draw && S.draw.mode === k ? "on" : ""}" data-act="draw-mode" data-mode="${k}">${l}</button>`).join("")}</div>
       <div class="field"><label><span>Radius for the Radius tool</span><span>${formatRadius(S.radiusKm)}</span></label><input type="range" id="radiusKm" min="0.05" max="60" step="0.05" value="${S.radiusKm}"/>
       <div class="btn-row" style="margin-top:6px">${[0.05, 0.5, 1, 5, 15, 50].map((r) => `<button class="btn sm ${S.radiusKm === r ? "primary" : ""}" data-act="set-radius" data-r="${r}">${formatRadius(r)}</button>`).join("")}</div></div>`;
     if (!S.area) return `<p class="lead">Outline an area to explore a limited set of model sample locations. Small or narrow selections may have only one sample.</p>${tools}
@@ -1253,7 +1253,7 @@
     const areaLabel = A.areaKm2 < 0.01 ? (A.areaKm2 * 1000000).toLocaleString("en-IN", { maximumSignificantDigits: 3 }) + " m\u00B2" : A.areaKm2.toLocaleString("en-IN", { maximumSignificantDigits: 3 }) + " km\u00B2";
     const acreLabel = A.acres.toLocaleString("en-IN", { maximumSignificantDigits: 3 });
     return `${tools}
-      <p class="warn">This is a coarse, unvalidated model sampled at selected locations. It is not a plot valuation, a distribution of sales, or a reliable forecast.</p>
+      <p class="warn">This is a coarse, unvalidated model sampled at selected locations. It is not a plot valuation, a distribution of sales, or a reliable forecast. This panel uses the model's ${MY} baseline and scenarios starting in ${MY}; the time slider changes the map, not this panel.</p>
       <div class="kpis">
         <div class="kpi"><div class="k">Approximate area</div><div class="v">${areaLabel}</div><div class="s">${acreLabel} acres | ${A.n} model sample${A.n === 1 ? "" : "s"}</div></div>
         <div class="kpi"><div class="k">${A.n === 1 ? "Single model output" : "Median model output"}</div><div class="v">${fmtINR(A.p50)}<span class="small muted">/sq ft</span></div><div class="s">${fmtINR(A.p50 * E.SQFT_PER_ACRE)} per acre</div></div>
