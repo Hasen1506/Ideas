@@ -22,7 +22,7 @@ The price surface, project effects, risk and liquidity scores are heuristic esti
 | **Catalyst tracker** | 40+ real projects with stage, completion probability, scenario-adjusted delivery date and agency credibility. Influence zones are drawn on the map |
 | **Time machine** | Scrub or play from 2015 to 2036 and watch growth spread along corridors |
 | **Housing index sources** | Links to the National Housing Bank's official housing indices. The prior copied archive has been withdrawn while publication-specific reuse terms are clarified. Housing indices are not vacant-land prices. |
-| **Official project timelines** | Selected source-linked Press Information Bureau project reports in Tamil Nadu and Maharashtra; event dates and publication dates are shown separately. These examples are not live status or evidence of causal price effects. |
+| **Official project timelines** | Selected source-linked Press Information Bureau project reports in Tamil Nadu and Maharashtra; event dates and publication dates are shown separately. A manually collected snapshot also surfaces unreviewed headline leads. Neither is live project status or evidence of causal price effects. |
 | **Scenarios** | Bear, base and bull cases with 3, 5 and 10-year horizons. The bear case adds delays based on each agency's track record |
 | **Screener** | Filter by state, risk and price. Rank by opportunity, growth, price, risk, circle gap or liquidity. Export all districts to CSV |
 | **Watchlist and signals** | Star districts to get signals for upcoming openings, credibility flags, circle-rate revision exposure and thin markets |
