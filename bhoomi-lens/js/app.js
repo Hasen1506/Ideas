@@ -1287,6 +1287,13 @@
     const types = ["all", ...Object.keys(BL.TYPES)];
     const delayed = allCats().filter((c) => c.stage < 4 && E.effEta(c, "bear") - c.eta >= 3).length;
     const timeline = window.BL_PROJECT_TIMELINES || { projects: [] };
+    const found = window.BL_PIB_LEADS || { leads: [] };
+    const leads = Array.isArray(found.leads) ? found.leads : [];
+    const leadHtml = `<details class="more"><summary>Recently discovered PIB leads · ${leads.length}</summary>
+      <p class="small muted">Unreviewed keyword matches from the Press Information Bureau. They can be unrelated, multiple releases can describe the same project, and many relevant releases will be missed. Published dates are release dates, not verified project events. These leads do not affect the map or model.</p>
+      <p class="small muted">Snapshot last changed ${esc(found.last_change || "not yet")}; items older than 180 days are removed when the collector next runs successfully. This snapshot is not refreshed automatically. The source listing covers the current month, so monthly rollovers can leave gaps. <a href="https://www.pib.gov.in/AllRelease.aspx?lang=1&amp;reg=3" target="_blank" rel="noopener noreferrer">PIB release listing</a>.</p>
+      ${leads.length ? leads.slice(0, 50).map((lead) => `<div class="card small"><a href="${esc(lead.url)}" target="_blank" rel="noopener noreferrer">${esc(lead.title)}</a><div class="muted">Published ${esc(lead.published)} · unreviewed lead</div></div>`).join("") : '<p class="small muted">No leads in this snapshot. This does not establish that no relevant releases exist.</p>'}
+      ${leads.length > 50 ? '<p class="small muted">Showing the 50 most recent leads.</p>' : ''}</details>`;
     const officialHistory = timeline.projects.length ? `<details class="more"><summary>Official project timelines · ${timeline.projects.length} selected examples</summary>
       <p class="small muted">Source: ${esc(timeline.publisher)}. These are selected reports, last reviewed ${esc(timeline.reviewed)}, not complete project histories or live status. Project announcements and estimated costs are not construction, spending, or evidence of a land-price effect. Events below are separate from the model and map.</p>
       ${timeline.projects.map((project) => `<details class="more"><summary>${esc(project.name)} · ${esc(project.state)}</summary><p class="small muted">${esc(project.note)}</p>
@@ -1294,6 +1301,7 @@
       </details>`).join("")}</details>` : "";
     return `<p class="lead">Tracked projects and their recorded stages. Statuses are a snapshot and the credibility scores are model assumptions; verify current status with each source.</p>
       ${officialHistory}
+      ${leadHtml}
       <div class="kpis" style="margin-bottom:10px">
         <div class="kpi"><div class="k">In pipeline</div><div class="v">${allCats().filter((c) => c.stage < 4).length}</div><div class="s">${allCats().filter((c) => c.stage === 3).length} under construction</div></div>
         <div class="kpi"><div class="k">Delay-prone</div><div class="v warn">${delayed}</div><div class="s">3+ years late in the bear case</div></div>
