@@ -980,6 +980,13 @@
     }).join("");
     return `<h3>Tamil Nadu guideline history nearby</h3><p class="small muted">Up to three matched village histories within 5 km. These are recorded revision searches, not market sales or estimates for the selected plot. Missing years are not interpolated.</p>${entries}<p class="small muted">Village coordinates are automatic name matches. Streets and land classes may differ between revisions, so medians may not be comparable. Some records were collected without HTTPS certificate verification; check the original register. <a href="https://tnreginet.gov.in/portal/" target="_blank" rel="noopener noreferrer">TNREGINET</a> · <a href="https://github.com/Hasen1506/Ideas/blob/main/bhoomi-lens/docs/TAMIL_NADU_DATA_OPERATIONS.md" target="_blank" rel="noopener noreferrer">Source and coverage</a></p>`;
   }
+  function officialTNRecordsHTML(state) {
+    if (state !== "Tamil Nadu") return "";
+    return `<h3>Official Tamil Nadu land records</h3><div class="card small" style="line-height:1.6">
+      <p>Use the government viewer to search by survey or patta number and view available parcel records. The viewer says public access requires a free account. The separate land-records portal offers FMB sketches and other records.</p>
+      <div class="btn-row"><a class="btn sm" href="https://tngis.tn.gov.in/apps/gi_viewer/" target="_blank" rel="noopener noreferrer">Open Tamil Nilam viewer</a><a class="btn sm" href="https://eservices.tn.gov.in/eservicesnew/index.html" target="_blank" rel="noopener noreferrer">Open land-records services</a></div>
+      <p class="muted">These links open government sites. Bhoomi Lens does not send the selected location or match it to a survey number. Check the district, taluk, village and survey or subdivision on the official service; the point on this map is not a parcel boundary.</p></div>`;
+  }
   function renderLocation() {
     const { lon, lat } = S.loc;
     const pm = E.pointModel(lat, lon, allCats(), models, opts());
@@ -1004,6 +1011,7 @@
         <div class="acts"><button class="icon-btn" data-act="close-detail" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
       </div>
       <div class="d-body">
+        ${officialTNRecordsHTML(pm.state)}
         ${guidelineHistoryHTML(lat, lon, pm.state)}
         ${sourceEvidenceHTML(nearAll)}
         ${(() => { // Buyer summary first: the 4 things a buyer needs, everything else below or collapsed.
@@ -1214,7 +1222,7 @@
 
   function pDraw() {
     const modes = [["poly", "Lasso"], ["circle", "Radius"], ["rect", "Box"]];
-    const tools = `<div class="tabs">${modes.map(([k, l]) => `<button class="${S.draw && S.draw.mode === k ? "on" : ""}" data-act="draw-mode" data-mode="${k}">${l}</button>`).join("")}</div>
+    const tools = `<p class="small muted">Shapes drawn here are approximate analysis areas, not official survey boundaries or proof of ownership.</p><div class="tabs">${modes.map(([k, l]) => `<button class="${S.draw && S.draw.mode === k ? "on" : ""}" data-act="draw-mode" data-mode="${k}">${l}</button>`).join("")}</div>
       <div class="field"><label><span>Radius for the Radius tool</span><span>${S.radiusKm} km</span></label><input type="range" id="radiusKm" min="1" max="60" step="1" value="${S.radiusKm}"/>
       <div class="btn-row" style="margin-top:6px">${[2, 5, 10, 15, 25, 50].map((r) => `<button class="btn sm ${S.radiusKm === r ? "primary" : ""}" data-act="set-radius" data-r="${r}">${r} km</button>`).join("")}</div></div>`;
     if (!S.area) return `<p class="lead">Pick a shape and outline any patch of land: a village cluster, a corridor or a whole taluk. Bhoomi Lens samples it on a fine grid and runs the full model on every cell.</p>${tools}
