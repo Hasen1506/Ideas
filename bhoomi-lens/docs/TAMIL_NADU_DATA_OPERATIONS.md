@@ -36,7 +36,7 @@ On 13 November another GitHub-hosted run again could not reach the sources and w
 
 The scheduled Tamil Nadu retry and economic refresh use GitHub-hosted runners unless the repository Actions variable `BHOOMI_PORTAL_SCHEDULED` is explicitly set to `true`. After an appropriately isolated, maintained runner with label `bhoomi-portal` and the required tools has been connected and tested, that variable routes these two scheduled jobs to it. The runner must have network access to the sources, verified TLS, Python 3.12, Node.js, npm, git and GitHub CLI. Do not put personal records or provider credentials on a public-repository runner, and do not run untrusted pull-request code on it. If the runner is offline, jobs routed to it will queue; remove or unset the variable to return schedules to GitHub-hosted runners. No persistent runner is currently configured. The separately scheduled district CPI workflow stays on GitHub-hosted infrastructure by default.
 
-The old large, parallel guideline collector remains disabled; do not restart it merely to repeat already collected revisions. The separate news workflow finds leads and is not a verified project-status or transaction feed. The Gazette refresh is paused pending clarification of the third-party source's redistribution terms or a verified official-source replacement; see [SOURCE_AUDIT.md](SOURCE_AUDIT.md).
+The old large, parallel guideline collector remains disabled; do not restart it merely to repeat already collected revisions. The separate news workflow finds leads and is not a verified project-status or transaction feed. Gazette collection and rebuilding are disabled after privacy and source-rights problems were found; see [SOURCE_AUDIT.md](SOURCE_AUDIT.md).
 
 ## Additional economic sources
 

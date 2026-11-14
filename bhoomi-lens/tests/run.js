@@ -192,8 +192,10 @@ console.log(`Reference leave-one-out median multiplicative error factor (${sampl
   const W = global.window || (global.window = {});
   global.localStorage = global.localStorage || { getItem: () => null, setItem() {} };
   W.BL_BACKTEST = global.BL_BACKTEST;
+  W.BL_GAZETTE = { villages: [{ v: "Synthetic quarantined village", s: "Tamil Nadu", ll: [80.2, 13.1] }] };
   require("../data/infra.js"); require("../js/infra.js");
   const I = W.BL.Infra, D = W.BL_INFRA;
+  ok(!D.acq.some((a) => a.v === "Synthetic quarantined village"), "quarantined third-party Gazette data cannot be silently added to the map");
   ok(D.exits.length > 2000, "exits loaded");
   ok(D.acq.filter((a) => !a.g).length + D.acqUnplaced.length === 143, "all 143 notices kept (placed + unplaced)");
   ok(D.acq.every((a) => a.u && a.ll && a.ll[1] > 6 && a.ll[1] < 37 && a.ll[0] > 68 && a.ll[0] < 98), "placed villages have source and India coords");

@@ -1,3 +1,6 @@
 .gz/
 __pycache__/
 node_modules/
+# Quarantined third-party notice extracts must not be recommitted or deployed.
+data/gazette_raw.json
+data/gazette.js
