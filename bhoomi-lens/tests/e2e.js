@@ -53,6 +53,10 @@ const server = http.createServer(async (req, res) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const detail = await page.locator("#detailBody").innerText();
     assert.match(detail, /CHENNAI, TAMIL NADU/i);
+    assert.match(detail, /Official Tamil Nadu land records/i);
+    assert.match(detail, /does not send the selected location or match it to a survey number/i);
+    assert.equal(await page.locator('#detailBody a[href="https://tngis.tn.gov.in/apps/gi_viewer/"]').count(), 1);
+    assert.equal(await page.locator('#detailBody a[href="https://eservices.tn.gov.in/eservicesnew/index.html"]').count(), 1);
     assert.match(detail, /market references? \| \d+ guideline proxies/i);
     assert.match(detail, /no validated plot-level error range/i);
     assert.doesNotMatch(detail, /fair range|overpriced|80% band/i);
@@ -90,6 +94,7 @@ const server = http.createServer(async (req, res) => {
     assert.equal(await page.evaluate(() => !!BhoomiLens.map.getSource("sat-recent")), false);
 
     await page.locator("#searchBtn").click();
+    assert.match(await page.locator('#palette').innerText(), /Survey-number matches here are limited to recorded acquisition notices/i);
     await page.locator("#paletteInput").fill("Unit Test Place");
     await page.waitForTimeout(600);
     assert.equal(onlineRequests, 0, "typing must not send a query to an external geocoder");
@@ -183,6 +188,7 @@ const server = http.createServer(async (req, res) => {
     assert.match(await page.locator('#panelBody').innerText(), /Published 2015-03-09 · event 2012-03-29/);
     assert.match(await page.locator('#panelBody').innerText(), /not complete project histories or live status/i);
     await page.locator('#rail [data-tool="draw"]').click();
+    assert.match(await page.locator('#panelBody').innerText(), /not official survey boundaries or proof of ownership/i);
     await page.locator('[data-act="quick-area"]').first().click();
     await page.getByText(/sampled cells inside mapped districts/).waitFor({ timeout: 30000 });
     const area = await page.evaluate(() => ({ n: BhoomiLens.S.area.n, sampled: BhoomiLens.S.area.sampled }));
