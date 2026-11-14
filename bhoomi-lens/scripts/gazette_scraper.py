@@ -5,7 +5,8 @@ Scope: MoRTH National Highways Act 1956 s.3A / s.3D (Railways Act 20A / 20E with
 Source: gazettetracker.com (per-state listing /location/<state>?page=N and per-notice /g/<gazette_id>).
 Output/store: one JSON file {generated, records:[...], cursor:{...}, skip:[...], pending:[...], stats, failures}.
   records: {gid, so, date, type, project, km, state, district, taluk, villages:[{t,v,sv:[...]}], url, parse_status, tries}
-  Owner-name columns are dropped.
+  The old parser attempted to drop owner-name columns, but malformed layouts
+  allowed personal information into other fields. Collection is disabled.
 
 Why it is shaped like this (Oct 2026): the old version re-walked every state's listing back to --since and
 re-fetched every notice it could not parse (1,400+ of them, at 2 s each) on every run, with no clock of its
@@ -19,6 +20,9 @@ own, so the 25-minute subprocess timeout killed it every week. Now:
   * checkpoint written atomically every few notices and at the end, so a killed run keeps its work.
 Usage:  python -u gazette_scraper.py --out store.json [--since 2024-01-01] [--max-minutes 20]
 """
+if __name__ == "__main__":
+    raise SystemExit("Gazette collection is disabled: the old parser did not reliably exclude personal information and reuse rights are unresolved.")
+
 import argparse, json, os, re, sys, time, datetime as dt
 import requests
 from bs4 import BeautifulSoup
@@ -248,6 +252,7 @@ def take(store, slug, items, since, until, railways=False):
     return n, older, frontier
 
 def run(a):
+    raise RuntimeError("Gazette collection is disabled: the old parser did not reliably exclude personal information and reuse rights are unresolved.")
     since, until = dt.date.fromisoformat(a.since), dt.date.fromisoformat(a.until)
     keep = {"3A", "3D"} | ({"20A", "20E"} if a.railways else set())
     DEADLINE[0] = time.time() + a.max_minutes * 60
