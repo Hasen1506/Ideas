@@ -6,6 +6,7 @@ saved even when a different source is unavailable. No records are read here.
 """
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -20,7 +21,11 @@ def problems(sample, rera):
     elif (sample['expected'] == 0 or sample['selected'] != sample['expected'] or
           sample['attempted'] != sample['selected'] or sample['matched'] != sample['attempted'] or
           sample['different'] != 0 or sample['unavailable'] != 0):
-        errors.append('Guideline sample was incomplete, unavailable, or different; inspect the sample results.')
+        errors.append(
+            f"Guideline spot-check: {sample['matched']} matched, {sample['different']} different, "
+            f"{sample['unavailable']} unavailable; {sample['attempted']} attempted, "
+            f"{sample['selected']} selected, {sample['expected']} expected."
+        )
     if not isinstance(rera, dict) or set(rera) != set(PAGES) or any(value is not True for value in rera.values()):
         errors.append('At least one RERA page was unavailable or could not be verified.')
     return errors
@@ -43,6 +48,8 @@ def main():
     if errors:
         for error in errors:
             print(f'- {error}')
+            if os.environ.get('GITHUB_ACTIONS') == 'true':
+                print(f'::warning::{error}')
         print('Verified recoveries, if any, were handled before this health gate.')
         return 1
     print('The complete small guideline sample matched and both checked RERA pages responded.')
