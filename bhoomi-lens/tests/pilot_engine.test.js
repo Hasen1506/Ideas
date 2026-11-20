@@ -339,7 +339,7 @@ test("evaluateSpatialResidualRidgeCV recovers guideline compression signal witho
   assert.ok(w0 && w0.weight < 0);
 });
 
-test("built statewide TN report covers all 38 districts, 233k+ residential streets, and promoted Ridge CV", () => {
+test("built statewide TN report covers all 38 districts, 233k+ residential streets, promoted Ridge CV, and Catalyst ML engine", () => {
   const fs = require("fs");
   const path = require("path");
   const report = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/tn_pilot_report.json"), "utf8"));
@@ -352,6 +352,107 @@ test("built statewide TN report covers all 38 districts, 233k+ residential stree
   assert.ok(report.cv.spatialResidualRidge.metrics.mdapePct < report.cv.anchorRelativeBaseline.mdapePct);
   assert.ok(report.hotspots2025.length >= 100);
   assert.ok(report.publicFeed.length >= 10);
+
+  // Catalyst & Chain-Investment ML Engine invariants
+  assert.ok(report.catalystEngine && report.catalystEngine.regimeProof);
+  const rp = report.catalystEngine.regimeProof;
+  assert.ok(rp.tnReraFilingsIndexed >= 2000);
+  assert.ok(rp.tnPrivateCapexTotalCr >= 100000);
+  assert.ok(rp.infraPlusChain.repriced2025Pct > rp.infraOnly.repriced2025Pct * 2, "Infra+Chain must exceed 2x Infra-Only repricing rate");
+  assert.ok(report.catalystEngine.momentumCV.oofRocAuc >= 0.78, "Zero-leakage LODO Momentum CV AUC must be >= 0.78");
+  assert.ok(report.catalystEngine.momentumCV.top10Lift >= 2.2, "Top-10% ML decile must deliver >= 2.2x lift");
+  assert.equal(report.catalystEngine.analogueCV.ok, true);
+  assert.equal(report.catalystEngine.analogueCV.beatsNaiveOnMdape, true);
+  assert.ok(report.catalystEngine.tnCatalystPresets.length >= 8);
 });
+
+test("evaluateRepricingMomentumCV recovers out-of-district momentum signal with high ROC-AUC", () => {
+  const rows = [];
+  const dists = ["Chengalpattu", "Coimbatore", "Krishnagiri", "Tiruvallur", "Madurai"];
+  for (let i = 0; i < 120; i++) {
+    const isHot = i % 3 === 0 ? 1 : 0;
+    const f = new Array(PE.MOMENTUM_FEATURE_META.length).fill(0).map((_, k) => {
+      if (k >= 14) return isHot ? 2.5 + (i % 5) * 0.2 : 0.2 + (i % 3) * 0.1;
+      return (i % 7) * 0.3;
+    });
+    rows.push({ district: dists[i % dists.length], y: isHot, features: f });
+  }
+  const out = PE.evaluateRepricingMomentumCV(rows, 20);
+  assert.equal(out.ok, true);
+  assert.ok(out.oofRocAuc >= 0.85);
+  assert.ok(out.top10Lift >= 2.0);
+  assert.equal(out.percentileByIdx.length, 120);
+});
+
+test("simulateCatalystUplift rewards chain-investment confirmation, differentiates plots vs flats, and models cancellation crash", () => {
+  require("../data/backtest.js");
+  const cases = PE.normalizeBacktestCases(globalThis.BL_BACKTEST.rows);
+  assert.ok(cases.length >= 70);
+
+  const sampleVillage = { v: "Siruseri", d: "Chengalpattu", sro: "Thiruporur", med: 1800, nSt: 90, u25: 12, g17: 68, rc: 34, ic: 6500, ms: 92, f: [7.5, 0.8, 4.5, 0.5, 1.0, 0.13, 3.3, 3.3, 1.1, 3.2, 2.5, 1.5, 2.2, 134] };
+  const confirmedPlots = PE.simulateCatalystUplift({
+    village: sampleVillage,
+    projectType: "airport",
+    distanceKm: 3,
+    stage: 3,
+    horizonYears: 7,
+    assetClass: "plots",
+    chainReraProjects: 25,
+    chainCapexCr: 8000,
+    infraStackCount: 2,
+    backtestCases: cases
+  });
+  const paperOnlyPlots = PE.simulateCatalystUplift({
+    village: sampleVillage,
+    projectType: "airport",
+    distanceKm: 3,
+    stage: 3,
+    horizonYears: 7,
+    assetClass: "plots",
+    chainReraProjects: 0,
+    chainCapexCr: 0,
+    infraStackCount: 1,
+    backtestCases: cases
+  });
+  const confirmedFlats = PE.simulateCatalystUplift({
+    village: sampleVillage,
+    projectType: "airport",
+    distanceKm: 3,
+    stage: 3,
+    horizonYears: 7,
+    assetClass: "flats",
+    chainReraProjects: 25,
+    chainCapexCr: 8000,
+    infraStackCount: 2,
+    backtestCases: cases
+  });
+  const cancelled = PE.simulateCatalystUplift({
+    village: sampleVillage,
+    projectType: "airport",
+    distanceKm: 3,
+    stage: -1,
+    cancelled: true,
+    horizonYears: 5,
+    assetClass: "plots",
+    chainReraProjects: 0,
+    chainCapexCr: 0,
+    backtestCases: cases
+  });
+
+  assert.ok(
+    confirmedPlots.decomposition.projectedMultiple > paperOnlyPlots.decomposition.projectedMultiple,
+    "Confirmed chain investment must yield higher projected multiple than paper-only announcement"
+  );
+  assert.ok(
+    confirmedPlots.decomposition.projectedMultiple > confirmedFlats.decomposition.projectedMultiple,
+    "Plots must outperform flats near greenfield airport catalysts per Indian historical backtests"
+  );
+  assert.ok(
+    cancelled.decomposition.projectedMultiple < 1.0,
+    "Cancelled catalyst must project downside crash (< 1.0x)"
+  );
+  assert.equal(confirmedPlots.analogues.length, 5);
+});
+
 
 

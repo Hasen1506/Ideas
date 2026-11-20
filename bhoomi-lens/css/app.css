@@ -427,6 +427,7 @@ details.more > summary { cursor: pointer; color: var(--tx-2); font-weight: 600; 
 .dd-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; min-width: 0; }
 .dd-field label { font-size: 11px; color: var(--tx-2); display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .dd-field input[type="text"], .dd-field input[type="number"], .dd-field select, .dd-input, .dd-select-inline { width: 100%; background: #090e1c; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; color: var(--tx); font-size: 12.5px; outline: none; min-width: 0; text-overflow: ellipsis; }
+.dd-field input[type="range"] { width: 100%; margin: 5px 0 2px; }
 .dd-select-inline { width: auto; }
 .dd-field input:focus, .dd-field select:focus, .dd-input:focus { border-color: var(--teal); }
 .dd-field select option, .dd-select-inline option { background: #0d1426; }
@@ -504,6 +505,15 @@ details.more > summary { cursor: pointer; color: var(--tx-2); font-weight: 600; 
 .dd-cmp-table th:not(:first-child), .dd-cmp-table td:not(:first-child) { text-align: left; }
 .dd-table td.num { white-space: nowrap; }
 
+.dd-cat-bars { display: flex; flex-direction: column; gap: 10px; }
+.dd-cat-row { display: flex; flex-direction: column; }
+.dd-cat-fill { height: 100%; border-radius: 4px; transition: width 0.2s ease; }
+.dd-cat-fill.up { background: var(--teal); }
+.dd-cat-fill.sky { background: var(--sky); }
+.dd-cat-fill.warn { background: var(--saffron); }
+.dd-cat-fill.down { background: var(--rose); }
+.dd-cat-fill.muted { background: #64748b; }
+
 @media (max-width: 1180px) {
   .dd-header { flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
   .dd-brand { order: 1; }
@@ -520,5 +530,6 @@ details.more > summary { cursor: pointer; color: var(--tx-2); font-weight: 600; 
   .dd-kpi-strip { grid-template-columns: 1fr; }
   .dd-meta-grid { grid-template-columns: 1fr 1fr; }
 }
+
 
 

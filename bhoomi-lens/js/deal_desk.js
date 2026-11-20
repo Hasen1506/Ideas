@@ -41,7 +41,18 @@
     scannerDist: "all",
     scannerQuery: "",
     mlDistQuery: "",
-    compareList: loadCompareList()
+    compareList: loadCompareList(),
+    catPresetId: "cmrl_c3_omr",
+    catType: "metro",
+    catDistKm: 2,
+    catStage: 3,
+    catAsset: "plots",
+    catHorizon: 7,
+    catRera: 18,
+    catCapexCr: 2500,
+    catInfraStack: 2,
+    catNote: "",
+    catInitialized: false
   };
 
   let streetAbort = null;
@@ -569,6 +580,13 @@
           <div><span class="muted">Residential Streets</span><b class="num">${v.nSt.toLocaleString("en-IN")}</b></div>
           <div><span class="muted">Street P10–P90 Spread</span><b class="num">${v.p10 && v.p90 ? `${fmtINR(v.p10)}–${fmtINR(v.p90)}` : "—"}</b></div>
           <div><span class="muted">2025 Mid-Cycle Updates</span><b class="num ${v.u25 ? "up" : ""}">${v.u25}</b></div>
+          <div><span class="muted">Momentum ML Score</span><b class="num ${v.ms >= 75 ? "up" : v.ms >= 45 ? "" : "muted"}">${v.ms != null ? `${v.ms} / 100` : "—"}</b></div>
+          <div><span class="muted">TNRERA Filings (≤10 km)</span><b class="num ${v.rc >= 10 ? "up" : ""}">${(v.rc || 0).toLocaleString("en-IN")}</b></div>
+          <div><span class="muted">Private Capex (≤15 km)</span><b class="num ${v.ic >= 1000 ? "up" : ""}">${v.ic ? "₹" + v.ic.toLocaleString("en-IN") + " Cr" : "₹0"}</b></div>
+        </div>
+        <div class="row sb" style="margin-top:8px">
+          <span class="small muted">Active infra ≤15 km: <b class="num">${v.is || 0}</b> · District street density: <b class="num">${v.dd || "—"}/km²</b></span>
+          <button class="btn sm" data-dd="open-catalyst-village">Simulate Catalyst →</button>
         </div>
         ${res.ridgeDetail && res.ridgeDetail.topDrivers ? `
           <div class="dd-divider"></div>
@@ -843,10 +861,370 @@
     </div>`;
   }
 
+  function applyCatalystPreset(presetId, pd) {
+    const ce = pd && pd.catalystEngine;
+    if (!ce || !Array.isArray(ce.tnCatalystPresets)) return;
+    const pr = ce.tnCatalystPresets.find((x) => x.id === presetId);
+    if (!pr) return;
+    state.catPresetId = pr.id;
+    state.catType = pr.type;
+    state.catDistKm = pr.distKm;
+    state.catStage = pr.cancelled ? -1 : pr.stage;
+    state.catRera = pr.liveRera;
+    state.catCapexCr = pr.liveCapexCr;
+    state.catInfraStack = Math.max(1, Math.min(4, pr.liveInfraStack || 1));
+    state.catNote = pr.note || "";
+    if (pr.district) state.district = pr.district;
+    if (pr.vkey) state.villageKey = pr.vkey;
+    state.villageFilter = "";
+    state.selectedStreet = null;
+    state.catInitialized = true;
+    const v = currentVillage();
+    if (v) {
+      state.askUnit = "sqft";
+      state.askValue = String(Math.round(v.med * 2.5));
+    }
+    evaluateCurrent();
+  }
+
+  function syncCatalystFromVillage(v) {
+    if (!v) return;
+    state.catRera = Math.min(160, v.rc || 0);
+    state.catCapexCr = Math.min(25000, v.ic || 0);
+    state.catInfraStack = Math.max(1, Math.min(4, v.is || 1));
+    state.catInitialized = true;
+  }
+
+  function renderCatalystTab(pd) {
+    const ce = pd.catalystEngine;
+    if (!ce || !BL.PilotEngine || !BL.PilotEngine.simulateCatalystUplift) {
+      return `<div class="dd-single"><div class="dd-card">Catalyst &amp; Chain-Investment engine not loaded.</div></div>`;
+    }
+    if (!state.catInitialized && ce.tnCatalystPresets && ce.tnCatalystPresets.length) {
+      applyCatalystPreset(state.catPresetId || ce.tnCatalystPresets[0].id, pd);
+    }
+
+    const allDistVillages = villagesForDistrict(state.district);
+    const v = currentVillage();
+    const baseRate = v ? Math.round(v.med * 2.3) : 2500;
+    const sim = BL.PilotEngine.simulateCatalystUplift({
+      village: v,
+      projectType: state.catType,
+      distanceKm: state.catDistKm,
+      stage: state.catStage,
+      cancelled: Number(state.catStage) < 0,
+      horizonYears: state.catHorizon,
+      assetClass: state.catAsset,
+      chainReraProjects: state.catRera,
+      chainCapexCr: state.catCapexCr,
+      infraStackCount: state.catInfraStack,
+      baseRateSqft: baseRate,
+      backtestCases: ce.backtestCases || [],
+      conformalLogRadius: (ce.analogueCV && ce.analogueCV.conformalLogRadius) || 0.7,
+      allVillages: pd.villages || []
+    });
+
+    const dec = sim.decomposition;
+    const rp = ce.regimeProof || {};
+    const mcv = ce.momentumCV || {};
+    const acv = ce.analogueCV || {};
+    const isCancelled = sim.inputs.cancelled;
+    const heroTone = isCancelled ? "down" : dec.chainTier === "up" ? "up" : "warn";
+
+    const sidebarHTML = `
+      <div class="dd-sidebar">
+        <div class="dd-panel-title">Catalyst &amp; Chain Simulator</div>
+        <div class="dd-field">
+          <label for="ddCatPreset"><span>Real Tamil Nadu Catalyst Preset</span><span class="num">${(ce.tnCatalystPresets || []).length} live</span></label>
+          <select id="ddCatPreset">
+            <option value="custom" ${state.catPresetId === "custom" ? "selected" : ""}>Custom Hypothetical Catalyst…</option>
+            ${(ce.tnCatalystPresets || []).map((p) => `<option value="${esc(p.id)}" ${state.catPresetId === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}
+          </select>
+        </div>
+
+        <div class="dd-field">
+          <label for="ddCatDist"><span>Target TN District (38)</span></label>
+          <select id="ddCatDist">
+            ${(pd.districts || []).map((d) => `<option value="${esc(d.district)}" ${d.district === state.district ? "selected" : ""}>${esc(d.district)}</option>`).join("")}
+          </select>
+        </div>
+
+        <div class="dd-field">
+          <label for="ddCatVillage"><span>Target Revenue Village</span><span class="num">GV ${v ? fmtINR(v.med) : "—"}/sf</span></label>
+          <select id="ddCatVillage">
+            ${allDistVillages.slice(0, 250).map((x) => `<option value="${esc(villageId(x))}" ${v && villageId(x) === villageId(v) ? "selected" : ""}>${esc(x.v)} · MS ${x.ms != null ? x.ms : "—"} · ${x.rc || 0} RERA</option>`).join("")}
+          </select>
+        </div>
+
+        <div class="dd-grid-2">
+          <div class="dd-field">
+            <label for="ddCatType"><span>Project Type</span></label>
+            <select id="ddCatType">
+              <option value="airport" ${state.catType === "airport" ? "selected" : ""}>Greenfield Airport</option>
+              <option value="metro" ${state.catType === "metro" ? "selected" : ""}>Metro / RRTS</option>
+              <option value="ring" ${state.catType === "ring" ? "selected" : ""}>Ring Road (ORR/PRR)</option>
+              <option value="expressway" ${state.catType === "expressway" ? "selected" : ""}>Expressway</option>
+              <option value="industrial" ${state.catType === "industrial" ? "selected" : ""}>Industrial / EV Park</option>
+              <option value="port" ${state.catType === "port" ? "selected" : ""}>Deep-Draft Port</option>
+            </select>
+          </div>
+          <div class="dd-field">
+            <label for="ddCatAsset"><span>Asset Class</span></label>
+            <select id="ddCatAsset">
+              <option value="plots" ${state.catAsset === "plots" ? "selected" : ""}>Residential Plots</option>
+              <option value="flats" ${state.catAsset === "flats" ? "selected" : ""}>Apartments / Flats</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="dd-field">
+          <label for="ddCatStage"><span>Execution Stage / Risk Regime</span></label>
+          <select id="ddCatStage">
+            <option value="0" ${Number(state.catStage) === 0 ? "selected" : ""}>Stage 0 · Rumour / DPR (0.35×)</option>
+            <option value="1" ${Number(state.catStage) === 1 ? "selected" : ""}>Stage 1 · Approved / Tender (0.55×)</option>
+            <option value="2" ${Number(state.catStage) === 2 ? "selected" : ""}>Stage 2 · Land Acquisition (0.72×)</option>
+            <option value="3" ${Number(state.catStage) === 3 ? "selected" : ""}>Stage 3 · Active Construction (0.90×)</option>
+            <option value="4" ${Number(state.catStage) === 4 ? "selected" : ""}>Stage 4 · Operational (1.00×)</option>
+            <option value="-1" ${Number(state.catStage) === -1 ? "selected" : ""}>Cancelled / Scrapped (Crash Test)</option>
+          </select>
+        </div>
+
+        <div class="dd-grid-2">
+          <div class="dd-field">
+            <label for="ddCatDistKm"><span>Distance to Catalyst</span><span class="num">${state.catDistKm} km</span></label>
+            <input id="ddCatDistKm" type="range" min="0.5" max="20" step="0.5" value="${state.catDistKm}"/>
+          </div>
+          <div class="dd-field">
+            <label for="ddCatHorizon"><span>Horizon</span><span class="num">${state.catHorizon} yrs</span></label>
+            <select id="ddCatHorizon">
+              <option value="3" ${Number(state.catHorizon) === 3 ? "selected" : ""}>3 years</option>
+              <option value="5" ${Number(state.catHorizon) === 5 ? "selected" : ""}>5 years</option>
+              <option value="7" ${Number(state.catHorizon) === 7 ? "selected" : ""}>7 years</option>
+              <option value="10" ${Number(state.catHorizon) === 10 ? "selected" : ""}>10 years</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="dd-box">
+          <div class="row sb" style="margin-bottom:6px">
+            <span class="dd-label-inline">Chain Investment Wave</span>
+            <button class="btn sm ghost" data-dd="cat-sync-live">Sync Village Live</button>
+          </div>
+          <div class="dd-field" style="margin-bottom:8px">
+            <label for="ddCatRera"><span>TNRERA Builder Launches (≤10 km)</span><span class="num">${state.catRera}</span></label>
+            <input id="ddCatRera" type="range" min="0" max="160" step="1" value="${Math.min(160, state.catRera)}"/>
+          </div>
+          <div class="dd-field" style="margin-bottom:8px">
+            <label for="ddCatCapex"><span>Private Industrial Capex (≤15 km)</span><span class="num">₹${Number(state.catCapexCr).toLocaleString("en-IN")} Cr</span></label>
+            <input id="ddCatCapex" type="range" min="0" max="25000" step="250" value="${state.catCapexCr}"/>
+          </div>
+          <div class="dd-field" style="margin-bottom:2px">
+            <label for="ddCatStack"><span>Overlapping Infra Projects (≤15 km)</span><span class="num">${state.catInfraStack}</span></label>
+            <input id="ddCatStack" type="range" min="1" max="4" step="1" value="${state.catInfraStack}"/>
+          </div>
+        </div>
+      </div>`;
+
+    const regimes = [
+      { key: "none", data: rp.none, tone: "muted" },
+      { key: "infraOnly", data: rp.infraOnly, tone: "warn" },
+      { key: "chainOnly", data: rp.chainOnly, tone: "sky" },
+      { key: "infraPlusChain", data: rp.infraPlusChain, tone: "up" }
+    ].filter((r) => r.data);
+
+    const maxRegimePct = Math.max(35, ...regimes.map((r) => r.data.repriced2025Pct || 0));
+
+    const waterfallSteps = isCancelled
+      ? [
+          { label: "Starting Plot Baseline", val: "1.00×", pct: 45, tone: "muted" },
+          { label: "Cancellation Speculation Unwind (Parandur / Pharma City)", val: `${dec.projectedMultiple}×`, pct: Math.round(dec.projectedMultiple * 45), tone: "down" }
+        ]
+      : [
+          { label: `Organic Baseline (${dec.organicCagrPct}%/yr × ${sim.inputs.horizonYears}y)`, val: `${dec.organicMultiple}×`, pct: Math.min(100, Math.round((dec.organicMultiple / Math.max(dec.highMultiple, 2.5)) * 100)), tone: "muted" },
+          { label: `Raw Matched Indian Analogues (+${dec.rawAnalogueExcessCagrPct}%/yr)`, val: `×${dec.chainMultiplier} chain`, pct: Math.min(100, Math.round((Math.max(0, dec.rawAnalogueExcessCagrPct) / 25) * 100)), tone: "sky" },
+          { label: `Stage (${dec.stageCredibilityFactor}×) & Distance Decay (${dec.distanceDecayFactor}×)`, val: `+${dec.effectiveExcessCagrPct}%/yr net`, pct: Math.min(100, Math.round((Math.max(0, dec.effectiveExcessCagrPct) / 18.5) * 100)), tone: dec.chainTier === "up" ? "up" : "warn" },
+          { label: `Total Risk-Adjusted Projection (${dec.totalCagrPct}%/yr)`, val: `${dec.projectedMultiple}×`, pct: Math.min(100, Math.round((dec.projectedMultiple / Math.max(dec.highMultiple, 2.5)) * 100)), tone: "up" }
+        ];
+
+    return `<div class="dd-layout">
+      ${sidebarHTML}
+      <div class="dd-main">
+        <div class="dd-card dd-verdict-card">
+          <div class="row sb" style="flex-wrap:wrap;gap:8px">
+            <div class="row" style="gap:8px">
+              <span class="dd-status-dot ${heroTone}"></span>
+              <span class="dd-kicker">${esc(sim.tier)} · ${esc(sim.inputs.stageLabel)}</span>
+            </div>
+            <div class="btn-row">
+              ${v ? `<button class="btn sm primary" data-dd="open-village" data-dist="${esc(v.d)}" data-vkey="${esc(villageId(v))}">Underwrite ${esc(v.v)}</button>` : ""}
+              ${v ? `<button class="btn sm" data-dd="fly-map" data-lon="${v.lon}" data-lat="${v.lat}">View on Map</button>` : ""}
+            </div>
+          </div>
+
+          <div class="dd-verdict-title ${heroTone}">${isCancelled ? "Cancellation Crash Regime — Speculative Premium Evaporates" : esc(dec.chainRegimeLabel)}</div>
+          <div class="dd-verdict-sub">
+            ${v ? `<b>${esc(v.v)}</b> (${esc(v.d)}) · Official GV ${fmtINR(v.med)}/sf · Live Chain: <b class="num">${v.rc || 0}</b> TNRERA (≤10 km), <b class="num">₹${(v.ic || 0).toLocaleString("en-IN")} Cr</b> Capex (≤15 km), District Density <b class="num">${v.dd || "—"}/km²</b>` : ""}
+            ${state.catNote ? `<div class="small muted" style="margin-top:4px">${esc(state.catNote)}</div>` : ""}
+          </div>
+
+          <div class="dd-kpi-strip">
+            <div class="dd-kpi">
+              <div class="dd-kpi-k">Projected ${sim.inputs.horizonYears}Y Multiple</div>
+              <div class="dd-kpi-v num ${heroTone}">${dec.projectedMultiple}× <small>(${dec.totalCagrPct >= 0 ? "+" : ""}${dec.totalCagrPct}%/yr)</small></div>
+              <div class="dd-kpi-s num">${fmtINR(dec.projectedRateSqft)}/sf from ${fmtINR(sim.inputs.baseRateSqft)}/sf</div>
+            </div>
+            <div class="dd-kpi">
+              <div class="dd-kpi-k">80% Conformal Range</div>
+              <div class="dd-kpi-v num">${dec.lowMultiple}× – ${dec.highMultiple}×</div>
+              <div class="dd-kpi-s num">${fmtINR(dec.lowRateSqft)} – ${fmtINR(dec.highRateSqft)}/sf (LOPO CV)</div>
+            </div>
+            <div class="dd-kpi">
+              <div class="dd-kpi-k">Village Momentum ML</div>
+              <div class="dd-kpi-v num ${v && v.ms >= 75 ? "up" : ""}">${v && v.ms != null ? v.ms : "—"}<small> / 100</small></div>
+              <div class="dd-kpi-s num">OOF AUC ${mcv.oofRocAuc || "—"} · ${mcv.top10Lift || "—"}× top-decile lift</div>
+            </div>
+            <div class="dd-kpi">
+              <div class="dd-kpi-k">Cancellation Downside</div>
+              <div class="dd-kpi-v num down">0.45× <small>(${fmtINR(dec.cancellationDownsideSqft)}/sf)</small></div>
+              <div class="dd-kpi-s">Parandur 0.25× &amp; Pharma City 0.50× risk</div>
+            </div>
+          </div>
+
+          ${isCancelled
+            ? `<div class="dd-alert down"><b>Historical Cancellation Stress Test:</b> When Parandur (2026) and Pharma City notified zones (2017) stalled or were scrapped, investor plot values fell 50%–75% below peak hype. Never pay Stage 3–4 prices for Stage 0–1 announcements.</div>`
+            : dec.chainTier === "warn"
+              ? `<div class="dd-alert warn"><b>Paper-Only Penalty Applied (${dec.chainMultiplier}×):</b> Across all 5,143 TN villages, government infrastructure without private builder/industrial follow-on reprices at just <b>${rp.infraOnly ? rp.infraOnly.repriced2025Pct : 12.9}%</b> (no higher than baseline). Wait for TNRERA launches or industrial capex confirmation.</div>`
+              : `<div class="dd-nego-strip"><span class="dd-kicker">Chain Confirmation Active (${dec.chainMultiplier}× multiplier)</span><div class="dd-nego-vals small"><span>Plots vs Flats spread captured via 71 real Indian cases</span><span>Organic baseline: <b class="num">${dec.organicMultiple}×</b></span><span>Net Catalyst Excess: <b class="up num">+${dec.effectiveExcessCagrPct}%/yr</b></span></div></div>`}
+        </div>
+
+        <div class="dd-grid-2-wide">
+          <div class="dd-card">
+            <div class="row sb" style="margin-bottom:8px">
+              <div class="dd-card-h">Counterfactual Uplift Decomposition</div>
+              <span class="dd-tag">${esc(sim.inputs.assetClass.toUpperCase())} · ${sim.inputs.distanceKm} km</span>
+            </div>
+            <div class="small muted" style="margin-bottom:10px">Separates organic urban land growth from matched historical mega-project excess, weighted by chain-investment confirmation and execution stage.</div>
+            <div class="dd-cat-bars">
+              ${waterfallSteps.map((s) => `
+                <div class="dd-cat-row">
+                  <div class="row sb small"><span>${esc(s.label)}</span><b class="num ${s.tone}">${esc(s.val)}</b></div>
+                  <div class="dd-feat-track" style="margin-top:4px"><div class="dd-cat-fill ${s.tone}" style="width:${Math.max(4, s.pct)}%"></div></div>
+                </div>`).join("")}
+            </div>
+          </div>
+
+          <div class="dd-card">
+            <div class="row sb" style="margin-bottom:8px">
+              <div class="dd-card-h">Real 5,143-Village TN Chain-Investment Proof</div>
+              <span class="dd-tag">${rp.liftOverInfraOnly || "2.47"}× Infra+Chain Lift</span>
+            </div>
+            <div class="small muted" style="margin-bottom:10px">Observed 2025 official mid-cycle street repricing rate across <b>${(rp.totalVillages || 5143).toLocaleString("en-IN")}</b> TN villages cross-joined with <b>${(rp.tnReraFilingsIndexed || 2127).toLocaleString("en-IN")}</b> TNRERA filings &amp; <b>₹${((rp.tnPrivateCapexTotalCr || 222014) / 100000).toFixed(2)}L Cr</b> private capex.</div>
+            <div class="dd-cat-bars">
+              ${regimes.map((r) => `
+                <div class="dd-cat-row">
+                  <div class="row sb small">
+                    <span><b>${esc(r.data.label)}</b> <span class="muted">(n=${r.data.villages.toLocaleString("en-IN")})</span></span>
+                    <b class="num ${r.tone}">${r.data.repriced2025Pct}% repriced</b>
+                  </div>
+                  <div class="dd-feat-track" style="margin-top:4px"><div class="dd-cat-fill ${r.tone}" style="width:${Math.round((r.data.repriced2025Pct / maxRegimePct) * 100)}%"></div></div>
+                </div>`).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div class="dd-card">
+          <div class="row sb" style="margin-bottom:8px;flex-wrap:wrap;gap:6px">
+            <div>
+              <div class="dd-card-h">Top 5 Historical Indian Mega-Project Analogues (k-NN Matched)</div>
+              <div class="small muted">Leave-One-Project-Out CV across <b>${acv.casesCount || 71}</b> documented Indian observations (<b>${acv.projectsCount || 34}</b> projects): k-NN Analogue beats naive baseline (<b>${acv.knnAnalogue ? acv.knnAnalogue.mdapePct : "—"}%</b> vs ${acv.naiveBaseline ? acv.naiveBaseline.mdapePct : "—"}% MdAPE).</div>
+            </div>
+            <span class="dd-tag">Tier 1 Cited Historical Precedents</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="dd-table">
+              <thead>
+                <tr>
+                  <th>Project &amp; Locality</th>
+                  <th>Type / Asset</th>
+                  <th class="num">Dist</th>
+                  <th class="num">Window</th>
+                  <th class="num">Observed</th>
+                  <th class="num">CAGR</th>
+                  <th class="num">Match</th>
+                  <th style="text-align:right">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(sim.analogues || []).map((a) => {
+                  const href = safeUrl(a.src);
+                  return `<tr>
+                    <td><b>${esc(a.project)}</b><div class="small muted">${esc(a.loc)}</div></td>
+                    <td><span class="dd-tag">${esc(a.type)} · ${esc(a.assetClass)}</span></td>
+                    <td class="num">${a.distKm} km</td>
+                    <td class="num muted">${a.y0}–${a.y1}</td>
+                    <td class="num ${a.obsMult < 1 ? "down" : "up"}"><b>${a.obsMult}×</b></td>
+                    <td class="num ${a.cagrPct < 0 ? "down" : "up"}">${a.cagrPct >= 0 ? "+" : ""}${a.cagrPct}%</td>
+                    <td class="num">${a.similarityPct}%</td>
+                    <td style="text-align:right;white-space:nowrap">${href ? `<a class="btn sm" href="${esc(href)}" target="_blank" rel="noopener noreferrer">Source ↗</a>` : "—"}</td>
+                  </tr>`;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="dd-card">
+          <div class="row sb" style="margin-bottom:8px;flex-wrap:wrap;gap:6px">
+            <div>
+              <div class="dd-card-h">Top 5 Tamil Nadu "Twin Villages" (Standardized Feature Match)</div>
+              <div class="small muted">Real TN revenue villages with the closest baseline guideline value, street density, TNRERA wave, capex &amp; metro proximity — showing their observed 2017→2024 &amp; 2025 repricing history.</div>
+            </div>
+            <span class="dd-tag">Empirical Peer Validation</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="dd-table">
+              <thead>
+                <tr>
+                  <th>Twin Village (SRO)</th>
+                  <th>District</th>
+                  <th class="num">2024 GV</th>
+                  <th class="num">2017→24</th>
+                  <th class="num">2025 Rev.</th>
+                  <th class="num">TNRERA</th>
+                  <th class="num">Capex (Cr)</th>
+                  <th class="num">Mom. ML</th>
+                  <th class="num">Sim.</th>
+                  <th style="text-align:right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(sim.twinVillages || []).map((t) => `<tr>
+                  <td><b>${esc(t.v)}</b><div class="small muted">${esc(t.sro)}</div></td>
+                  <td>${esc(t.d)}</td>
+                  <td class="num">${fmtINR(t.med)}/sf</td>
+                  <td class="num ${t.g17 >= 70 ? "up" : ""}">${t.g17 != null ? (t.g17 >= 0 ? "+" : "") + t.g17 + "%" : "—"}</td>
+                  <td class="num ${t.u25 ? "up" : "muted"}">${t.u25}</td>
+                  <td class="num">${t.rc}</td>
+                  <td class="num">${t.ic ? "₹" + t.ic.toLocaleString("en-IN") : "—"}</td>
+                  <td class="num ${t.ms >= 75 ? "up" : ""}"><b>${t.ms}</b></td>
+                  <td class="num">${t.simPct}%</td>
+                  <td style="text-align:right"><button class="btn sm" data-dd="cat-pick-twin" data-dist="${esc(t.d)}" data-vkey="${esc(`${t.d}|${t.sro}|${t.v}`)}">Load</button></td>
+                </tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   function renderMLLabTab(pd) {
     const cv = pd.cv;
     const ridge = cv && cv.spatialResidualRidge;
     const ssCV = pd.cvWithSingleSource;
+    const ce = pd.catalystEngine || {};
+    const mcv = ce.momentumCV;
+    const acv = ce.analogueCV;
     const q = state.mlDistQuery.trim().toLowerCase();
     const distRows = (pd.districts || []).filter((d) => !q || d.district.toLowerCase().includes(q));
 
@@ -895,6 +1273,24 @@
           </div>
         </div>
       </div>
+
+      ${mcv ? `
+      <div class="dd-card" style="margin-top:12px">
+        <div class="row sb" style="flex-wrap:wrap;gap:12px;margin-bottom:10px;align-items:flex-start">
+          <div style="flex:1 1 560px;min-width:0">
+            <div class="dd-kicker">MODEL 2 · ZERO-LEAKAGE REPRICING MOMENTUM &amp; CHAIN-INVESTMENT ML (LEAVE-ONE-DISTRICT-OUT CV)</div>
+            <div class="dd-card-h" style="margin-top:4px">19-Feature Momentum Classifier Across All ${mcv.villages.toLocaleString("en-IN")} TN Villages (${mcv.districts} Districts)</div>
+            <div class="small muted" style="margin-top:3px">Strictly excludes 2025 target share. Combines 13 official GV/spatial features + district street density + active infra stack + 2,127 TNRERA filings + ₹2.22L Cr private capex to predict active repricing zones out-of-sample.</div>
+          </div>
+          <button class="btn sm primary" style="flex:none" data-dd="tab" data-tab="catalyst">Open Catalyst Uplift Lab →</button>
+        </div>
+        <div class="dd-kpi-strip" style="margin-top:8px">
+          <div class="dd-kpi"><div class="dd-kpi-k">OOF ROC-AUC (38 Folds)</div><div class="dd-kpi-v num up">${mcv.oofRocAuc}</div><div class="dd-kpi-s">Leave-One-District-Out CV</div></div>
+          <div class="dd-kpi"><div class="dd-kpi-k">Top-10% ML Decile Hit Rate</div><div class="dd-kpi-v num up">${mcv.top10RatePct}%</div><div class="dd-kpi-s">${mcv.top10Lift}× lift over ${mcv.baseRatePct}% base rate</div></div>
+          <div class="dd-kpi"><div class="dd-kpi-k">Top vs Bottom-50% Spread</div><div class="dd-kpi-v num">${mcv.separationRatio}×</div><div class="dd-kpi-s">Bottom-50% reprices at just ${mcv.bot50RatePct}%</div></div>
+          <div class="dd-kpi"><div class="dd-kpi-k">Historical Analogue LOPO CV</div><div class="dd-kpi-v num">${acv && acv.knnAnalogue ? acv.knnAnalogue.mdapePct + "%" : "—"}</div><div class="dd-kpi-s">${acv ? `${acv.casesCount} Indian cases · ${acv.projectsCount} projects` : ""}</div></div>
+        </div>
+      </div>` : ""}
 
       <div class="dd-card" style="margin-top:12px">
         <div class="dd-card-h" style="margin-bottom:8px">Honest Data Readiness Audit: Live Today vs. What Licensed Deeds Unlock</div>
@@ -1031,6 +1427,7 @@
 
     let bodyHTML = "";
     if (state.tab === "underwriter") bodyHTML = renderUnderwriterTab(pd);
+    else if (state.tab === "catalyst") bodyHTML = renderCatalystTab(pd);
     else if (state.tab === "compare") bodyHTML = renderCompareTab();
     else if (state.tab === "scanner") bodyHTML = renderScannerTab(pd);
     else if (state.tab === "mllab") bodyHTML = renderMLLabTab(pd);
@@ -1047,10 +1444,11 @@
           </div>
           <nav class="dd-nav" role="tablist" aria-label="Deal Desk workspaces">
             <button class="${state.tab === "underwriter" ? "on" : ""}" data-dd="tab" data-tab="underwriter">Quote Underwriter</button>
-            <button class="${state.tab === "compare" ? "on" : ""}" data-dd="tab" data-tab="compare">Compare Deals (${state.compareList.length}/3)</button>
+            <button class="${state.tab === "catalyst" ? "on" : ""}" data-dd="tab" data-tab="catalyst">Catalyst Uplift</button>
+            <button class="${state.tab === "compare" ? "on" : ""}" data-dd="tab" data-tab="compare">Compare (${state.compareList.length}/3)</button>
             <button class="${state.tab === "scanner" ? "on" : ""}" data-dd="tab" data-tab="scanner">2025 Surge &amp; Auctions</button>
-            <button class="${state.tab === "mllab" ? "on" : ""}" data-dd="tab" data-tab="mllab">14-Feature ML Lab</button>
-            <button class="${state.tab === "audit" ? "on" : ""}" data-dd="tab" data-tab="audit">Epistemic Audit</button>
+            <button class="${state.tab === "mllab" ? "on" : ""}" data-dd="tab" data-tab="mllab">ML Lab</button>
+            <button class="${state.tab === "audit" ? "on" : ""}" data-dd="tab" data-tab="audit">Audit</button>
           </nav>
           <div class="dd-actions">
             <button class="btn sm" data-dd="close">Back to India Map</button>
@@ -1253,6 +1651,42 @@
       } else if (t.id === "ddScanDist") {
         state.scannerDist = t.value;
         render();
+      } else if (t.id === "ddCatPreset") {
+        if (t.value === "custom") {
+          state.catPresetId = "custom";
+          state.catNote = "Custom scenario — adjust project type, stage, distance, and chain-investment sliders below.";
+          render();
+        } else {
+          applyCatalystPreset(t.value, pilotData());
+          render();
+        }
+      } else if (t.id === "ddCatDist") {
+        state.district = t.value;
+        state.villageKey = "";
+        state.catPresetId = "custom";
+        state.catNote = "";
+        syncCatalystFromVillage(currentVillage());
+        render();
+      } else if (t.id === "ddCatVillage") {
+        state.villageKey = t.value;
+        state.catPresetId = "custom";
+        state.catNote = "";
+        syncCatalystFromVillage(currentVillage());
+        render();
+      } else if (t.id === "ddCatType") {
+        state.catType = t.value;
+        state.catPresetId = "custom";
+        render();
+      } else if (t.id === "ddCatAsset") {
+        state.catAsset = t.value;
+        render();
+      } else if (t.id === "ddCatStage") {
+        state.catStage = Number(t.value);
+        state.catPresetId = "custom";
+        render();
+      } else if (t.id === "ddCatHorizon") {
+        state.catHorizon = Number(t.value);
+        render();
       }
     });
 
@@ -1265,6 +1699,18 @@
       else if (t.id === "ddDeclared") {
         state.declaredPct = Number(t.value);
         evaluateCurrent();
+        render();
+      } else if (t.id === "ddCatDistKm") {
+        state.catDistKm = Number(t.value);
+        render();
+      } else if (t.id === "ddCatRera") {
+        state.catRera = Number(t.value);
+        render();
+      } else if (t.id === "ddCatCapex") {
+        state.catCapexCr = Number(t.value);
+        render();
+      } else if (t.id === "ddCatStack") {
+        state.catInfraStack = Number(t.value);
         render();
       } else if (t.id === "ddVillageFilter") {
         state.villageFilter = t.value;
@@ -1367,6 +1813,23 @@
         });
       } else if (act === "pick-dist") {
         open({ tab: "underwriter", district: btn.dataset.dist });
+      } else if (act === "open-catalyst-village") {
+        const v = currentVillage();
+        state.catPresetId = "custom";
+        state.catNote = v ? `Synced to live TNRERA & Capex wave around ${v.v}, ${v.d}.` : "";
+        syncCatalystFromVillage(v);
+        state.tab = "catalyst";
+        render();
+      } else if (act === "cat-sync-live") {
+        syncCatalystFromVillage(currentVillage());
+        render();
+      } else if (act === "cat-pick-twin") {
+        state.district = btn.dataset.dist;
+        state.villageKey = btn.dataset.vkey;
+        state.catPresetId = "custom";
+        state.catNote = "";
+        syncCatalystFromVillage(currentVillage());
+        render();
       } else if (act === "fly-map") {
         const lon = Number(btn.dataset.lon);
         const lat = Number(btn.dataset.lat);

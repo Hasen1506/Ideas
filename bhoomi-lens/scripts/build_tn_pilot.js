@@ -28,6 +28,9 @@ require(path.join(ROOT, "data/tn_villages.js"));
 require(path.join(ROOT, "data/tn_district_cpi.js"));
 require(path.join(ROOT, "data/projects.js"));
 require(path.join(ROOT, "data/coast.js"));
+require(path.join(ROOT, "data/private.js"));
+require(path.join(ROOT, "data/districts.js"));
+require(path.join(ROOT, "data/backtest.js"));
 
 const E = globalThis.BL.Engine;
 const PE = globalThis.BL.PilotEngine;
@@ -220,12 +223,50 @@ function buildStatewide() {
   const { map: cpiMap, stateFallback: cpiFallback } = buildDistrictCpiMap();
   const catalysts = globalThis.BL_PROJECTS && globalThis.BL_PROJECTS.length ? globalThis.BL_PROJECTS : globalThis.BL.CATALYSTS;
   const tnProjects = catalysts.filter((p) => {
-    const pts = p.pt ? [p.pt] : (p.path || (p.ring ? [[p.ring.lon, p.ring.lat]] : []));
+    const pts = p.pt
+      ? [p.pt]
+      : Array.isArray(p.path)
+        ? p.path
+        : Array.isArray(p.ring)
+          ? p.ring
+          : p.ring && Number.isFinite(p.ring.lat)
+            ? [[p.ring.lon, p.ring.lat]]
+            : [];
     return pts.some(([lon, lat]) => lat >= 7.5 && lat <= 14.0 && lon >= 75.8 && lon <= 80.8);
   });
+  const activeTnProjects = tnProjects.filter((p) => !p.cancelled && !/scrapped|cancelled/i.test(String(p.st || p.n || "")));
   const metroProjs = tnProjects.filter((p) => p.t === "metro");
   const highwayProjs = tnProjects.filter((p) => p.t === "expressway" || p.t === "ring");
   const industrialProjs = tnProjects.filter((p) => p.t === "industrial" || p.t === "finance" || p.t === "city" || p.t === "port");
+
+  // District area (km²) from BL_DISTRICTS for residential urban street density
+  const distAreaMap = new Map();
+  for (const feat of (globalThis.BL_DISTRICTS && globalThis.BL_DISTRICTS.features) || []) {
+    const pr = feat && feat.properties;
+    if (!pr || pr.s !== "Tamil Nadu") continue;
+    const dn = PE.normalizeDistrict(pr.n);
+    if (PE.isTNDistrict(dn) && Number(pr.a) > 0) distAreaMap.set(dn, Number(pr.a));
+  }
+
+  // Real TNRERA filings (2,127 geocoded TN filings) & Private Industrial Capex (23 mega TN plants/parks)
+  const tnRera = ((globalThis.BL_PRIVATE && globalThis.BL_PRIVATE.rera) || [])
+    .filter((r) => Array.isArray(r) && Number.isFinite(r[0]) && Number.isFinite(r[1]) && r[1] >= 7.5 && r[1] <= 14.0 && r[0] >= 75.8 && r[0] <= 80.8)
+    .map((r) => {
+      const m = String(r[8] || "").match(/(\d+)/);
+      return { lon: Number(r[0]), lat: Number(r[1]), units: m ? Number(m[1]) : 12 };
+    });
+
+  const tnPrivateInv = ((globalThis.BL_PRIVATE && globalThis.BL_PRIVATE.inv) || [])
+    .filter((x) => x && Array.isArray(x.ll) && x.ll.length >= 2 && (x.st === "TN" || (x.ll[1] >= 7.5 && x.ll[1] <= 14.0 && x.ll[0] >= 75.8 && x.ll[0] <= 80.8)))
+    .map((x) => ({
+      lon: Number(x.ll[0]),
+      lat: Number(x.ll[1]),
+      cr: Number(x.cr) || 0,
+      jobs: Number(x.jobs) || 0,
+      co: String(x.co || ""),
+      loc: String(x.loc || ""),
+      p: String(x.p || "")
+    }));
 
   // Flatten coastline coordinate points for Tamil Nadu region
   const coastPts = [];
@@ -478,6 +519,153 @@ function buildStatewide() {
     if (v.gate) benchmarkableVillages++;
   }
 
+  // Enrich all 5,143 geocoded TN villages with real Chain-Investment & Urban Density signals
+  // and run strictly zero-leakage Leave-One-District-Out CV Repricing Momentum ML (19 features)
+  const momentumRows = [];
+  for (const v of allVillages) {
+    let rc = 0;
+    let ru = 0;
+    for (let i = 0; i < tnRera.length; i++) {
+      const r = tnRera[i];
+      if (Math.abs(v.lat - r.lat) > 0.11 || Math.abs(v.lon - r.lon) > 0.11) continue;
+      if (PE.hav(v.lat, v.lon, r.lat, r.lon) <= 10) {
+        rc++;
+        ru += r.units;
+      }
+    }
+    let ic = 0;
+    let ij = 0;
+    for (let i = 0; i < tnPrivateInv.length; i++) {
+      const inv = tnPrivateInv[i];
+      if (Math.abs(v.lat - inv.lat) > 0.16 || Math.abs(v.lon - inv.lon) > 0.16) continue;
+      if (PE.hav(v.lat, v.lon, inv.lat, inv.lon) <= 15) {
+        ic += inv.cr;
+        ij += inv.jobs;
+      }
+    }
+    let isCnt = 0;
+    for (let i = 0; i < activeTnProjects.length; i++) {
+      if (PE.projectDistanceKm(v.lat, v.lon, activeTnProjects[i]) <= 15) isCnt++;
+    }
+    const areaKm2 = distAreaMap.get(v.d) || 3200;
+    const dd = Math.round(((rawStats[v.d] ? rawStats[v.d].residentialStreets : 1000) / Math.max(100, areaKm2)) * 100) / 100;
+
+    v.rc = rc;
+    v.ru = Math.round(ru);
+    v.ic = Math.round(ic);
+    v.ij = Math.round(ij);
+    v.is = isCnt;
+    v.dd = dd;
+
+    // Zero-leakage 19-feature vector: exclude index 5 (pct_updated_2025) from v.f
+    const base13 = v.f.filter((_, idx) => idx !== 5);
+    const feat19 = [
+      ...base13,
+      Math.round(Math.log1p(dd) * 1000) / 1000,
+      Math.round(Math.log1p(isCnt) * 1000) / 1000,
+      Math.round(Math.log1p(rc) * 1000) / 1000,
+      Math.round(Math.log1p(ru) * 1000) / 1000,
+      Math.round(Math.log1p(ic) * 1000) / 1000,
+      Math.round(Math.log1p(ij) * 1000) / 1000
+    ];
+    momentumRows.push({
+      district: v.d,
+      y: v.u25 > 0 ? 1 : 0,
+      features: feat19
+    });
+  }
+
+  const momentumCV = PE.evaluateRepricingMomentumCV(momentumRows, 60);
+  if (momentumCV.ok && Array.isArray(momentumCV.percentileByIdx)) {
+    for (let i = 0; i < allVillages.length; i++) {
+      allVillages[i].ms = momentumCV.percentileByIdx[i];
+    }
+  }
+
+  // Empirical 4-Regime Chain-Investment Proof across all 5,143 TN villages
+  const regimeBuckets = { none: [], infraOnly: [], chainOnly: [], infraPlusChain: [] };
+  for (const v of allVillages) {
+    const hasInfra = v.is > 0;
+    const hasChain = v.rc >= 3 || v.ic >= 500;
+    if (!hasInfra && !hasChain) regimeBuckets.none.push(v);
+    else if (hasInfra && !hasChain) regimeBuckets.infraOnly.push(v);
+    else if (!hasInfra && hasChain) regimeBuckets.chainOnly.push(v);
+    else regimeBuckets.infraPlusChain.push(v);
+  }
+  const summarizeRegime = (list, label) => {
+    const rep = list.filter((x) => x.u25 > 0).length;
+    const gVals = list.map((x) => x.g17).filter((g) => Number.isFinite(g)).sort((a, b) => a - b);
+    return {
+      label,
+      villages: list.length,
+      repriced2025: rep,
+      repriced2025Pct: list.length ? Math.round((rep / list.length) * 1000) / 10 : 0,
+      medianGrowth17to24Pct: gVals.length ? Math.round(PE.median(gVals) * 10) / 10 : null,
+      avgRera10km: list.length ? Math.round((list.reduce((s, x) => s + x.rc, 0) / list.length) * 10) / 10 : 0,
+      avgCapexCr15km: list.length ? Math.round(list.reduce((s, x) => s + x.ic, 0) / list.length) : 0
+    };
+  };
+  const regimeProof = {
+    totalVillages: allVillages.length,
+    tnReraFilingsIndexed: tnRera.length,
+    tnPrivateCapexDealsIndexed: tnPrivateInv.length,
+    tnPrivateCapexTotalCr: Math.round(tnPrivateInv.reduce((s, x) => s + x.cr, 0)),
+    tnActiveInfraProjectsIndexed: activeTnProjects.length,
+    none: summarizeRegime(regimeBuckets.none, "No Infra / No Chain"),
+    infraOnly: summarizeRegime(regimeBuckets.infraOnly, "Infra Project Only"),
+    chainOnly: summarizeRegime(regimeBuckets.chainOnly, "Private Chain Only"),
+    infraPlusChain: summarizeRegime(regimeBuckets.infraPlusChain, "Infra + Private Chain")
+  };
+  regimeProof.liftOverInfraOnly =
+    regimeProof.infraOnly.repriced2025Pct > 0
+      ? Math.round((regimeProof.infraPlusChain.repriced2025Pct / regimeProof.infraOnly.repriced2025Pct) * 100) / 100
+      : null;
+
+  // 71-Case Indian Mega-Project Historical Analogue Engine (Leave-One-Project-Out CV across 34 projects)
+  const backtestCases = PE.normalizeBacktestCases((globalThis.BL_BACKTEST && globalThis.BL_BACKTEST.rows) || []);
+  const analogueCV = PE.evaluateAnalogueUpliftCV(backtestCases, 7);
+
+  // Curate real Tamil Nadu Catalyst Presets mapped to real TN villages + live chain investment
+  const presetDefs = [
+    { id: "hosur_airport", name: "Hosur Greenfield Airport + EV Industrial Belt", type: "airport", stage: 1, distKm: 4, cancelled: false, lat: 12.7409, lon: 77.8253, district: "Krishnagiri", note: "2,000-acre proposed airport near Hosur + Tata Electronics / Ola / Ather EV chain wave." },
+    { id: "cmrl_c3_omr", name: "Chennai Metro Ph2 Corridor 3 (OMR–Siruseri)", type: "metro", stage: 3, distKm: 2, cancelled: false, lat: 12.825, lon: 80.223, district: "Chengalpattu", note: "Active elevated construction along OMR IT corridor to SIPCOT Siruseri." },
+    { id: "cmrl_c4_porur", name: "Chennai Metro Ph2 Corridor 4 (Porur–Poonamallee)", type: "metro", stage: 3, distKm: 1.5, cancelled: false, lat: 13.047, lon: 80.105, district: "Tiruvallur", note: "Near-operational western corridor linking Poonamallee Bypass & Porur." },
+    { id: "cbe_metro", name: "Coimbatore Metro Rail (Avinashi & Sathy Rd)", type: "metro", stage: 1, distKm: 2.5, cancelled: false, lat: 11.062, lon: 77.015, district: "Coimbatore", note: "Approved DPR metro corridors along Coimbatore IT & manufacturing spine." },
+    { id: "chennai_prr", name: "Chennai Peripheral Ring Road (Ennore–Mahabalipuram)", type: "ring", stage: 3, distKm: 3, cancelled: false, lat: 12.965, lon: 79.96, district: "Kancheepuram", note: "133 km 6-lane ring road connecting Sriperumbudur, Oragadam & Singaperumal Koil." },
+    { id: "bce_sriperumbudur", name: "Bengaluru–Chennai Expressway (Sriperumbudur End)", type: "expressway", stage: 3, distKm: 3, cancelled: false, lat: 12.967, lon: 79.948, district: "Kancheepuram", note: "Access-controlled expressway linking Bengaluru manufacturing belt to Sriperumbudur." },
+    { id: "madurai_metro", name: "Madurai Metro Rail (Thirumangalam–Othakadai)", type: "metro", stage: 1, distKm: 2.5, cancelled: false, lat: 9.935, lon: 78.14, district: "Madurai", note: "32 km proposed rapid transit spine through Madurai urban core & IT park." },
+    { id: "voc_port", name: "Thoothukkudi VOC Port Outer Harbour + Green H2 Hub", type: "port", stage: 2, distKm: 5, cancelled: false, lat: 8.764, lon: 78.15, district: "Thoothukkudi", note: "Deep-draft container transshipment + VinFast EV & green hydrogen industrial cluster." },
+    { id: "parandur_cancelled", name: "Parandur 2nd Airport (Scrapped Case Study)", type: "airport", stage: -1, distKm: 3, cancelled: true, lat: 12.916, lon: 79.718, district: "Kancheepuram", note: "Empirical stress test: 4.17× speculation spike followed by 0.25× crash upon cancellation." }
+  ];
+
+  const tnCatalystPresets = presetDefs.map((pr) => {
+    const distVils = allVillages.filter((x) => x.d === pr.district);
+    let best = distVils[0] || allVillages[0];
+    let bestD = Infinity;
+    for (const v of distVils) {
+      const d = PE.hav(pr.lat, pr.lon, v.lat, v.lon);
+      if (d < bestD) {
+        bestD = d;
+        best = v;
+      }
+    }
+    return {
+      id: pr.id,
+      name: pr.name,
+      type: pr.type,
+      stage: pr.stage,
+      distKm: pr.distKm,
+      cancelled: pr.cancelled,
+      district: best ? best.d : pr.district,
+      vkey: best ? `${best.d}|${best.sro}|${best.v}` : "",
+      villageName: best ? best.v : "",
+      liveRera: best ? best.rc : 0,
+      liveCapexCr: best ? best.ic : 0,
+      liveInfraStack: best ? Math.max(1, best.is) : 1,
+      note: pr.note
+    };
+  });
+
   // Sort villages: benchmarkable first, then 2025 mid-cycle updates, then residential street count
   allVillages.sort((a, b) => b.gate - a.gate || b.u25 - a.u25 || b.nSt - a.nSt || a.v.localeCompare(b.v));
 
@@ -599,6 +787,26 @@ function buildStatewide() {
       : null,
     hotspots2025,
     publicFeed,
+    catalystEngine: {
+      regimeProof,
+      momentumCV: momentumCV.ok
+        ? {
+            villages: momentumCV.villages,
+            districts: momentumCV.districts,
+            lambda: momentumCV.lambda,
+            oofRocAuc: momentumCV.oofRocAuc,
+            baseRatePct: momentumCV.baseRatePct,
+            top10RatePct: momentumCV.top10RatePct,
+            top10Lift: momentumCV.top10Lift,
+            bot50RatePct: momentumCV.bot50RatePct,
+            separationRatio: momentumCV.separationRatio,
+            featureWeights: momentumCV.featureWeights
+          }
+        : null,
+      analogueCV,
+      tnCatalystPresets,
+      backtestCases
+    },
     villages: allVillages
   };
 
@@ -627,7 +835,12 @@ function buildStatewide() {
       ridge14: cv.spatialResidualRidge ? cv.spatialResidualRidge.metrics : null,
       ridgeTop5Weights: cv.spatialResidualRidge ? cv.spatialResidualRidge.featureWeights.slice(0, 5) : []
     },
-    cvWithSingleSource: payload.cvWithSingleSource
+    catalystSummary: {
+      regimeProof,
+      momentumOofAuc: payload.catalystEngine.momentumCV ? payload.catalystEngine.momentumCV.oofRocAuc : null,
+      momentumTop10Lift: payload.catalystEngine.momentumCV ? payload.catalystEngine.momentumCV.top10Lift : null,
+      analogueCV
+    }
   }, null, 2));
 }
 
