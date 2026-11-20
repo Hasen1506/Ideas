@@ -1,0 +1,381 @@
+{
+  "version": "2026-11-pilot-v1",
+  "scope": "Residential plots in 3 Tamil Nadu Greater Chennai growth-corridor districts (Chengalpattu, Kancheepuram, Tiruvallur)",
+  "generatedUtc": "2026-11-20T03:04:07.113Z",
+  "gate": {
+    "maxRadiusKm": 8,
+    "minIndependentObs": 3,
+    "minDistinctDomains": 2,
+    "minGuidelineAnchorKm": 5
+  },
+  "districts": [
+    {
+      "district": "Chengalpattu",
+      "sroCount": 15,
+      "totalStreets2024": 19071,
+      "residentialStreets2024": 15855,
+      "midCycle2025Updates": 471,
+      "matchedGeocodedVillages": 314,
+      "benchmarkableVillages": 75,
+      "deduplicatedNonProxyObs": 25,
+      "pairedWithGuidelineAnchor": 25
+    },
+    {
+      "district": "Kancheepuram",
+      "sroCount": 11,
+      "totalStreets2024": 9947,
+      "residentialStreets2024": 8825,
+      "midCycle2025Updates": 167,
+      "matchedGeocodedVillages": 205,
+      "benchmarkableVillages": 32,
+      "deduplicatedNonProxyObs": 6,
+      "pairedWithGuidelineAnchor": 6
+    },
+    {
+      "district": "Tiruvallur",
+      "sroCount": 14,
+      "totalStreets2024": 6876,
+      "residentialStreets2024": 6444,
+      "midCycle2025Updates": 316,
+      "matchedGeocodedVillages": 259,
+      "benchmarkableVillages": 73,
+      "deduplicatedNonProxyObs": 27,
+      "pairedWithGuidelineAnchor": 26
+    }
+  ],
+  "totals": {
+    "residentialStreets2024": 31124,
+    "midCycle2025Updates": 954,
+    "matchedGeocodedVillages": 778,
+    "benchmarkableVillages": 180,
+    "abstainedVillages": 598,
+    "deduplicatedNonProxyObs": 58,
+    "droppedDuplicates": 0,
+    "pairedObsForCV": 57
+  },
+  "cv": {
+    "ok": true,
+    "method": "Leave-one-locality-cluster-out spatial CV",
+    "observations": 57,
+    "clusters": 39,
+    "medianMarketToGvRatio": 3,
+    "conformalLogRadius": 0.937,
+    "conformalNominalPct": 80,
+    "conformalEmpiricalCoveragePct": 78.9,
+    "conformalMedianWidthPct": 211.8,
+    "naiveDistrictMedian": {
+      "n": 57,
+      "mdapePct": 45.8,
+      "p90ApePct": 164.4,
+      "within25Pct": 19.3
+    },
+    "anchorRelativeBaseline": {
+      "n": 57,
+      "mdapePct": 40.6,
+      "p90ApePct": 121.3,
+      "within25Pct": 33.3
+    },
+    "existingHeuristic": {
+      "n": 57,
+      "mdapePct": 40.5,
+      "p90ApePct": 286.3,
+      "within25Pct": 33.3
+    },
+    "byDistrict": {
+      "Tiruvallur": {
+        "n": 26,
+        "medianRatio": 3.25,
+        "p25Ratio": 2.15,
+        "p75Ratio": 3.88
+      },
+      "Kancheepuram": {
+        "n": 6,
+        "medianRatio": 4.22,
+        "p25Ratio": 2.79,
+        "p75Ratio": 7
+      },
+      "Chengalpattu": {
+        "n": 25,
+        "medianRatio": 2.89,
+        "p25Ratio": 1.82,
+        "p75Ratio": 4.77
+      }
+    }
+  },
+  "sampleVillages": [
+    {
+      "v": "Sittalapakkam",
+      "ta": "சிட்லப்பாக்கம்",
+      "sro": "1 எண் இணை சார்பதிவாளர் தாம்பரம்",
+      "d": "Chengalpattu",
+      "lat": 12.8864,
+      "lon": 80.1835,
+      "med": 1650,
+      "p10": 1320,
+      "p90": 3850,
+      "nSt": 548,
+      "u25": 0,
+      "g17": 64.2,
+      "hist": {
+        "2012": 1500,
+        "2017": 1005,
+        "2023": 1500,
+        "2024": 1650
+      },
+      "evN": 5,
+      "evDom": 2,
+      "gate": 1
+    },
+    {
+      "v": "Thiruninravur",
+      "ta": "திருநின்றவூர்-A",
+      "sro": "ஆவடி",
+      "d": "Tiruvallur",
+      "lat": 13.1181,
+      "lon": 80.0336,
+      "med": 750,
+      "p10": 440,
+      "p90": 1200,
+      "nSt": 375,
+      "u25": 1,
+      "g17": 59.9,
+      "hist": {
+        "2017": 469,
+        "2023": 700,
+        "2024": 750
+      },
+      "evN": 6,
+      "evDom": 2,
+      "gate": 1
+    },
+    {
+      "v": "Varadharajapuram",
+      "ta": "VARADARAJAPURAM",
+      "sro": "படப்பை",
+      "d": "Kancheepuram",
+      "lat": 12.9096,
+      "lon": 80.0661,
+      "med": 1650,
+      "p10": 990,
+      "p90": 2492,
+      "nSt": 207,
+      "u25": 7,
+      "g17": 64.2,
+      "hist": {
+        "2012": 1500,
+        "2017": 1005,
+        "2023": 1500,
+        "2024": 1650
+      },
+      "evN": 10,
+      "evDom": 2,
+      "gate": 1
+    },
+    {
+      "v": "Kongadu",
+      "ta": "கோனாதி",
+      "sro": "2 எண் இணை சார்பதிவாளர் செங்கல்பட்டு",
+      "d": "Chengalpattu",
+      "lat": 12.7574,
+      "lon": 79.9642,
+      "med": 770,
+      "p10": 660,
+      "p90": 1650,
+      "nSt": 132,
+      "u25": 0,
+      "g17": 64.2,
+      "hist": {
+        "2012": 700,
+        "2017": 469,
+        "2023": 700,
+        "2024": 770
+      },
+      "evN": 3,
+      "evDom": 2,
+      "gate": 1
+    },
+    {
+      "v": "Nanmangalam (OG)",
+      "ta": "நன்மங்கலம்",
+      "sro": "பல்லாவரம்",
+      "d": "Chengalpattu",
+      "lat": 12.9376,
+      "lon": 80.1757,
+      "med": 2145,
+      "p10": 1960,
+      "p90": 2750,
+      "nSt": 112,
+      "u25": 0,
+      "g17": 77.9,
+      "hist": {
+        "2007": 300,
+        "2012": 2500,
+        "2017": 1675,
+        "2023": 2500,
+        "2024": 2750
+      },
+      "evN": 5,
+      "evDom": 2,
+      "gate": 1
+    },
+    {
+      "v": "Nungambakkam",
+      "ta": "நுங்கம்பாக்கம்",
+      "sro": "மணவாளநகர்",
+      "d": "Tiruvallur",
+      "lat": 13.0693,
+      "lon": 79.8904,
+      "med": 300,
+      "p10": 200,
+      "p90": 514,
+      "nSt": 109,
+      "u25": 3,
+      "g17": 123.9,
+      "hist": {
+        "2012": 200,
+        "2017": 134,
+        "2023": 250,
+        "2024": 300
+      },
+      "evN": 3,
+      "evDom": 3,
+      "gate": 1
+    },
+    {
+      "v": "Agaramthen",
+      "ta": "அகரம்தென்",
+      "sro": "1 எண் இணை சார்பதிவாளர் தாம்பரம்",
+      "d": "Chengalpattu",
+      "lat": 12.878,
+      "lon": 80.154,
+      "med": 830,
+      "p10": 440,
+      "p90": 2310,
+      "nSt": 108,
+      "u25": 4,
+      "g17": 65.3,
+      "hist": {
+        "2012": 750,
+        "2017": 502,
+        "2023": 750,
+        "2024": 830
+      },
+      "evN": 5,
+      "evDom": 2,
+      "gate": 1
+    },
+    {
+      "v": "Kavanur (RF)",
+      "ta": "காவனூர்",
+      "sro": "கூடுவாஞ்சேரி",
+      "d": "Chengalpattu",
+      "lat": 12.8305,
+      "lon": 80.0417,
+      "med": 800,
+      "p10": 600,
+      "p90": 1000,
+      "nSt": 104,
+      "u25": 1,
+      "g17": 49.3,
+      "hist": {
+        "2012": 700,
+        "2017": 536,
+        "2023": 800,
+        "2024": 800
+      },
+      "evN": 10,
+      "evDom": 2,
+      "gate": 1
+    },
+    {
+      "v": "Vandalur (CT)",
+      "ta": "வண்டலுார்",
+      "sro": "வண்டலூர்",
+      "d": "Chengalpattu",
+      "lat": 12.8938,
+      "lon": 80.0801,
+      "med": 1650,
+      "p10": 1320,
+      "p90": 1650,
+      "nSt": 104,
+      "u25": 0,
+      "g17": null,
+      "hist": {
+        "2024": 1650
+      },
+      "evN": 10,
+      "evDom": 2,
+      "gate": 1
+    },
+    {
+      "v": "Vengathur (CT)",
+      "ta": "வெங்கத்தூர்",
+      "sro": "மணவாளநகர்",
+      "d": "Tiruvallur",
+      "lat": 13.0977,
+      "lon": 79.9326,
+      "med": 700,
+      "p10": 500,
+      "p90": 1000,
+      "nSt": 103,
+      "u25": 0,
+      "g17": 30.6,
+      "hist": {
+        "2007": 150,
+        "2012": 1300,
+        "2017": 871,
+        "2023": 1300,
+        "2024": 1000
+      },
+      "evN": 5,
+      "evDom": 4,
+      "gate": 1
+    },
+    {
+      "v": "Manimangalam",
+      "ta": "மணிமங்கலம் A",
+      "sro": "படப்பை",
+      "d": "Kancheepuram",
+      "lat": 12.9163,
+      "lon": 80.0417,
+      "med": 880,
+      "p10": 770,
+      "p90": 1635,
+      "nSt": 96,
+      "u25": 3,
+      "g17": 64.2,
+      "hist": {
+        "2017": 536,
+        "2023": 800,
+        "2024": 880
+      },
+      "evN": 8,
+      "evDom": 2,
+      "gate": 1
+    },
+    {
+      "v": "Mannivakkam",
+      "ta": "மண்ணிவாக்கம்",
+      "sro": "கூடுவாஞ்சேரி",
+      "d": "Chengalpattu",
+      "lat": 12.8876,
+      "lon": 80.0645,
+      "med": 1100,
+      "p10": 990,
+      "p90": 1323,
+      "nSt": 95,
+      "u25": 0,
+      "g17": 64.2,
+      "hist": {
+        "2007": 250,
+        "2012": 1000,
+        "2017": 804,
+        "2023": 1000,
+        "2024": 1320
+      },
+      "evN": 10,
+      "evDom": 2,
+      "gate": 1
+    }
+  ]
+}

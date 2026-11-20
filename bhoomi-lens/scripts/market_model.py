@@ -232,6 +232,64 @@ def evaluate(records):
     return report, model
 
 
+def anchor_relative_baseline_metrics(train_rows, test_rows, alpha=INTERVAL_ALPHA):
+    """Score the simple anchor-relative baseline (gv_sqft * median(price/gv)) on held-out rows.
+
+    Each row must supply a positive numeric 'gv_sqft' official guideline anchor.
+    """
+    train_valid = [r for r in train_rows if r.get('gv_sqft') and r['gv_sqft'] > 0 and r['price'] > 0]
+    test_valid = [r for r in test_rows if r.get('gv_sqft') and r['gv_sqft'] > 0 and r['price'] > 0]
+    if not train_valid or not test_valid:
+        raise DataError('anchor-relative baseline requires positive gv_sqft values on training and test rows')
+
+    by_dist = defaultdict(list)
+    all_ratios = []
+    for r in train_valid:
+        ratio = r['price'] / r['gv_sqft']
+        by_dist[r['district']].append(ratio)
+        all_ratios.append(ratio)
+    dist_ratio = {d: statistics.median(vals) for d, vals in by_dist.items() if len(vals) >= 5}
+    global_ratio = statistics.median(all_ratios)
+
+    train_log_preds = [math.log(r['gv_sqft'] * dist_ratio.get(r['district'], global_ratio)) for r in train_valid]
+    radius, cal_groups = calibration_radius(train_valid, train_log_preds, alpha=alpha)
+    preds = [r['gv_sqft'] * dist_ratio.get(r['district'], global_ratio) for r in test_valid]
+    return {
+        'metrics': metrics(test_valid, preds),
+        'interval': interval_metrics(test_valid, preds, radius),
+        'calibration_log_radius': round(radius, 4),
+        'calibration_parcel_groups': cal_groups,
+    }
+
+
+def check_promotion_gate(candidate_splits, anchor_baseline_splits, min_cov=75.0, max_cov=85.0):
+    """Enforce the pilot ML promotion bar before any supervised model may replace Tier 2 triangulation.
+
+    A candidate model passes ONLY if on BOTH 'future' and 'geography' holdouts:
+      1. Candidate MdAPE < Anchor-Relative Baseline MdAPE
+      2. Candidate P90 APE < Anchor-Relative Baseline P90 APE
+      3. Candidate empirical coverage is calibrated within [min_cov, max_cov]
+      4. Candidate median interval width < Anchor-Relative Baseline median interval width
+    """
+    failures = []
+    for split in ('future', 'geography'):
+        if split not in candidate_splits or split not in anchor_baseline_splits:
+            failures.append(f'{split}: missing holdout evaluation')
+            continue
+        c = candidate_splits[split]
+        b = anchor_baseline_splits[split]
+        if c['metrics']['median_absolute_percentage_error'] >= b['metrics']['median_absolute_percentage_error']:
+            failures.append(f'{split}: candidate MdAPE does not beat anchor-relative baseline')
+        if c['metrics']['p90_absolute_percentage_error'] >= b['metrics']['p90_absolute_percentage_error']:
+            failures.append(f'{split}: candidate P90 APE does not beat anchor-relative baseline')
+        cov = c['interval']['empirical_coverage_percent']
+        if not (min_cov <= cov <= max_cov):
+            failures.append(f'{split}: empirical coverage {cov}% outside [{min_cov}%, {max_cov}%]')
+        if c['interval']['median_width_as_percent_of_actual_price'] >= b['interval']['median_width_as_percent_of_actual_price']:
+            failures.append(f'{split}: interval width does not narrow vs anchor-relative baseline')
+    return {'promote_to_tier2': len(failures) == 0, 'failures': failures}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('csv', type=Path, help='Private, de-identified and rights-cleared sale CSV (do not commit to a public repository)')

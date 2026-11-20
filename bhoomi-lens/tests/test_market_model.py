@@ -121,6 +121,41 @@ class SalesInputTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             predict.predict_one(artifact, 20, 80, 2000, dt.date(2025, 1, 1))
 
+    def test_anchor_relative_baseline_and_promotion_gate(self):
+        train = [
+            {'group': digest(f'tr-{i}'), 'district': 'Chengalpattu', 'gv_sqft': 500 + i * 100, 'price': (500 + i * 100) * 2.5}
+            for i in range(12)
+        ]
+        test = [
+            {'group': digest(f'te-{i}'), 'district': 'Chengalpattu', 'gv_sqft': 800 + i * 150, 'price': (800 + i * 150) * 2.55}
+            for i in range(6)
+        ]
+        anchor_eval = model.anchor_relative_baseline_metrics(train, test)
+        self.assertLess(anchor_eval['metrics']['median_absolute_percentage_error'], 5.0)
+        self.assertEqual(anchor_eval['calibration_parcel_groups'], 12)
+
+        baseline = {
+            'future': {'metrics': {'median_absolute_percentage_error': 25.0, 'p90_absolute_percentage_error': 80.0},
+                       'interval': {'empirical_coverage_percent': 80.0, 'median_width_as_percent_of_actual_price': 140.0}},
+            'geography': {'metrics': {'median_absolute_percentage_error': 28.0, 'p90_absolute_percentage_error': 90.0},
+                          'interval': {'empirical_coverage_percent': 79.0, 'median_width_as_percent_of_actual_price': 150.0}},
+        }
+        good_candidate = {
+            'future': {'metrics': {'median_absolute_percentage_error': 19.0, 'p90_absolute_percentage_error': 60.0},
+                       'interval': {'empirical_coverage_percent': 81.0, 'median_width_as_percent_of_actual_price': 110.0}},
+            'geography': {'metrics': {'median_absolute_percentage_error': 22.0, 'p90_absolute_percentage_error': 68.0},
+                          'interval': {'empirical_coverage_percent': 78.5, 'median_width_as_percent_of_actual_price': 120.0}},
+        }
+        bad_coverage = {
+            'future': {'metrics': {'median_absolute_percentage_error': 18.0, 'p90_absolute_percentage_error': 55.0},
+                       'interval': {'empirical_coverage_percent': 62.0, 'median_width_as_percent_of_actual_price': 90.0}},
+            'geography': good_candidate['geography'],
+        }
+        self.assertTrue(model.check_promotion_gate(good_candidate, baseline)['promote_to_tier2'])
+        rejected = model.check_promotion_gate(bad_coverage, baseline)
+        self.assertFalse(rejected['promote_to_tier2'])
+        self.assertTrue(any('empirical coverage' in f for f in rejected['failures']))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -32,6 +32,7 @@
   };
   const TOOLS = [
     { id: "explore", label: "Explore and insights", icon: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" stroke="currentColor" stroke-width="1.8" fill="none"/>' },
+    { id: "pilot", label: "TN Pilot: Quote check", icon: '<path d="M9 11l3 3L22 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
     { id: "draw", label: "Draw an area", icon: '<path d="M5 18l3-11 9 2 2 8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-dasharray="3 2"/><circle cx="5" cy="18" r="2" fill="currentColor"/><circle cx="8" cy="7" r="2" fill="currentColor"/><circle cx="17" cy="9" r="2" fill="currentColor"/><circle cx="19" cy="17" r="2" fill="currentColor"/>' },
     { id: "simulate", label: "Ripple simulator", icon: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".7"/><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".4"/>' },
     { id: "catalysts", label: "Catalyst tracker", icon: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>' },
@@ -258,6 +259,41 @@
       "circle-color": ["interpolate", ["linear"], ["get", "v"], 10, "#3b6e3b", 40, "#7bc96f", 80, "#e7d36a", 150, "#f39c4a", 300, "#e0484f"],
       "circle-stroke-color": ["match", ["get", "c"], "High", "#ffffff", "Medium", "#bbbbbb", "#555555"], "circle-stroke-width": 1.2, "circle-opacity": 0.9 } });
     map.on("click", "farm", (ev) => { const f = ev.features[0]; if (f) verifiedPopup(f.properties.i); });
+    if (window.BL_TN_PILOT && Array.isArray(window.BL_TN_PILOT.villages)) {
+      map.addSource("pilot-villages", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: window.BL_TN_PILOT.villages.map((v) => ({
+            type: "Feature",
+            properties: { d: v.d, v: v.v, vkey: `${v.d}|${v.sro}|${v.v}`, gate: v.gate ? 1 : 0, med: v.med },
+            geometry: { type: "Point", coordinates: [v.lon, v.lat] }
+          }))
+        }
+      });
+      map.addLayer({
+        id: "pilot-villages",
+        type: "circle",
+        source: "pilot-villages",
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3.5, 12, 6.5],
+          "circle-color": ["case", ["==", ["get", "gate"], 1], "#38e0b0", "#f5a623"],
+          "circle-stroke-color": "#0b1222",
+          "circle-stroke-width": 1.2,
+          "circle-opacity": 0.92
+        }
+      });
+      map.on("click", "pilot-villages", (ev) => {
+        const f = ev.features && ev.features[0];
+        if (f && BL.PilotUI && BL.PilotUI.selectVillageFromMap) {
+          ev.originalEvent && ev.originalEvent.stopPropagation();
+          BL.PilotUI.selectVillageFromMap(f.properties.d, f.properties.vkey);
+        }
+      });
+      map.on("mouseenter", "pilot-villages", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "pilot-villages", () => { map.getCanvas().style.cursor = ""; });
+    }
     map.addLayer({ id: "d-sel-glow", type: "line", source: "districts", filter: ["==", ["get", "id"], -1], paint: { "line-color": "#ffb547", "line-width": 9, "line-opacity": 0.35, "line-blur": 6 } });
 
     // Clean first view: projects, zones and evidence dots start hidden; chips turn them on.
@@ -1020,6 +1056,7 @@
         <div class="acts"><button class="icon-btn" data-act="close-detail" title="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
       </div>
       <div class="d-body">
+        ${BL.PilotUI ? BL.PilotUI.locationCardHTML(lat, lon, pm.district) : ""}
         ${officialTNRecordsHTML(pm.state)}
         ${guidelineHistoryHTML(lat, lon, pm.state)}
         ${sourceEvidenceHTML(nearAll)}
@@ -1134,16 +1171,16 @@
         </div>
       </div>
       <div class="d-body">
-        <h3>Modelled value inputs</h3>
-        <div class="kpis">
+        <div class="row sb" style="margin-top:8px"><h3 style="margin:0">Modelled value inputs</h3><span class="tier-badge t3">Tier 3 · Heuristic</span></div>
+        <div class="kpis" style="margin-top:8px">
           <div class="kpi"><div class="k">Modelled market price</div><div class="v">${fmtINR(m.priceNow)}<span class="small muted"> /sq ft</span></div><div class="s">${fmtINR(m.priceNow * E.SQFT_PER_ACRE)} per acre</div></div>
           <div class="kpi"><div class="k">Modelled circle-rate input</div><div class="v">${fmtINR(m.circle)}<span class="small muted"> /sq ft</span></div><div class="s warn">Assumed gap ${Math.round(m.gap * 100)}%; not a verified difference between actual rates.</div></div>
           <div class="kpi"><div class="k">${S.horizon}-yr value multiple</div><div class="v">${m.mult.toFixed(2)}x</div><div class="s">Illustrative range ${m.lo.toFixed(2)}x to ${m.hi.toFixed(2)}x</div></div>
           <div class="kpi"><div class="k">Growth per year</div><div class="v ${m.cagr > 0.09 ? "up" : ""}">${pct(m.cagr)}</div><div class="s">${esc(BL.SCENARIOS[S.scenario].label)} case</div></div>
           ${yrPrice}
         </div>
-        <h3>Price path, 2015 to 2036</h3>
-        <div class="card">${C.fan(ser, { marks, cursor: S.year !== MY ? S.year : null })}
+        <div class="row sb" style="margin-top:16px"><h3 style="margin:0">Price path, 2015 to 2036</h3><span class="tier-badge t3">Tier 3 · Scenario</span></div>
+        <div class="card" style="margin-top:8px">${C.fan(ser, { marks, cursor: S.year !== MY ? S.year : null })}
           <div class="row small muted" style="gap:14px;margin-top:4px"><span><span style="display:inline-block;width:14px;height:2px;background:#8fa3c7;vertical-align:middle"></span> modelled history</span><span><span style="display:inline-block;width:14px;height:2px;background:#ffb547;vertical-align:middle"></span> forecast with illustrative band</span><span>dots = project dates</span></div><div class="small muted">The band is an unvalidated model assumption, not an 80% prediction interval.</div>
         </div>
         <h3>What drives the next ${S.horizon} years</h3>
@@ -1180,7 +1217,7 @@
   /* ------------------------------------------------------------------ */
   /* Tool panels                                                          */
   /* ------------------------------------------------------------------ */
-  const PANEL_TITLES = { track: "Track record: past projects", housing: "Housing index sources", data: "Data sources and freshness", shortlist: "Infra-led shortlist", alerts: "Spot alerts", explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
+  const PANEL_TITLES = { pilot: "TN Residential Plot Pilot", track: "Track record: past projects", housing: "Housing index sources", data: "Data sources and freshness", shortlist: "Infra-led shortlist", alerts: "Spot alerts", explore: "Explore", draw: "Area analysis", simulate: "Ripple simulator", catalysts: "Catalyst tracker", screener: "Screener", watchlist: "Watchlist and signals", compare: "Compare", method: "How the model works" };
   function openTool(id, force) {
     if (S.tool === id && !force) { closeTool(); return; }
     if (id !== "draw") cancelDraw();
@@ -1202,7 +1239,7 @@
   function refreshPanel() {
     if (!S.tool) return;
     const body = $("#panelBody");
-    const fn = { track: () => BL.Infra.trackPanel(), housing: pHousingHistory, data: pDataHealth, shortlist: () => BL.Insights.shortlistPanel(models), alerts: () => BL.Insights.alertsPanel((la, lo) => { const q = E.pointModel(la, lo, allCats(), models, opts()); return q; }), explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
+    const fn = { pilot: () => BL.PilotUI ? BL.PilotUI.renderPanel() : "", track: () => BL.Infra.trackPanel(), housing: pHousingHistory, data: pDataHealth, shortlist: () => BL.Insights.shortlistPanel(models), alerts: () => BL.Insights.alertsPanel((la, lo) => { const q = E.pointModel(la, lo, allCats(), models, opts()); return q; }), explore: pExplore, draw: pDraw, simulate: pSimulate, catalysts: pCatalysts, screener: pScreener, watchlist: pWatch, compare: pCompare, method: pMethod }[S.tool];
     body.innerHTML = fn();
     renderRail();
   }
@@ -1217,7 +1254,8 @@
     const gaps = [...models].filter((m) => m.area > 30).sort((a, b) => b.gap - a.gap).slice(0, 5);
     const priced = [...models].sort((a, b) => b.priceNow - a.priceNow).slice(0, 5);
     const nat = models.reduce((s, m) => s + m.cagr, 0) / models.length;
-    return `<p class="lead">Explore mapped districts, source evidence and illustrative model scenarios. Switch lenses at the top, use the time slider, or click a district.</p>
+    const pilotCard = window.BL_TN_PILOT ? `<div class="card pilot-tier-card tier-ok" style="margin-bottom:10px"><div class="row sb"><span class="tier-badge t1">TN Pilot Active</span><span class="small muted">${window.BL_TN_PILOT.totals.residentialStreets2024.toLocaleString("en-IN")} streets</span></div><div style="font-weight:600;margin-top:5px">Evaluate a Tamil Nadu plot quote</div><div class="small muted" style="margin:3px 0 8px">Street-level official guideline floors, separated non-proxy comps, and explicit abstention gates in Chengalpattu, Kancheepuram &amp; Tiruvallur.</div><button class="btn sm primary" data-act="tool" data-tool="pilot">Open TN Pilot: Quote check</button></div>` : "";
+    return `${pilotCard}<p class="lead">Explore mapped districts, source evidence and illustrative model scenarios. Switch lenses at the top, use the time slider, or click a district.</p>
       <div class="kpis">
         <div class="kpi"><div class="k">Districts modelled</div><div class="v">${models.length}</div><div class="s">${Object.keys(BL.STATES).length} states and UTs</div></div>
         <div class="kpi"><div class="k">Projects tracked</div><div class="v">${allCats().length}</div><div class="s">${allCats().filter((c) => c.stage < 4).length} still in the pipeline</div></div>
@@ -1789,5 +1827,18 @@
     renderRail(); if (S.sel != null) renderDetail(); else if (S.loc) renderLocation();
     if (S.tool) refreshPanel();
   };
+  if (BL.PilotUI) BL.PilotUI.bind({
+    refreshPanel: () => { if (S.tool === "pilot") refreshPanelKeepScroll(); },
+    openPilotTool: () => openTool("pilot", true),
+    flyTo: (lon, lat, zoom) => map.flyTo({ center: [lon, lat], zoom: zoom || 12.5, duration: 1000 }),
+    pointPriceAt: (lat, lon) => E.pointModel(lat, lon, allCats(), models, opts()),
+    projects: () => allCats(),
+    togglePilotCoverage: (on) => {
+      if (map.getLayer && map.getLayer("pilot-villages")) {
+        map.setLayoutProperty("pilot-villages", "visibility", on ? "visible" : "none");
+      }
+    },
+    toast
+  });
   window.BhoomiLens = { S, models, map, recompute, paint };
 })();

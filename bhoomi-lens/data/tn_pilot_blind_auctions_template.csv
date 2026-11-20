@@ -1,0 +1,3 @@
+auction_id,authority,district,village,street_or_survey,lat,lon,plot_area_sqft,reserve_price_inr,clearing_price_inr,guideline_rate_sqft,auction_date,source_url,land_class
+# Populate >= 20 unseen public TNHB / CMDA / SIPCOT / TIDCO / IBAPI residential plot auction outcomes (lines starting with # are ignored).
+# Required: district in {Chengalpattu, Kancheepuram, Tiruvallur}, lat/lon in TN bounds, positive plot_area_sqft & clearing_price_inr (or reserve_price_inr), valid https source_url.

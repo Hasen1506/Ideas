@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
+    "build:pilot": "node bhoomi-lens/scripts/build_tn_pilot.js && node bhoomi-lens/scripts/pilot_audit_sample.js && node bhoomi-lens/scripts/pilot_blind_auction_eval.js --write-template && node bhoomi-lens/scripts/pilot_quote_briefs_check.js",
     "build": "node --check server.js && node bhoomi-lens/tests/run.js",
-    "lint": "node --check server.js && node --check bhoomi-lens/js/data.js && node --check bhoomi-lens/js/engine.js && node --check bhoomi-lens/js/app.js && node --check bhoomi-lens/js/charts.js && node --check bhoomi-lens/js/comparables.js && node --check bhoomi-lens/js/csv.js && node --check bhoomi-lens/js/guideline.js && node --check bhoomi-lens/js/imagery.js && node --check bhoomi-lens/js/infra.js && node --check bhoomi-lens/js/insights.js && node --check bhoomi-lens/js/accounts.js",
-    "test": "node bhoomi-lens/tests/run.js && node --test bhoomi-lens/tests/*.test.js"
+    "lint": "node --check server.js && node --check bhoomi-lens/js/data.js && node --check bhoomi-lens/js/engine.js && node --check bhoomi-lens/js/pilot_engine.js && node --check bhoomi-lens/js/pilot_ui.js && node --check bhoomi-lens/js/app.js && node --check bhoomi-lens/js/charts.js && node --check bhoomi-lens/js/comparables.js && node --check bhoomi-lens/js/csv.js && node --check bhoomi-lens/js/guideline.js && node --check bhoomi-lens/js/imagery.js && node --check bhoomi-lens/js/infra.js && node --check bhoomi-lens/js/insights.js && node --check bhoomi-lens/js/accounts.js && node --check bhoomi-lens/scripts/build_tn_pilot.js && node --check bhoomi-lens/scripts/pilot_audit_sample.js && node --check bhoomi-lens/scripts/pilot_blind_auction_eval.js && node --check bhoomi-lens/scripts/pilot_quote_briefs_check.js",
+    "test": "node bhoomi-lens/tests/run.js && node --test bhoomi-lens/tests/*.test.js && node bhoomi-lens/scripts/pilot_quote_briefs_check.js && python3 bhoomi-lens/tests/test_market_model.py"
   },
   "dependencies": {
     "express": "^4.21.2"
