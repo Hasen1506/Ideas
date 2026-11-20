@@ -1817,6 +1817,18 @@
     clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2800);
   }
   $("#introGo").addEventListener("click", () => { $("#intro").classList.add("hidden"); store.set("bl_intro", true); openTool("explore", true); });
+  if ($("#introDealDesk")) {
+    $("#introDealDesk").addEventListener("click", () => {
+      $("#intro").classList.add("hidden");
+      store.set("bl_intro", true);
+      if (BL.DealDesk) BL.DealDesk.open({ tab: "underwriter" });
+    });
+  }
+  if ($("#btnDealDesk")) {
+    $("#btnDealDesk").addEventListener("click", () => {
+      if (BL.DealDesk) BL.DealDesk.open({ tab: "underwriter" });
+    });
+  }
   $("#methodLink").addEventListener("click", (e) => { e.preventDefault(); openTool("method", true); });
 
   renderLayerSeg();
@@ -1827,10 +1839,12 @@
     renderRail(); if (S.sel != null) renderDetail(); else if (S.loc) renderLocation();
     if (S.tool) refreshPanel();
   };
-  if (BL.PilotUI) BL.PilotUI.bind({
+  const sharedCtx = {
     refreshPanel: () => { if (S.tool === "pilot") refreshPanelKeepScroll(); },
     openPilotTool: () => openTool("pilot", true),
+    openDealDesk: (o) => BL.DealDesk && BL.DealDesk.open(o || {}),
     flyTo: (lon, lat, zoom) => map.flyTo({ center: [lon, lat], zoom: zoom || 12.5, duration: 1000 }),
+    openLocationAt: (lon, lat) => openLocation(lon, lat),
     pointPriceAt: (lat, lon) => E.pointModel(lat, lon, allCats(), models, opts()),
     projects: () => allCats(),
     togglePilotCoverage: (on) => {
@@ -1839,6 +1853,8 @@
       }
     },
     toast
-  });
+  };
+  if (BL.PilotUI) BL.PilotUI.bind(sharedCtx);
+  if (BL.DealDesk) BL.DealDesk.bind(sharedCtx);
   window.BhoomiLens = { S, models, map, recompute, paint };
 })();

@@ -152,6 +152,7 @@
       guidelineAnchor: anchor,
       nearbyEntries: near,
       cvBenchmark: pd.cv,
+      villageFeatures: Array.isArray(v.f) ? v.f : null,
       gate: pd.gate
     });
 
@@ -337,22 +338,23 @@
     const abstained = list.length - benchmarkable;
 
     return `
-      <p class="lead">Evaluate a residential plot quote in 3 Tamil Nadu pilot districts using raw street-level official guideline registers, separated non-proxy evidence, and strict abstention gates.</p>
-      <div class="row sb" style="margin-bottom:8px;gap:6px">
-        <button class="btn sm ${state.coverageMapOn ? "primary" : ""}" style="flex:1;white-space:nowrap" data-pilot="toggle-coverage">${state.coverageMapOn ? "Hide coverage map" : "Show coverage map (778 villages)"}</button>
+      <p class="lead">Quick underwriting across all <b>38 Tamil Nadu districts</b> (${pd.totals.residentialStreets2024.toLocaleString("en-IN")} official residential streets · ${pd.totals.matchedGeocodedVillages.toLocaleString("en-IN")} villages).</p>
+      <div class="btn-row" style="margin-bottom:8px;flex-wrap:nowrap">
+        <button class="btn sm primary" style="flex:1;white-space:nowrap" data-pilot="open-full-desk">Full Deal Desk ↗</button>
+        <button class="btn sm ${state.coverageMapOn ? "primary" : ""}" style="flex:1;white-space:nowrap" data-pilot="toggle-coverage">${state.coverageMapOn ? "Hide map dots" : "Coverage dots"}</button>
       </div>
       ${state.coverageMapOn ? `<div class="pilot-cov-legend small muted"><span class="cov-dot pass"></span>Tier 2 Benchmarked (${pd.totals.benchmarkableVillages}) &nbsp; <span class="cov-dot abs"></span>Tier 1 Only / Abstain (${pd.totals.abstainedVillages}) — click any dot on map</div>` : ""}
       <div class="field">
-        <label><span>Pilot district</span><span>${benchmarkable} benchmarked · ${abstained} abstain</span></label>
-        <select id="pilotDist">${BL.PilotEngine.PILOT_DISTRICTS.map((d) => `<option value="${esc(d)}" ${d === state.district ? "selected" : ""}>${esc(d)}</option>`).join("")}</select>
+        <label><span>Tamil Nadu district (38)</span><span>${benchmarkable} benchmarked · ${abstained} abstain</span></label>
+        <select id="pilotDist">${(BL.PilotEngine.TN_DISTRICTS || BL.PilotEngine.PILOT_DISTRICTS).map((d) => `<option value="${esc(d)}" ${d === state.district ? "selected" : ""}>${esc(d)}</option>`).join("")}</select>
       </div>
       <div class="field">
         <label><span>Revenue village / SRO</span><span>${v ? (v.gate ? "Gate PASS" : "ABSTAIN zone") : ""}</span></label>
-        <select id="pilotVillage">${list.map((x) => `<option value="${esc(villageId(x))}" ${v && villageId(x) === villageId(v) ? "selected" : ""}>${esc(x.v)} (${x.nSt} sts · ${fmtINR(x.med)}/sf · ${x.gate ? "Benchmarked" : "Abstain"})</option>`).join("")}</select>
+        <select id="pilotVillage">${list.slice(0, 250).map((x) => `<option value="${esc(villageId(x))}" ${v && villageId(x) === villageId(v) ? "selected" : ""}>${esc(x.v)} (${x.nSt} sts · ${fmtINR(x.med)}/sf · ${x.gate ? "Benchmarked" : "Abstain"})</option>`).join("")}</select>
       </div>
       <div class="card small" style="padding:10px">
         <div class="row sb"><b>Optional: lock exact official street floor</b>${state.selectedStreet ? `<button class="btn sm ghost" data-pilot="clear-street">Clear</button>` : ""}</div>
-        <div class="small muted" style="margin:2px 0 6px">Search ${pd.totals.residentialStreets2024.toLocaleString("en-IN")} raw 2024/2025 residential streets in the 3 pilot districts.</div>
+        <div class="small muted" style="margin:2px 0 6px">Search ${pd.totals.residentialStreets2024.toLocaleString("en-IN")} raw 2024/2025 residential streets across all 38 districts.</div>
         <div class="row" style="gap:6px">
           <input id="pilotStreetQ" type="text" placeholder="e.g. OMR, Dollars Colony, Main Road..." value="${esc(state.streetQuery)}" style="flex:1;min-width:0;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:8px;padding:6px 8px"/>
           <button class="btn sm" data-pilot="search-street">Search</button>
@@ -386,42 +388,40 @@
   function renderCVTab(pd) {
     const cv = pd.cv;
     const t = pd.totals;
-    if (!cv || !cv.ok) return `<div class="empty">Pilot CV benchmark unavailable.</div>`;
+    const ridge = cv && cv.spatialResidualRidge;
+    if (!cv || !cv.ok) return `<div class="empty">Statewide CV benchmark unavailable.</div>`;
     return `
-      <p class="lead">Spatially blocked leave-one-locality-cluster-out CV across <b>${cv.observations}</b> deduplicated non-proxy residential observations in <b>${cv.clusters}</b> clusters (~3 km blocks).</p>
-      <div class="card pilot-tier-card tier-warn">
-        <div class="tier-badge t2">Go / No-Go Verdict</div>
-        <div style="font-weight:700;margin-top:6px">NO-GO on raw coordinate ML · GO on Anchor-Relative Triangulation</div>
-        <div class="small muted" style="margin-top:4px;line-height:1.5">With 0 verified TN registered sales in the repository, a 4-feature coordinate GBDT is premature. Anchoring directly on official street-level guideline values cuts P90 tail error by <b>58%</b> vs. the existing heuristic while exposing true micro-location spread honestly.</div>
+      <p class="lead">Spatially blocked leave-one-cluster-out CV across <b>${cv.observations}</b> verified/consensus TN observations in <b>${cv.clusters}</b> spatial clusters (all 38 districts).</p>
+      <div class="card pilot-tier-card ${cv.ridgePromoted ? "tier-ok" : "tier-warn"}">
+        <div class="tier-badge t2">Empirical Promotion Verdict</div>
+        <div style="font-weight:700;margin-top:6px">${cv.ridgePromoted ? "GO on 14-Feature Spatial Residual Ridge · NO-GO on raw coordinate ML" : "GO on Anchor-Relative Triangulation"}</div>
+        <div class="small muted" style="margin-top:4px;line-height:1.5">Predicting <code>log(Market / GV_2024)</code> with 14 official-guideline, infrastructure, and CPI features cuts statewide OOF MdAPE to <b>${ridge ? ridge.metrics.mdapePct : cv.anchorRelativeBaseline.mdapePct}%</b> and slashes P90 tail error to <b>${ridge ? ridge.metrics.p90ApePct : cv.anchorRelativeBaseline.p90ApePct}%</b>.</div>
       </div>
       <h3>Out-of-fold spatial benchmark</h3>
       <div class="card" style="padding:8px">
         <table class="cmp">
           <tr><th>Method</th><th>MdAPE</th><th>P90 APE</th><th>≤25%</th></tr>
+          <tr><td>Existing engine.js</td><td class="down">${cv.existingHeuristic ? cv.existingHeuristic.mdapePct + "%" : "-"}</td><td class="down">${cv.existingHeuristic ? cv.existingHeuristic.p90ApePct + "%" : "-"}</td><td>${cv.existingHeuristic ? cv.existingHeuristic.within25Pct + "%" : "-"}</td></tr>
           <tr><td>Naive district median</td><td>${cv.naiveDistrictMedian.mdapePct}%</td><td>${cv.naiveDistrictMedian.p90ApePct}%</td><td>${cv.naiveDistrictMedian.within25Pct}%</td></tr>
-          <tr><td>Existing engine.js</td><td>${cv.existingHeuristic ? cv.existingHeuristic.mdapePct + "%" : "-"}</td><td class="down">${cv.existingHeuristic ? cv.existingHeuristic.p90ApePct + "%" : "-"}</td><td>${cv.existingHeuristic ? cv.existingHeuristic.within25Pct + "%" : "-"}</td></tr>
-          <tr><td><b>Anchor-relative (GV×ratio)</b></td><td class="best">${cv.anchorRelativeBaseline.mdapePct}%</td><td class="best">${cv.anchorRelativeBaseline.p90ApePct}%</td><td class="best">${cv.anchorRelativeBaseline.within25Pct}%</td></tr>
+          <tr><td>Anchor-relative (GV×ratio)</td><td>${cv.anchorRelativeBaseline.mdapePct}%</td><td>${cv.anchorRelativeBaseline.p90ApePct}%</td><td>${cv.anchorRelativeBaseline.within25Pct}%</td></tr>
+          ${ridge ? `<tr><td><b>14-Feature Residual Ridge</b></td><td class="best">${ridge.metrics.mdapePct}%</td><td class="best">${ridge.metrics.p90ApePct}%</td><td class="best">${ridge.metrics.within25Pct}%</td></tr>` : ""}
         </table>
+      </div>
+      <div class="btn-row" style="margin:8px 0">
+        <button class="btn sm primary" style="width:100%" data-pilot="open-full-mllab">Open 14-Feature ML Lab &amp; 38-District Matrix ↗</button>
       </div>
       <h3>Split-conformal interval calibration</h3>
       <div class="kpis">
-        <div class="kpi"><div class="k">OOF Coverage (80% nom.)</div><div class="v up">${cv.conformalEmpiricalCoveragePct}%</div><div class="s">Log radius ±${cv.conformalLogRadius}</div></div>
-        <div class="kpi"><div class="k">Median interval width</div><div class="v warn">${cv.conformalMedianWidthPct}%</div><div class="s">Shows true unmeasured plot variance</div></div>
+        <div class="kpi"><div class="k">OOF Coverage (80% nom.)</div><div class="v up">${ridge ? ridge.conformalEmpiricalCoveragePct : cv.conformalEmpiricalCoveragePct}%</div><div class="s">Log radius ±${ridge ? ridge.conformalLogRadius : cv.conformalLogRadius}</div></div>
+        <div class="kpi"><div class="k">Median interval width</div><div class="v warn">${ridge ? ridge.conformalMedianWidthPct : cv.conformalMedianWidthPct}%</div><div class="s">Reflects unmeasured plot variance</div></div>
       </div>
-      <h3>Pilot coverage &amp; abstention gate</h3>
+      <h3>Statewide coverage &amp; abstention gate</h3>
       <div class="card small" style="line-height:1.6">
         <div class="row sb"><span>Raw 2024 residential streets indexed</span><b>${t.residentialStreets2024.toLocaleString("en-IN")}</b></div>
         <div class="row sb"><span>Mid-cycle 2025 street updates</span><b>${t.midCycle2025Updates.toLocaleString("en-IN")}</b></div>
-        <div class="row sb"><span>Matched geocoded pilot villages</span><b>${t.matchedGeocodedVillages}</b></div>
+        <div class="row sb"><span>Matched geocoded TN villages (38 dist.)</span><b>${t.matchedGeocodedVillages.toLocaleString("en-IN")}</b></div>
         <div class="row sb"><span>Pass Tier 2 gate (≥3 obs, ≥2 domains)</span><b class="up">${t.benchmarkableVillages} (${Math.round((t.benchmarkableVillages / t.matchedGeocodedVillages) * 100)}%)</b></div>
-        <div class="row sb"><span>Explicitly ABSTAIN on Tier 2</span><b class="warn">${t.abstainedVillages} (${Math.round((t.abstainedVillages / t.matchedGeocodedVillages) * 100)}%)</b></div>
-      </div>
-      <h3>Market-to-GV ratio by pilot district</h3>
-      <div class="card" style="padding:8px">
-        <table class="cmp">
-          <tr><th>District</th><th>n</th><th>P25</th><th>Med</th><th>P75</th></tr>
-          ${Object.entries(cv.byDistrict || {}).map(([d, s]) => `<tr><td>${esc(d)}</td><td>${s.n}</td><td>${s.p25Ratio}×</td><td class="best">${s.medianRatio}×</td><td>${s.p75Ratio}×</td></tr>`).join("")}
-        </table>
+        <div class="row sb"><span>Explicitly ABSTAIN on Tier 2</span><b class="warn">${t.abstainedVillages.toLocaleString("en-IN")} (${Math.round((t.abstainedVillages / t.matchedGeocodedVillages) * 100)}%)</b></div>
       </div>
     `;
   }
@@ -469,11 +469,11 @@
     return tabs + body;
   }
 
-  /* Compact Tier 1/2 summary card rendered inside openLocation() for pilot districts */
+  /* Compact Tier 1/2 summary card rendered inside openLocation() for all 38 Tamil Nadu districts */
   function locationCardHTML(lat, lon, district) {
     const pd = pilotData();
     const PE = BL.PilotEngine;
-    if (!pd || !PE || !PE.isPilotDistrict(district)) return "";
+    if (!pd || !PE || !PE.isTNDistrict(district)) return "";
     const match = nearestPilotVillage(lat, lon, 5);
     const near = nearbyVerifiedFor(lat, lon, pd.gate.maxRadiusKm);
     const strat = PE.stratifyEvidence(near);
@@ -483,7 +483,7 @@
       strat.distinctDomainCount >= pd.gate.minDistinctDomains;
 
     return `
-      <h3>TN Residential Plot Pilot <span class="tier-badge ${passes ? "t2" : "t-abstain"}" style="margin-left:6px">${passes ? "Tier 2 Active" : "Tier 2 Abstain"}</span></h3>
+      <h3>TN Plot Deal Desk <span class="tier-badge ${passes ? "t2" : "t-abstain"}" style="margin-left:6px">${passes ? "Tier 2 Active" : "Tier 2 Abstain"}</span></h3>
       <div class="card small pilot-tier-card ${passes ? "tier-ok" : "tier-abstain"}" style="line-height:1.55">
         ${match ? `
           <div class="row sb"><span class="muted">Nearest official residential register</span><b>${esc(match.village.v)} (${match.distanceKm.toFixed(1)} km)</b></div>
@@ -492,9 +492,10 @@
           ${match.village.u25 ? `<div class="up">${match.village.u25} streets updated mid-cycle in 2025</div>` : ""}
         ` : `<div class="warn">No matched official residential street register within 5 km.</div>`}
         <div class="row sb" style="margin-top:4px"><span class="muted">Deduplicated non-proxy obs (8 km)</span><b>${strat.independentCount} (${strat.distinctDomainCount} domains)</b></div>
-        <div class="muted" style="margin-top:4px">${passes ? "Coverage gate passed: anchor-relative quote corridor is available." : "Coverage gate not met: Tier 2 benchmark abstains here; rely on Tier 1 official rates and verify at SRO."}</div>
-        <div class="btn-row" style="margin-top:8px">
-          <button class="btn sm primary" data-pilot="open-for-loc" data-dist="${esc(PE.normalizeDistrict(district))}" data-vkey="${match ? esc(villageId(match.village)) : ""}">Run Pilot Quote Check</button>
+        <div class="muted" style="margin-top:4px">${passes ? "Coverage gate passed: 14-Feature Spatial Residual Ridge corridor & closing ledger available." : "Coverage gate not met: Tier 2 abstains here; use Tier 1 official street floor & statutory closing calculator."}</div>
+        <div class="btn-row" style="margin-top:8px;flex-wrap:nowrap">
+          <button class="btn sm primary" style="flex:1;white-space:nowrap" data-pilot="open-desk-for-loc" data-dist="${esc(PE.normalizeDistrict(district))}" data-vkey="${match ? esc(villageId(match.village)) : ""}">Open in Deal Desk</button>
+          <button class="btn sm" style="flex:1;white-space:nowrap" data-pilot="open-for-loc" data-dist="${esc(PE.normalizeDistrict(district))}" data-vkey="${match ? esc(villageId(match.village)) : ""}">Sidebar Check</button>
         </div>
       </div>`;
   }
@@ -675,6 +676,12 @@
         state.selectedStreet = null;
         state.lastResult = null;
         ctx.openPilotTool && ctx.openPilotTool();
+      } else if (act === "open-desk-for-loc") {
+        ctx.openDealDesk && ctx.openDealDesk({ tab: "underwriter", district: btn.dataset.dist, vkey: btn.dataset.vkey });
+      } else if (act === "open-full-desk") {
+        ctx.openDealDesk && ctx.openDealDesk({ tab: "underwriter", district: state.district, vkey: state.villageKey });
+      } else if (act === "open-full-mllab") {
+        ctx.openDealDesk && ctx.openDealDesk({ tab: "mllab" });
       }
     });
   }

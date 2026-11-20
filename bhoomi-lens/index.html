@@ -9,7 +9,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ffb547'/%3E%3Cstop offset='1' stop-color='%232ee6c5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='url(%23g)' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='url(%23g)'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500&family=Noto+Sans+Tamil:wght@400;600&display=swap" rel="stylesheet" />
   <link href="vendor/maplibre/maplibre-gl.css" rel="stylesheet" />
   <link href="css/app.css" rel="stylesheet" />
 </head>
@@ -22,6 +22,7 @@
       <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb547"/><stop offset="1" stop-color="#2ee6c5"/></linearGradient></defs><circle cx="16" cy="16" r="13" fill="none" stroke="url(#lg)" stroke-width="2.5"/><circle cx="16" cy="16" r="7.5" fill="none" stroke="url(#lg)" stroke-width="1.5" opacity=".6"/><circle cx="16" cy="16" r="3.2" fill="url(#lg)"/></svg>
       <div><b>Bhoomi Lens</b><span>Land intelligence for India</span></div>
     </div>
+    <button id="btnDealDesk" class="btn primary sm dd-launch-btn" title="Open Tamil Nadu Residential Plot Deal Desk (38 Districts · 233,898 official streets)">TN Deal Desk</button>
     <button id="searchBtn" class="search" title="Search (Ctrl K)">
       <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <span>Search a locality, village, district or project</span><kbd>Ctrl K</kbd>
@@ -87,16 +88,19 @@
 
   <div id="intro" class="intro hidden">
     <div class="intro-box glass">
-      <div class="intro-kicker">Bhoomi Lens</div>
-      <h1>Explore land-price estimates, infrastructure scenarios and reference data.</h1>
+      <div class="intro-kicker">Bhoomi Lens · India Land Intelligence &amp; Tamil Nadu Plot Deal Desk</div>
+      <h1>Underwrite residential plot quotes with official street registers &amp; spatial ML.</h1>
       <div class="intro-grid">
-        <div><b>Explore</b><p>View modelled district estimates and source references. Switch lenses at the top and click a district.</p></div>
-        <div><b>Draw an area</b><p>Lasso, circle or box an area to explore sampled model estimates and nearby projects.</p></div>
-        <div><b>Simulate</b><p>Add a hypothetical airport, metro or expressway and compare a scenario based on assumptions you choose.</p></div>
-        <div><b>Time machine</b><p>Explore modelled values from 2015 to 2036; past values are not recorded sale histories.</p></div>
+        <div><b>TN Plot Deal Desk (38 Districts)</b><p>Search 233,898 official TNREGINET residential streets, calculate Stamp Duty (7%) + Registration (4%/3%) + TDS + Sec 47A risk, and export print-ready dossiers.</p></div>
+        <div><b>14-Feature Spatial Residual ML</b><p>Out-of-fold benchmarked corridor across all 38 districts with 80% split-conformal bands and explicit abstention when local evidence is thin.</p></div>
+        <div><b>2025 Surge &amp; Public Auctions</b><p>Track 3,944 mid-cycle 2025 official street revisions, compare up to 3 candidate plots side-by-side, and inspect verified TNHB / SIPCOT / deal records.</p></div>
+        <div><b>All-India Infrastructure Map</b><p>Explore 820+ districts, 186 infrastructure corridors, satellite imagery scenes, and user-parameterized scenario simulations.</p></div>
       </div>
-      <p class="intro-note">Estimates and scenarios are exploratory. Price references include listings and guideline-derived proxies, and forecast bands have not been validated. They are not plot valuations or investment advice.</p>
-      <button id="introGo" class="btn primary">Start exploring</button>
+      <p class="intro-note">Observed official guideline values (Tier 1), spatially benchmarked ML corridors (Tier 2), and scenario calculators (Tier 3) are kept strictly separated. Always verify survey numbers and EC on TNREGINET before transacting.</p>
+      <div class="btn-row" style="gap:10px;margin-top:14px">
+        <button id="introDealDesk" class="btn primary">Open TN Deal Desk (38 Districts)</button>
+        <button id="introGo" class="btn">Explore India Map</button>
+      </div>
     </div>
   </div>
 
@@ -131,6 +135,7 @@
   <script src="data/tn_pilot.js"></script>
   <script src="js/pilot_engine.js"></script>
   <script src="js/pilot_ui.js"></script>
+  <script src="js/deal_desk.js"></script>
   <script src="js/config.js"></script>
   <script src="js/accounts.js"></script>
   <script type="module" src="js/bootstrap.mjs"></script>

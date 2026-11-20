@@ -238,3 +238,120 @@ test("evaluateBlindAuctionRows rejects leaked URLs, abstains in sparse zones, an
   assert.equal(out.meetsMinSampleGate, false);
 });
 
+test("statewide 38-district TN normalization recognizes aliases and all 38 districts", () => {
+  assert.equal(PE.TN_DISTRICTS.length, 38);
+  assert.equal(PE.normalizeDistrict("Trichy"), "Tiruchirappalli");
+  assert.equal(PE.normalizeDistrict("The Nilgiris"), "Nilgiris");
+  assert.equal(PE.normalizeDistrict("Tuticorin"), "Thoothukkudi");
+  assert.equal(PE.isTNDistrict("Coimbatore"), true);
+  assert.equal(PE.isTNDistrict("Trichy"), true);
+  assert.equal(PE.isTNDistrict("Bengaluru Urban"), false);
+});
+
+test("calculateTNClosingCosts enforces 7% stamp duty, 4%/3% reg fee, 1% TDS >=50L, and Sec 47A floor", () => {
+  // High-value plot (>= Rs 50L) -> triggers 1% TDS Form 26QB
+  const high = PE.calculateTNClosingCosts({
+    askSqft: 5000,
+    floorSqft: 2000,
+    areaSqft: 1200,
+    buyerType: "standard",
+    declaredPct: 100
+  });
+  assert.equal(high.marketTotal, 6000000);
+  assert.equal(high.stampDuty, 420000); // 7%
+  assert.equal(high.registrationFee, 240000); // 4%
+  assert.equal(high.totalGovtFees, 660000); // 11%
+  assert.equal(high.allInCost, 6660000);
+  assert.equal(high.tdsApplicable, true);
+  assert.equal(high.tdsAmount, 60000);
+  assert.equal(high.section47ARisk, false);
+
+  // Under-declared plot below statutory floor -> triggers Section 47A and floors duty at GV
+  const under = PE.calculateTNClosingCosts({
+    askSqft: 3000,
+    floorSqft: 2500,
+    areaSqft: 1000,
+    buyerType: "standard",
+    declaredPct: 60 // declared = 18L < floor 25L
+  });
+  assert.equal(under.section47ARisk, true);
+  assert.equal(under.section47AShortfall, 700000);
+  assert.equal(under.assessedValue, 2500000);
+  assert.equal(under.stampDuty, 175000);
+  assert.equal(under.cashComponent, 1200000);
+  assert.equal(under.tdsApplicable, false);
+
+  // Women-buyer concession <= Rs 10L -> 3% registration fee
+  const woman = PE.calculateTNClosingCosts({
+    askSqft: 800,
+    floorSqft: 500,
+    areaSqft: 1000,
+    buyerType: "woman_le_10l",
+    declaredPct: 100
+  });
+  assert.equal(woman.regFeeRatePct, 3);
+  assert.equal(woman.registrationFee, 24000);
+});
+
+test("calculateInvestmentBreakEven enforces post-cost and post-LTCG break-even ordering", () => {
+  const bk = PE.calculateInvestmentBreakEven({
+    allInCost: 6660000,
+    baseMarketValue: 6000000,
+    holdYears: 5,
+    expectedAnnualGrowthPct: 10
+  });
+  assert.ok(bk.breakEvenCagrPct > 2.0, "Break-even CAGR must exceed 2% p.a. to recover 11% stamp/reg + 2% exit brokerage");
+  assert.ok(bk.beatFdCagrPct > bk.breakEvenCagrPct);
+  assert.ok(bk.beatEquityCagrPct > bk.beatFdCagrPct);
+  assert.match(bk.taxRegime, /12\.5% LTCG/);
+
+  const stcg = PE.calculateInvestmentBreakEven({
+    allInCost: 6660000,
+    baseMarketValue: 6000000,
+    holdYears: 1,
+    expectedAnnualGrowthPct: 10
+  });
+  assert.match(stcg.taxRegime, /30% STCG/);
+});
+
+test("evaluateSpatialResidualRidgeCV recovers guideline compression signal without leakage", () => {
+  const pairs = [];
+  for (let i = 0; i < 24; i++) {
+    const gv = 300 + i * 250;
+    const distMetro = 2 + (i % 6) * 8;
+    const trueLogRatio = 1.6 - 0.55 * Math.log(gv / 500) - 0.15 * Math.log1p(distMetro);
+    const price = gv * Math.exp(trueLogRatio + ((i % 3) - 1) * 0.04);
+    pairs.push({
+      cluster: `C_${i}`,
+      district: i % 2 === 0 ? "Chengalpattu" : "Coimbatore",
+      price,
+      gv,
+      features: [Math.log(gv), Math.log1p(distMetro)]
+    });
+  }
+  const cv = PE.evaluateAnchorRelativeCV(pairs, 0.2);
+  assert.equal(cv.ok, true);
+  assert.ok(cv.spatialResidualRidge && cv.spatialResidualRidge.ok);
+  assert.equal(cv.ridgePromoted, true);
+  assert.ok(cv.spatialResidualRidge.metrics.mdapePct < cv.anchorRelativeBaseline.mdapePct);
+  // First feature (log gv) must have negative learned weight
+  const w0 = cv.spatialResidualRidge.featureWeights.find((w) => w.key === "log_gv_2024");
+  assert.ok(w0 && w0.weight < 0);
+});
+
+test("built statewide TN report covers all 38 districts, 233k+ residential streets, and promoted Ridge CV", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const report = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/tn_pilot_report.json"), "utf8"));
+  assert.equal(report.totals.districtCount, 38);
+  assert.ok(report.totals.residentialStreets2024 >= 230000);
+  assert.ok(report.totals.midCycle2025Updates >= 3500);
+  assert.ok(report.totals.matchedGeocodedVillages >= 5000);
+  assert.equal(report.cv.ok, true);
+  assert.equal(report.cv.ridgePromoted, true);
+  assert.ok(report.cv.spatialResidualRidge.metrics.mdapePct < report.cv.anchorRelativeBaseline.mdapePct);
+  assert.ok(report.hotspots2025.length >= 100);
+  assert.ok(report.publicFeed.length >= 10);
+});
+
+

@@ -1,15 +1,18 @@
-/* Bhoomi Lens — Tamil Nadu Residential Plot Pilot Engine (pure functions, no DOM).
- * Works in browser (window.BL.PilotEngine) and Node (globalThis.BL.PilotEngine).
+/* Bhoomi Lens — Tamil Nadu Residential Plot Underwriting & Residual ML Engine
+ * Pure functions, zero DOM dependencies. Works in browser (window.BL.PilotEngine)
+ * and Node (globalThis.BL.PilotEngine).
  *
  * Design principles:
  *  1. Strict epistemic separation: Tier 1 (Observed primary evidence),
- *     Tier 2 (Empirically benchmarked anchor-relative estimate with abstention),
+ *     Tier 2 (Empirically benchmarked anchor-relative / residual ML estimate with abstention),
  *     Tier 3 (Assumption-driven scenario / heuristic context).
  *  2. Never pool listings, auctions/allotments, official guideline values,
  *     compensation, guideline-derived proxies, or registered sales into one target.
  *  3. Deduplicate repeated/syndicated source URLs before counting evidence density.
  *  4. Abstain explicitly whenever local independent evidence or guideline anchor
  *     coverage falls below threshold — never extrapolate silently.
+ *  5. Every ML model is evaluated strictly inside spatially blocked leave-one-cluster-out
+ *     CV with fold-internal standardization and honest promotion gating.
  */
 (function (root) {
   const BL = (root.BL = root.BL || {});
@@ -18,10 +21,24 @@
   const SQFT_PER_ACRE = 43560;
   const SQFT_PER_HECTARE = 107639;
 
+  // Original 3-district Greater Chennai pilot (retained for backward compatibility)
   const PILOT_DISTRICTS = ["Chengalpattu", "Kancheepuram", "Tiruvallur"];
+
+  // All 38 Tamil Nadu districts covered by official TNREGINET street registers
+  const TN_DISTRICTS = [
+    "Ariyalur", "Chengalpattu", "Chennai", "Coimbatore", "Cuddalore",
+    "Dharmapuri", "Dindigul", "Erode", "Kallakurichi", "Kancheepuram",
+    "Kanniyakumari", "Karur", "Krishnagiri", "Madurai", "Mayiladuthurai",
+    "Nagapattinam", "Namakkal", "Nilgiris", "Perambalur", "Pudukkottai",
+    "Ramanathapuram", "Ranipet", "Salem", "Sivagangai", "Tenkasi",
+    "Thanjavur", "Theni", "Thoothukkudi", "Tiruchirappalli", "Tirunelveli",
+    "Tirupathur", "Tiruppur", "Tiruvallur", "Tiruvannamalai", "Tiruvarur",
+    "Vellore", "Viluppuram", "Virudhunagar"
+  ];
 
   const DISTRICT_ALIASES = {
     chengalpattu: "Chengalpattu",
+    chengleput: "Chengalpattu",
     kancheepuram: "Kancheepuram",
     kanchipuram: "Kancheepuram",
     tiruvallur: "Tiruvallur",
@@ -32,8 +49,19 @@
     kanyakumari: "Kanniyakumari",
     thoothukkudi: "Thoothukkudi",
     thoothukudi: "Thoothukkudi",
+    tuticorin: "Thoothukkudi",
     sivagangai: "Sivagangai",
-    sivaganga: "Sivagangai"
+    sivaganga: "Sivagangai",
+    trichy: "Tiruchirappalli",
+    tiruchirappalli: "Tiruchirappalli",
+    "the nilgiris": "Nilgiris",
+    nilgiris: "Nilgiris",
+    thiruvarur: "Tiruvarur",
+    tiruvarur: "Tiruvarur",
+    tirupathur: "Tirupathur",
+    tirupattur: "Tirupathur",
+    tiruppur: "Tiruppur",
+    tirupur: "Tiruppur"
   };
 
   const DEFAULT_GATE = {
@@ -43,22 +71,47 @@
     minGuidelineAnchorKm: 5
   };
 
+  const ML_FEATURE_META = [
+    { key: "log_gv_2024", label: "Official 2024 GV level (log ₹/sf)", group: "Official GV" },
+    { key: "gv_iqr_log", label: "Intra-village street spread (log P90/P10)", group: "Official GV" },
+    { key: "log_streets", label: "Urban street density (log streets)", group: "Official GV" },
+    { key: "gv_growth_17_24", label: "7-yr official GV revision (2017→2024)", group: "Official GV" },
+    { key: "gv_growth_12_24", label: "12-yr official GV trajectory (2012→2024)", group: "Official GV" },
+    { key: "pct_updated_2025", label: "2025 mid-cycle street revision share", group: "Official GV" },
+    { key: "log_dist_chennai", label: "Distance to Chennai CBD (log km)", group: "Spatial" },
+    { key: "log_dist_hub", label: "Distance to nearest TN metro hub (log km)", group: "Spatial" },
+    { key: "log_dist_metro", label: "Distance to Metro corridor (log km)", group: "Infra" },
+    { key: "log_dist_airport", label: "Distance to airport hub (log km)", group: "Infra" },
+    { key: "log_dist_highway", label: "Distance to expressway / ring road (log km)", group: "Infra" },
+    { key: "log_dist_industrial", label: "Distance to industrial / IT park (log km)", group: "Infra" },
+    { key: "log_dist_coast", label: "Distance to coastline (log km)", group: "Spatial" },
+    { key: "district_cpi", label: "Official TN District CPI index", group: "Macro" }
+  ];
+
   const EPISTEMIC_AUDIT = [
     {
-      feature: "Street-level TN official guideline registers (2002–2025)",
-      module: "data/tn_gv/*.json · pilot_engine.js",
+      feature: "Statewide street-level TN official guideline registers (38 districts · 233,898 residential streets)",
+      module: "data/tn_gv/*.json · server.js · pilot_engine.js",
       tier: 1,
       tierLabel: "Tier 1 · Observed primary",
-      status: "Active in TN Pilot",
-      action: "Use directly as statutory floor & P10/Median/P90 street distribution; never flatten into an unlabeled market price."
+      status: "Active across all 38 districts",
+      action: "Use directly as statutory floor, P10/Median/P90 village distribution, 2002–2024 revision trajectory, and 2025 mid-cycle surge scanner."
     },
     {
-      feature: "Public auctions, govt allotments & deduplicated nearby comparables",
+      feature: "Public govt allotments, e-auctions, reported deals & deduplicated nearby comparables",
       module: "js/comparables.js · pilot_engine.js",
       tier: 1,
       tierLabel: "Tier 1 · Observed primary",
       status: "Stratified & URL-deduplicated",
-      action: "Display separately by source stratum with dates, units, and source links; never pool asking quotes with closed sales."
+      action: "Display separately by source stratum with dates, units, and source links; never pool asking quotes with closed sales or single-source rows."
+    },
+    {
+      feature: "Statutory TN closing cost, Section 47A & TDS Form 26QB calculator",
+      module: "js/pilot_engine.js · js/deal_desk.js",
+      tier: 1,
+      tierLabel: "Tier 1 · Statutory rule",
+      status: "Active in Deal Desk",
+      action: "Apply statutory Tamil Nadu Stamp Duty (7% on max of declared vs guideline floor), Registration Fee (4% / 3% women ≤₹10L), and 1% TDS ≥₹50L."
     },
     {
       feature: "Official land-record links, airport zones, acquisition notices & dated satellite scenes",
@@ -69,11 +122,11 @@
       action: "Keep linked to official portals (TNREGINET, Tamil Nilam, Planetary Computer STAC); label resolution limits explicitly."
     },
     {
-      feature: "Anchor-relative quote corridor (GV × local empirical ratio + conformal band)",
+      feature: "Anchor-relative & 14-Feature Spatial Residual Ridge corridor + split-conformal band",
       module: "js/pilot_engine.js · scripts/build_tn_pilot.js",
       tier: 2,
       tierLabel: "Tier 2 · Benchmarked estimate",
-      status: "Gated by abstention rules",
+      status: "Gated by spatial CV & abstention",
       action: "Show only when ≥3 independent non-proxy observations from ≥2 distinct domains + guideline anchor exist within radius; otherwise ABSTAIN."
     },
     {
@@ -81,8 +134,8 @@
       module: "scripts/market_model.py",
       tier: 2,
       tierLabel: "Tier 2 · Blocked (No-Go today)",
-      status: "Disconnected (0 TN verified sales)",
-      action: "Do not deploy raw coordinate GBDT without licensed deed panels + parcel attributes; replace target with log(P / GV_street) once licensed data exists."
+      status: "Awaiting licensed TN deed panel",
+      action: "Do not deploy raw coordinate GBDT without licensed registered sale deeds + plot road-width/approval attributes; target log(P / GV_street)."
     },
     {
       feature: "Continuous 820-district price surface & 2015–2036 fan-chart forecast",
@@ -90,23 +143,15 @@
       tier: 3,
       tierLabel: "Tier 3 · Heuristic scenario",
       status: "Demoted to scenario context",
-      action: "Keep clearly labelled as unvalidated heuristic exploration; exclude from pilot quote verdicts."
+      action: "Keep clearly labelled as unvalidated heuristic exploration; exclude from Deal Desk quote verdicts."
     },
     {
-      feature: "Opportunity, Risk & Liquidity scores (hash01 local variation)",
-      module: "js/engine.js",
-      tier: 3,
-      tierLabel: "Tier 3 · Heuristic scenario",
-      status: "Tagged as synthetic heuristic",
-      action: "Tag explicitly as Tier 3 heuristic scores; never present as site-level flood, title, or liquidity verification."
-    },
-    {
-      feature: "Ripple simulator & infrastructure catalyst uplift (2026–2036)",
-      module: "js/engine.js · app.js",
+      feature: "Post-tax Net IRR & appreciation break-even simulator + Ripple sandbox",
+      module: "js/pilot_engine.js · js/engine.js",
       tier: 3,
       tierLabel: "Tier 3 · Assumption sandbox",
-      status: "Scenario sensitivity only",
-      action: "Keep strictly user-parameterized assumption sandbox; do not claim causal uplift without pre-trend & control validation."
+      status: "User-parameterized scenario",
+      action: "Keep strictly user-parameterized sensitivity math; never claim guaranteed future appreciation or causal infrastructure uplift."
     }
   ];
 
@@ -118,6 +163,10 @@
 
   function isPilotDistrict(name) {
     return PILOT_DISTRICTS.includes(normalizeDistrict(name));
+  }
+
+  function isTNDistrict(name) {
+    return TN_DISTRICTS.includes(normalizeDistrict(name));
   }
 
   function hav(lat1, lon1, lat2, lon2) {
@@ -291,11 +340,239 @@
       .filter((p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lon) && String(p.land || "").toLowerCase() !== "industrial");
   }
 
+  /* Solve linear system A * x = b via Gaussian elimination with partial pivoting. */
+  function solveLinearSystem(A, b) {
+    const n = b.length;
+    const M = A.map((row, i) => row.slice().concat([b[i]]));
+    for (let col = 0; col < n; col++) {
+      let pivot = col;
+      let maxAbs = Math.abs(M[col][col]);
+      for (let r = col + 1; r < n; r++) {
+        const v = Math.abs(M[r][col]);
+        if (v > maxAbs) {
+          maxAbs = v;
+          pivot = r;
+        }
+      }
+      if (maxAbs < 1e-12) return null;
+      if (pivot !== col) {
+        const tmp = M[col];
+        M[col] = M[pivot];
+        M[pivot] = tmp;
+      }
+      const diag = M[col][col];
+      for (let r = col + 1; r < n; r++) {
+        const f = M[r][col] / diag;
+        for (let c = col; c <= n; c++) M[r][c] -= f * M[col][c];
+      }
+    }
+    const x = new Array(n).fill(0);
+    for (let r = n - 1; r >= 0; r--) {
+      let sum = M[r][n];
+      for (let c = r + 1; c < n; c++) sum -= M[r][c] * x[c];
+      x[r] = sum / M[r][r];
+    }
+    return x;
+  }
+
+  /* Fit L2-regularized Ridge Regression on standardized features with unpenalized intercept.
+   * X: array of feature arrays (rows x d), y: array of targets (length rows), lambda > 0. */
+  function fitRidge(X, y, lambda = 10) {
+    const n = X.length;
+    if (!n || !X[0] || !X[0].length) return null;
+    const d = X[0].length;
+    const means = new Array(d).fill(0);
+    const stds = new Array(d).fill(0);
+    let yMean = 0;
+    for (let i = 0; i < n; i++) {
+      yMean += y[i];
+      for (let j = 0; j < d; j++) means[j] += X[i][j];
+    }
+    yMean /= n;
+    for (let j = 0; j < d; j++) means[j] /= n;
+
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < d; j++) {
+        const diff = X[i][j] - means[j];
+        stds[j] += diff * diff;
+      }
+    }
+    for (let j = 0; j < d; j++) {
+      stds[j] = Math.sqrt(stds[j] / n);
+      if (stds[j] < 1e-8) stds[j] = 1;
+    }
+
+    // Build normal equations (Z^T Z + lambda I) w = Z^T (y - yMean)
+    const XtX = Array.from({ length: d }, () => new Array(d).fill(0));
+    const Xty = new Array(d).fill(0);
+    for (let i = 0; i < n; i++) {
+      const z = new Array(d);
+      for (let j = 0; j < d; j++) z[j] = (X[i][j] - means[j]) / stds[j];
+      const yc = y[i] - yMean;
+      for (let j = 0; j < d; j++) {
+        Xty[j] += z[j] * yc;
+        for (let k = j; k < d; k++) XtX[j][k] += z[j] * z[k];
+      }
+    }
+    for (let j = 0; j < d; j++) {
+      XtX[j][j] += lambda;
+      for (let k = 0; k < j; k++) XtX[j][k] = XtX[k][j];
+    }
+    const weights = solveLinearSystem(XtX, Xty);
+    if (!weights) return null;
+    return { intercept: yMean, weights, means, stds, lambda };
+  }
+
+  /* Predict log-residual and feature contributions for a feature vector given a fitted Ridge model. */
+  function predictRidgeResidual(model, featVec, featureNames = []) {
+    if (!model || !Array.isArray(featVec) || featVec.length !== model.weights.length) return null;
+    let predLogRatio = model.intercept;
+    const contributions = [];
+    for (let j = 0; j < model.weights.length; j++) {
+      const val = Number.isFinite(featVec[j]) ? featVec[j] : model.means[j];
+      const z = (val - model.means[j]) / (model.stds[j] || 1);
+      const contrib = model.weights[j] * z;
+      predLogRatio += contrib;
+      contributions.push({
+        key: featureNames[j] || `f${j}`,
+        raw: Math.round(val * 1000) / 1000,
+        zScore: Math.round(z * 100) / 100,
+        weight: Math.round(model.weights[j] * 1000) / 1000,
+        logContrib: Math.round(contrib * 1000) / 1000,
+        pctEffect: Math.round((Math.exp(contrib) - 1) * 1000) / 10
+      });
+    }
+    // Clamp extreme extrapolation ratios safely to [0.5x, 12x]
+    const clampedLog = Math.max(Math.log(0.5), Math.min(Math.log(12), predLogRatio));
+    return {
+      logRatio: Math.round(clampedLog * 1000) / 1000,
+      ratio: Math.round(Math.exp(clampedLog) * 100) / 100,
+      contributions: contributions.sort((a, b) => Math.abs(b.logContrib) - Math.abs(a.logContrib))
+    };
+  }
+
+  function scoreErrorArray(errs) {
+    if (!errs.length) return null;
+    const s = errs.slice().sort((a, b) => a - b);
+    return {
+      n: s.length,
+      mdapePct: Math.round(quantile(s, 0.5) * 1000) / 10,
+      p90ApePct: Math.round(quantile(s, 0.9) * 1000) / 10,
+      within25Pct: Math.round((s.filter((x) => x <= 0.25).length / s.length) * 1000) / 10
+    };
+  }
+
+  /* Spatially blocked Leave-One-Cluster-Out CV for 14-Feature Spatial Residual Ridge.
+   * Each item in `pairs` must have: { cluster, district, price, gv, features: number[] }.
+   * Standardizes features STRICTLY inside each fold — zero leakage. */
+  function evaluateSpatialResidualRidgeCV(pairs, featureMeta = ML_FEATURE_META, alpha = 0.2) {
+    const valid = (pairs || []).filter(
+      (r) =>
+        r &&
+        Number.isFinite(r.price) &&
+        r.price > 0 &&
+        Number.isFinite(r.gv) &&
+        r.gv > 0 &&
+        r.cluster &&
+        Array.isArray(r.features) &&
+        r.features.length > 0
+    );
+    const clusters = [...new Set(valid.map((r) => r.cluster))];
+    if (valid.length < 12 || clusters.length < 5) {
+      return { ok: false, reason: "Need at least 12 feature-paired rows across ≥5 clusters for spatial Ridge CV." };
+    }
+
+    const lambdas = [3, 10, 25, 60, 120];
+    let best = null;
+
+    for (const lam of lambdas) {
+      const errs = [];
+      const absLogRes = [];
+      const oofPreds = [];
+      for (const row of valid) {
+        const train = valid.filter((t) => t.cluster !== row.cluster);
+        const Xtr = train.map((t) => t.features);
+        const ytr = train.map((t) => Math.log(t.price / t.gv));
+        const mod = fitRidge(Xtr, ytr, lam);
+        if (!mod) continue;
+        const predObj = predictRidgeResidual(mod, row.features);
+        const predPrice = row.gv * Math.exp(predObj.logRatio);
+        errs.push(Math.abs(predPrice / row.price - 1));
+        absLogRes.push(Math.abs(Math.log(row.price) - Math.log(predPrice)));
+        oofPreds.push({ actual: row.price, pred: predPrice, cluster: row.cluster });
+      }
+      if (errs.length !== valid.length) continue;
+      const metrics = scoreErrorArray(errs);
+      if (!best || metrics.mdapePct < best.metrics.mdapePct || (metrics.mdapePct === best.metrics.mdapePct && metrics.p90ApePct < best.metrics.p90ApePct)) {
+        best = { lambda: lam, metrics, absLogRes, oofPreds };
+      }
+    }
+
+    if (!best) return { ok: false, reason: "Ridge linear solve failed." };
+
+    // Out-of-fold split-conformal coverage
+    let covered = 0;
+    const widths = [];
+    for (let i = 0; i < best.oofPreds.length; i++) {
+      const targetCluster = best.oofPreds[i].cluster;
+      const calRes = best.absLogRes
+        .filter((_, idx) => best.oofPreds[idx].cluster !== targetCluster)
+        .sort((a, b) => a - b);
+      const rank = Math.min(calRes.length, Math.ceil((calRes.length + 1) * (1 - alpha)));
+      const qRadius = calRes[rank - 1];
+      const lo = best.oofPreds[i].pred * Math.exp(-qRadius);
+      const hi = best.oofPreds[i].pred * Math.exp(qRadius);
+      if (best.oofPreds[i].actual >= lo && best.oofPreds[i].actual <= hi) covered++;
+      widths.push(((hi - lo) / best.oofPreds[i].actual) * 100);
+    }
+
+    const fullSorted = best.absLogRes.slice().sort((a, b) => a - b);
+    const fullRank = Math.min(fullSorted.length, Math.ceil((fullSorted.length + 1) * (1 - alpha)));
+    const conformalLogRadius = fullSorted[fullRank - 1];
+
+    // Fit full production weights using the CV-selected lambda
+    const fullModel = fitRidge(
+      valid.map((r) => r.features),
+      valid.map((r) => Math.log(r.price / r.gv)),
+      best.lambda
+    );
+
+    const featureWeights = (fullModel ? fullModel.weights : []).map((w, idx) => ({
+      key: (featureMeta[idx] && featureMeta[idx].key) || `f${idx}`,
+      label: (featureMeta[idx] && featureMeta[idx].label) || `Feature ${idx}`,
+      group: (featureMeta[idx] && featureMeta[idx].group) || "Other",
+      weight: Math.round(w * 1000) / 1000,
+      pctPerStd: Math.round((Math.exp(w) - 1) * 1000) / 10
+    })).sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight));
+
+    return {
+      ok: true,
+      lambda: best.lambda,
+      featureCount: valid[0].features.length,
+      metrics: best.metrics,
+      conformalLogRadius: Math.round(conformalLogRadius * 1000) / 1000,
+      conformalNominalPct: Math.round((1 - alpha) * 100),
+      conformalEmpiricalCoveragePct: Math.round((covered / best.oofPreds.length) * 1000) / 10,
+      conformalMedianWidthPct: Math.round(median(widths) * 10) / 10,
+      featureWeights,
+      model: fullModel
+        ? {
+            intercept: Math.round(fullModel.intercept * 10000) / 10000,
+            weights: fullModel.weights.map((x) => Math.round(x * 10000) / 10000),
+            means: fullModel.means.map((x) => Math.round(x * 10000) / 10000),
+            stds: fullModel.stds.map((x) => Math.round(x * 10000) / 10000),
+            lambda: fullModel.lambda
+          }
+        : null
+    };
+  }
+
   /* Leave-one-locality-cluster-out cross-validation comparing:
    *  (A) Naive coordinate/district-median baseline (raw price)
-   *  (B) Anchor-relative baseline: GV_local * out-of-fold median(P / GV)
+   *  (B) Existing heuristic engine.js (if heuristicPrice provided)
+   *  (C) Anchor-relative baseline: GV_local * out-of-fold median(P / GV)
+   *  (D) 14-Feature Spatial Residual Ridge (if features provided)
    *      with split-conformal 80% log-residual interval calibration.
-   * Each item in `pairs` must have: { cluster, district, price, gv, heuristicPrice? }.
    */
   function evaluateAnchorRelativeCV(pairs, alpha = 0.2) {
     const valid = (pairs || []).filter(
@@ -321,16 +598,6 @@
         reason: "Need at least 3 distinct locality clusters for spatially blocked evaluation."
       };
     }
-
-    const scoreErrors = (errs) => {
-      const s = errs.slice().sort((a, b) => a - b);
-      return {
-        n: s.length,
-        mdapePct: Math.round(quantile(s, 0.5) * 1000) / 10,
-        p90ApePct: Math.round(quantile(s, 0.9) * 1000) / 10,
-        within25Pct: Math.round((s.filter((x) => x <= 0.25).length / s.length) * 1000) / 10
-      };
-    };
 
     const naiveErrs = [];
     const anchorErrs = [];
@@ -381,13 +648,28 @@
     const byDistrict = {};
     for (const d of [...new Set(valid.map((r) => r.district))]) {
       const dRows = valid.filter((r) => r.district === d);
+      const dRatios = dRows.map((r) => r.price / r.gv).sort((a, b) => a - b);
       byDistrict[d] = {
         n: dRows.length,
-        medianRatio: Math.round(median(dRows.map((r) => r.price / r.gv)) * 100) / 100,
-        p25Ratio: Math.round(quantile(dRows.map((r) => r.price / r.gv).sort((a, b) => a - b), 0.25) * 100) / 100,
-        p75Ratio: Math.round(quantile(dRows.map((r) => r.price / r.gv).sort((a, b) => a - b), 0.75) * 100) / 100
+        medianRatio: Math.round(median(dRatios) * 100) / 100,
+        p25Ratio: Math.round(quantile(dRatios, 0.25) * 100) / 100,
+        p75Ratio: Math.round(quantile(dRatios, 0.75) * 100) / 100
       };
     }
+
+    const anchorMetrics = scoreErrorArray(anchorErrs);
+    const ridgeCV = valid.every((r) => Array.isArray(r.features) && r.features.length > 0)
+      ? evaluateSpatialResidualRidgeCV(valid, ML_FEATURE_META, alpha)
+      : null;
+
+    // Honest promotion gate: promote Ridge over Anchor-Relative only if it cuts MdAPE by >= 1.5pp
+    // AND does not worsen P90 tail error by > 5pp
+    const ridgePromoted = Boolean(
+      ridgeCV &&
+      ridgeCV.ok &&
+      ridgeCV.metrics.mdapePct <= anchorMetrics.mdapePct - 1.5 &&
+      ridgeCV.metrics.p90ApePct <= anchorMetrics.p90ApePct + 5
+    );
 
     return {
       ok: true,
@@ -399,22 +681,154 @@
       conformalNominalPct: Math.round((1 - alpha) * 100),
       conformalEmpiricalCoveragePct: Math.round((covered / oofPreds.length) * 1000) / 10,
       conformalMedianWidthPct: Math.round(median(widths) * 10) / 10,
-      naiveDistrictMedian: scoreErrors(naiveErrs),
-      anchorRelativeBaseline: scoreErrors(anchorErrs),
-      existingHeuristic: heuristicErrs.length === valid.length ? scoreErrors(heuristicErrs) : null,
+      naiveDistrictMedian: scoreErrorArray(naiveErrs),
+      anchorRelativeBaseline: anchorMetrics,
+      existingHeuristic: heuristicErrs.length === valid.length ? scoreErrorArray(heuristicErrs) : null,
+      spatialResidualRidge: ridgeCV && ridgeCV.ok ? ridgeCV : null,
+      ridgePromoted,
+      activeTier2Model: ridgePromoted ? "14-Feature Spatial Residual Ridge" : "Anchor-Relative (GV × Local Ratio)",
       byDistrict
     };
   }
 
-  /* Core Pilot Quote Evaluator with explicit abstention gate.
-   * Inputs:
-   *  - askSqft: positive number (Rs/sq ft)
-   *  - guidelineAnchor: { median, p10, p90, streetCount, village, sro, district, distanceKm, updated2025?, streetRate?, streetName? } | null
-   *  - nearbyEntries: raw nearby entries [{ p, d }] within maxRadiusKm
-   *  - cvBenchmark: output of evaluateAnchorRelativeCV (provides calibrated ratio & conformalLogRadius)
-   *  - gate: optional overrides for DEFAULT_GATE
+  /* Tamil Nadu Statutory Closing Cost, Section 47A & TDS Calculator (Tier 1 Statutory Rules).
+   * - Stamp Duty: 7% on max(declared consideration, official TNREGINET guideline floor)
+   * - Registration Fee: 4% standard (3% women-buyer concession on assessed value <= Rs 10 lakh)
+   * - TDS (Income Tax Sec 194-IA / Form 26QB): 1% deducted from seller when total value >= Rs 50 lakh
+   * - Section 47A Risk: Triggered when declared consideration < official statutory guideline floor
    */
-  function evaluateQuote({ askSqft, guidelineAnchor, nearbyEntries, cvBenchmark, gate = {} }) {
+  function calculateTNClosingCosts({
+    askSqft,
+    floorSqft,
+    areaSqft = 1200,
+    buyerType = "standard",
+    declaredPct = 100
+  } = {}) {
+    const ask = Number(askSqft);
+    const area = Number(areaSqft);
+    if (!Number.isFinite(ask) || ask <= 0 || !Number.isFinite(area) || area <= 0) {
+      return null;
+    }
+    const floor = Number.isFinite(Number(floorSqft)) && Number(floorSqft) > 0 ? Number(floorSqft) : 0;
+    const decPct = Math.max(40, Math.min(100, Number.isFinite(Number(declaredPct)) ? Number(declaredPct) : 100));
+
+    const marketTotal = Math.round(ask * area);
+    const statutoryFloorTotal = Math.round(floor * area);
+    const declaredConsideration = Math.round(marketTotal * (decPct / 100));
+    const assessedValue = Math.max(declaredConsideration, statutoryFloorTotal);
+
+    const stampDutyRate = 0.07;
+    const regFeeRate = buyerType === "woman_le_10l" && assessedValue <= 1000000 ? 0.03 : 0.04;
+    const stampDuty = Math.round(assessedValue * stampDutyRate);
+    const registrationFee = Math.round(assessedValue * regFeeRate);
+    const totalGovtFees = stampDuty + registrationFee;
+
+    // Income Tax Sec 194-IA applies when total property value >= Rs 50,00,000 (deducted from seller payment)
+    const tdsApplicable = Math.max(marketTotal, statutoryFloorTotal) >= 5000000;
+    const tdsAmount = tdsApplicable ? Math.round(Math.max(declaredConsideration, statutoryFloorTotal) * 0.01) : 0;
+
+    const section47ARisk = statutoryFloorTotal > 0 && declaredConsideration < statutoryFloorTotal;
+    const section47AShortfall = section47ARisk ? statutoryFloorTotal - declaredConsideration : 0;
+    const cashComponent = Math.max(0, marketTotal - declaredConsideration);
+    const allInCost = marketTotal + totalGovtFees;
+    const effectiveAllInSqft = Math.round(allInCost / area);
+    const effectiveOverheadPct = Math.round((totalGovtFees / marketTotal) * 1000) / 10;
+
+    return {
+      areaSqft: Math.round(area),
+      askSqft: Math.round(ask),
+      floorSqft: Math.round(floor),
+      buyerType,
+      declaredPct: decPct,
+      marketTotal,
+      statutoryFloorTotal,
+      declaredConsideration,
+      assessedValue,
+      stampDutyRatePct: 7,
+      regFeeRatePct: regFeeRate * 100,
+      stampDuty,
+      registrationFee,
+      totalGovtFees,
+      tdsApplicable,
+      tdsAmount,
+      section47ARisk,
+      section47AShortfall,
+      cashComponent,
+      allInCost,
+      effectiveAllInSqft,
+      effectiveOverheadPct
+    };
+  }
+
+  /* Post-Tax Break-Even Appreciation & Opportunity-Cost Calculator (Tier 3 Scenario Math).
+   * Uses India Finance Act 2024 flat 12.5% LTCG on land held >= 2 years (30% STCG if < 2 years),
+   * 2% exit brokerage, and compares against post-tax Bank FD (7.2% * 0.70 = 5.04%) & Equity (12% gross). */
+  function calculateInvestmentBreakEven({
+    allInCost,
+    baseMarketValue,
+    holdYears = 5,
+    expectedAnnualGrowthPct = 9,
+    exitBrokeragePct = 2,
+    fdRatePct = 7.2,
+    equityRatePct = 12.0
+  } = {}) {
+    const cost = Number(allInCost);
+    const base = Number(baseMarketValue);
+    const yrs = Math.max(1, Math.min(20, Number(holdYears) || 5));
+    if (!Number.isFinite(cost) || cost <= 0 || !Number.isFinite(base) || base <= 0) return null;
+
+    const taxRate = yrs >= 2 ? 0.125 : 0.30;
+    const brok = Math.max(0, Math.min(0.06, (Number(exitBrokeragePct) || 0) / 100));
+
+    // Solve for gross exit value V such that net proceeds = targetNet:
+    // net = V*(1 - brok) - taxRate * max(0, V*(1 - brok) - cost) = targetNet
+    const requiredCagrForTargetNet = (targetNet) => {
+      let reqGrossNetOfBrok;
+      if (targetNet <= cost) {
+        reqGrossNetOfBrok = targetNet;
+      } else {
+        reqGrossNetOfBrok = (targetNet - taxRate * cost) / (1 - taxRate);
+      }
+      const reqGrossExit = reqGrossNetOfBrok / (1 - brok);
+      const cagr = Math.pow(reqGrossExit / base, 1 / yrs) - 1;
+      return Math.round(cagr * 1000) / 10;
+    };
+
+    const fdNetRate = (fdRatePct / 100) * 0.7; // assuming 30% slab on FD interest
+    const fdTargetNet = cost * Math.pow(1 + fdNetRate, yrs);
+    const eqGross = cost * Math.pow(1 + equityRatePct / 100, yrs);
+    const eqTargetNet = eqGross - 0.125 * Math.max(0, eqGross - cost);
+
+    const g = (Number(expectedAnnualGrowthPct) || 0) / 100;
+    const projectedGrossExit = Math.round(base * Math.pow(1 + g, yrs));
+    const exitBrokerage = Math.round(projectedGrossExit * brok);
+    const netBeforeTax = projectedGrossExit - exitBrokerage;
+    const capitalGain = Math.max(0, netBeforeTax - cost);
+    const capitalGainsTax = Math.round(capitalGain * taxRate);
+    const netProceeds = netBeforeTax - capitalGainsTax;
+    const netProfit = netProceeds - cost;
+    const netIrrPct = Math.round((Math.pow(Math.max(1, netProceeds) / cost, 1 / yrs) - 1) * 1000) / 10;
+
+    return {
+      holdYears: yrs,
+      taxRegime: yrs >= 2 ? "12.5% LTCG (≥2 yrs, no indexation)" : "30% STCG (<2 yrs)",
+      breakEvenCagrPct: requiredCagrForTargetNet(cost),
+      beatFdCagrPct: requiredCagrForTargetNet(fdTargetNet),
+      beatEquityCagrPct: requiredCagrForTargetNet(eqTargetNet),
+      expectedAnnualGrowthPct: Number(expectedAnnualGrowthPct),
+      projectedGrossExit,
+      exitBrokerage,
+      capitalGainsTax,
+      netProceeds,
+      netProfit,
+      netIrrPct,
+      fdComparisonNet: Math.round(fdTargetNet),
+      equityComparisonNet: Math.round(eqTargetNet)
+    };
+  }
+
+  /* Core Quote Evaluator with explicit abstention gate + optional Ridge feature vector. */
+  function evaluateQuote({ askSqft, guidelineAnchor, nearbyEntries, cvBenchmark, villageFeatures = null, gate = {} }) {
     const G = Object.assign({}, DEFAULT_GATE, gate);
     if (!Number.isFinite(askSqft) || askSqft <= 0) {
       return { status: "invalid", reason: "Enter a positive asking price and valid area." };
@@ -437,7 +851,6 @@
       floorSqft != null &&
       (!Number.isFinite(guidelineAnchor.distanceKm) || guidelineAnchor.distanceKm <= G.minGuidelineAnchorKm);
 
-    // Check abstention triggers
     const missing = [];
     if (!anchorWithinRange) {
       missing.push(`No matched official residential guideline anchor within ${G.minGuidelineAnchorKm} km`);
@@ -456,7 +869,6 @@
     const ratioToFloor = floorSqft ? Math.round((askSqft / floorSqft) * 100) / 100 : null;
     const belowStatutoryFloor = floorSqft != null && askSqft < floorSqft;
 
-    // Separate stratum summaries (never pooled)
     const stratumSummary = (rows) => {
       if (!rows.length) return null;
       const vals = rows.map((r) => r.value).sort((a, b) => a - b);
@@ -476,6 +888,30 @@
       compensationCount: strat.strata.compensation.length
     };
 
+    // Optional Ridge attribution (computed for transparency even if anchor-relative is active)
+    let ridgeDetail = null;
+    if (
+      floorSqft &&
+      cvBenchmark &&
+      cvBenchmark.spatialResidualRidge &&
+      cvBenchmark.spatialResidualRidge.model &&
+      Array.isArray(villageFeatures) &&
+      villageFeatures.length === cvBenchmark.spatialResidualRidge.model.weights.length
+    ) {
+      const rp = predictRidgeResidual(
+        cvBenchmark.spatialResidualRidge.model,
+        villageFeatures,
+        ML_FEATURE_META.map((m) => m.key)
+      );
+      if (rp) {
+        ridgeDetail = {
+          ratio: rp.ratio,
+          midSqft: Math.round(floorSqft * rp.ratio),
+          topDrivers: rp.contributions.slice(0, 5)
+        };
+      }
+    }
+
     if (missing.length > 0 || !cvBenchmark || !cvBenchmark.ok) {
       return {
         status: "abstain",
@@ -484,7 +920,8 @@
         floorSqft: floorSqft ? Math.round(floorSqft) : null,
         ratioToFloor,
         belowStatutoryFloor,
-        reasons: missing.length ? missing : ["No calibrated pilot benchmark available for this corridor"],
+        ridgeDetail,
+        reasons: missing.length ? missing : ["No calibrated benchmark available for this corridor"],
         evidence: {
           independentCount: strat.independentCount,
           distinctDomainCount: strat.distinctDomainCount,
@@ -495,20 +932,29 @@
       };
     }
 
-    // Tier 2: Anchor-relative corridor using local district ratio (fallback to pilot ratio) + split-conformal radius
+    // Tier 2: Use promoted 14-Feature Spatial Residual Ridge if it passed the CV promotion gate & features exist;
+    // otherwise use Anchor-Relative (GV × local district ratio).
+    const useRidge = Boolean(cvBenchmark.ridgePromoted && ridgeDetail && cvBenchmark.spatialResidualRidge);
     const dKey = normalizeDistrict(guidelineAnchor.district);
-    const localRatio =
+    const anchorRatio =
       cvBenchmark.byDistrict && cvBenchmark.byDistrict[dKey] && cvBenchmark.byDistrict[dKey].n >= 5
         ? cvBenchmark.byDistrict[dKey].medianRatio
         : cvBenchmark.medianMarketToGvRatio;
 
+    const localRatio = useRidge ? ridgeDetail.ratio : anchorRatio;
     const anchorMid = floorSqft * localRatio;
-    const rad = Number.isFinite(cvBenchmark.conformalLogRadius) ? cvBenchmark.conformalLogRadius : 0.45;
+    const rad = useRidge
+      ? cvBenchmark.spatialResidualRidge.conformalLogRadius
+      : Number.isFinite(cvBenchmark.conformalLogRadius)
+        ? cvBenchmark.conformalLogRadius
+        : 0.45;
     const corridorLow = Math.max(floorSqft, anchorMid * Math.exp(-rad));
     const corridorHigh = anchorMid * Math.exp(rad);
 
     let position = "within_corridor";
-    let positionLabel = "Inside empirical anchor-relative corridor";
+    let positionLabel = useRidge
+      ? "Inside 14-feature spatial residual corridor"
+      : "Inside empirical anchor-relative corridor";
     if (belowStatutoryFloor) {
       position = "below_floor";
       positionLabel = "Below official guideline floor (verify title, classification, or distress)";
@@ -517,25 +963,42 @@
       positionLabel = "Below empirical corridor (check road access, layout approval, or water risk)";
     } else if (askSqft > corridorHigh) {
       position = "above_corridor";
-      positionLabel = "Above empirical anchor-relative corridor";
+      positionLabel = "Above empirical benchmark corridor";
     }
+
+    // Practical negotiation counter-offer band grounded on empirical corridor
+    const negotiation = {
+      openingOfferSqft: Math.round(Math.max(floorSqft, corridorLow + (anchorMid - corridorLow) * 0.35)),
+      fairTargetSqft: Math.round(anchorMid),
+      walkAwaySqft: Math.round(corridorHigh),
+      potentialSavingsSqft: askSqft > anchorMid ? Math.round(askSqft - anchorMid) : 0
+    };
 
     return {
       status: "benchmarked",
-      tier: "Tier 1 observed + Tier 2 anchor-relative benchmark",
+      tier: useRidge
+        ? "Tier 1 observed + Tier 2 14-Feature Residual Ridge"
+        : "Tier 1 observed + Tier 2 anchor-relative benchmark",
       askSqft: Math.round(askSqft),
       floorSqft: Math.round(floorSqft),
       ratioToFloor,
       belowStatutoryFloor,
       benchmark: {
+        modelName: useRidge ? "14-Feature Spatial Residual Ridge" : "Anchor-Relative (GV × Local Ratio)",
         localRatio,
         midSqft: Math.round(anchorMid),
         lowSqft: Math.round(corridorLow),
         highSqft: Math.round(corridorHigh),
-        nominalPct: cvBenchmark.conformalNominalPct,
-        empiricalCoveragePct: cvBenchmark.conformalEmpiricalCoveragePct,
-        mdapePct: cvBenchmark.anchorRelativeBaseline.mdapePct
+        nominalPct: useRidge ? cvBenchmark.spatialResidualRidge.conformalNominalPct : cvBenchmark.conformalNominalPct,
+        empiricalCoveragePct: useRidge
+          ? cvBenchmark.spatialResidualRidge.conformalEmpiricalCoveragePct
+          : cvBenchmark.conformalEmpiricalCoveragePct,
+        mdapePct: useRidge
+          ? cvBenchmark.spatialResidualRidge.metrics.mdapePct
+          : cvBenchmark.anchorRelativeBaseline.mdapePct
       },
+      negotiation,
+      ridgeDetail,
       position,
       positionLabel,
       evidence: {
@@ -594,8 +1057,8 @@
     return out.slice(0, limit);
   }
 
-  /* Dynamic statutory & legal due-diligence checklist tailored to quote verdict. */
-  function dueDiligenceChecklist(res) {
+  /* Dynamic statutory & legal due-diligence checklist tailored to quote verdict & closing risks. */
+  function dueDiligenceChecklist(res, closing = null) {
     const items = [];
     if (!res || res.status === "invalid") return items;
 
@@ -604,6 +1067,12 @@
         priority: "urgent",
         title: "Quote is below official statutory guideline floor",
         detail: `Asking rate (₹${res.askSqft}/sq ft) sits below the official TNREGINET floor (₹${res.floorSqft}/sq ft). Under Section 47A of the Indian Stamp Act, stamp duty is assessed at least at guideline value; inspect immediately for title defect, poramboke/waterbody classification, or litigation.`
+      });
+    } else if (closing && closing.section47ARisk) {
+      items.push({
+        priority: "urgent",
+        title: "Section 47A under-valuation risk triggered",
+        detail: `Declared registration value (₹${closing.declaredConsideration.toLocaleString("en-IN")}) is ₹${closing.section47AShortfall.toLocaleString("en-IN")} below the official statutory floor. Sub-Registrar will impound or levy duty on ₹${closing.assessedValue.toLocaleString("en-IN")}.`
       });
     } else if (res.status === "abstain") {
       items.push({
@@ -622,6 +1091,14 @@
         priority: "medium",
         title: "Verify site constraints behind lower-than-corridor quote",
         detail: "Check approach road width, OSR/road gifting compliance, low-lying flood history (JRC water occurrence), and unapproved layout regularization status."
+      });
+    }
+
+    if (closing && closing.tdsApplicable) {
+      items.push({
+        priority: "high",
+        title: "Mandatory 1% TDS filing (Form 26QB, Sec 194-IA)",
+        detail: `Property value exceeds ₹50 lakh. Buyer must deduct ₹${closing.tdsAmount.toLocaleString("en-IN")} (1%) from seller payment and remit via Income Tax Form 26QB within 30 days of month-end.`
       });
     }
 
@@ -646,11 +1123,14 @@
   }
 
   /* Build a clean, auditable Markdown Underwriting Brief separating Tier 1 / Tier 2 / Tier 3. */
-  function formatUnderwritingMemoMarkdown(res, { village, street, catalysts = [], heuristicSqft = null, generatedUtc = new Date().toISOString() } = {}) {
+  function formatUnderwritingMemoMarkdown(
+    res,
+    { village, street, catalysts = [], closing = null, breakeven = null, heuristicSqft = null, generatedUtc = new Date().toISOString() } = {}
+  ) {
     if (!res || res.status === "invalid") return "";
     const v = village || {};
     const lines = [
-      `# Bhoomi Lens — Tamil Nadu Residential Plot Underwriting Brief`,
+      `# Bhoomi Lens — Tamil Nadu Residential Plot Underwriting Dossier`,
       `- **Generated (UTC):** ${generatedUtc}`,
       `- **Jurisdiction:** ${v.v || "Unknown village"} (SRO: ${v.sro || "N/A"}), ${v.d || "Tamil Nadu"}`,
       `- **Asking Quote:** ₹${res.askSqft.toLocaleString("en-IN")} / sq ft${res.ratioToFloor ? ` (${res.ratioToFloor}× statutory floor)` : ""}`,
@@ -661,15 +1141,37 @@
 
     if (res.status === "benchmarked") {
       lines.push(
+        `- **Model:** ${res.benchmark.modelName}`,
         `- **Verdict:** ${res.positionLabel}`,
-        `- **Anchor-Relative Midpoint:** ₹${res.benchmark.midSqft.toLocaleString("en-IN")} / sq ft (Floor × ${res.benchmark.localRatio}× empirical district ratio)`,
+        `- **Benchmarked Midpoint:** ₹${res.benchmark.midSqft.toLocaleString("en-IN")} / sq ft (Floor × ${res.benchmark.localRatio}× ratio)`,
         `- **${res.benchmark.nominalPct}% Split-Conformal Corridor (OOF coverage ${res.benchmark.empiricalCoveragePct}%):** ₹${res.benchmark.lowSqft.toLocaleString("en-IN")} – ₹${res.benchmark.highSqft.toLocaleString("en-IN")} / sq ft`,
-        `- **Pilot Out-of-Fold MdAPE:** ${res.benchmark.mdapePct}%`
+        `- **Statewide Out-of-Fold MdAPE:** ${res.benchmark.mdapePct}%`
       );
+      if (res.negotiation) {
+        lines.push(
+          `- **Suggested Counter-Offer Band:** Open at ₹${res.negotiation.openingOfferSqft.toLocaleString("en-IN")}/sf · Fair target ₹${res.negotiation.fairTargetSqft.toLocaleString("en-IN")}/sf · Walk-away ₹${res.negotiation.walkAwaySqft.toLocaleString("en-IN")}/sf`
+        );
+      }
     } else {
       lines.push(
         `- **Verdict:** ABSTAIN — Bhoomi Lens declines to extrapolate a price corridor here.`,
         ...res.reasons.map((r) => `- **Gate failure:** ${r}`)
+      );
+    }
+
+    if (closing) {
+      lines.push(
+        ``,
+        `## Tier 1 · Statutory Closing Cost Ledger (${closing.areaSqft.toLocaleString("en-IN")} sq ft plot)`,
+        `- **Quoted Plot Value:** ₹${closing.marketTotal.toLocaleString("en-IN")}`,
+        `- **Statutory Guideline Floor Total:** ₹${closing.statutoryFloorTotal.toLocaleString("en-IN")}`,
+        `- **Assessed Stamp Duty Value:** ₹${closing.assessedValue.toLocaleString("en-IN")} (${closing.declaredPct}% declared)`,
+        `- **Tamil Nadu Stamp Duty (${closing.stampDutyRatePct}%):** ₹${closing.stampDuty.toLocaleString("en-IN")}`,
+        `- **Registration Fee (${closing.regFeeRatePct}%):** ₹${closing.registrationFee.toLocaleString("en-IN")}`,
+        `- **All-In Acquisition Cost:** ₹${closing.allInCost.toLocaleString("en-IN")} (₹${closing.effectiveAllInSqft.toLocaleString("en-IN")}/sq ft · +${closing.effectiveOverheadPct}% statutory overhead)`,
+        closing.tdsApplicable
+          ? `- **TDS (Sec 194-IA · Form 26QB):** ₹${closing.tdsAmount.toLocaleString("en-IN")} (1% deducted from seller payment)`
+          : `- **TDS (Sec 194-IA):** Not triggered (< ₹50 lakh)`
       );
     }
 
@@ -708,15 +1210,25 @@
     }
 
     lines.push(``, `## Buyer Due-Diligence Checklist`);
-    for (const item of dueDiligenceChecklist(res)) {
+    for (const item of dueDiligenceChecklist(res, closing)) {
       lines.push(`- **[${item.priority.toUpperCase()}] ${item.title}:** ${item.detail}`);
+    }
+
+    if (breakeven) {
+      lines.push(
+        ``,
+        `## Tier 3 · Post-Tax Break-Even & Scenario (${breakeven.holdYears}-Yr Hold · ${breakeven.taxRegime})`,
+        `- **Zero-Profit Break-Even Appreciation:** ${breakeven.breakEvenCagrPct}% p.a.`,
+        `- **Appreciation Needed to Beat Post-Tax Bank FD (7.2%):** ${breakeven.beatFdCagrPct}% p.a.`,
+        `- **Appreciation Needed to Beat Equity Index (12%):** ${breakeven.beatEquityCagrPct}% p.a.`
+      );
     }
 
     if (heuristicSqft) {
       lines.push(
         ``,
         `## Tier 3 · Heuristic Context (Excluded from Verdict)`,
-        `- Nationwide gravity + kernel formula (\`js/engine.js\`): ₹${Math.round(heuristicSqft).toLocaleString("en-IN")} / sq ft. Spatially blocked P90 tail error is 286.3% on pilot data; treat strictly as exploratory context.`
+        `- Nationwide gravity + kernel formula (\`js/engine.js\`): ₹${Math.round(heuristicSqft).toLocaleString("en-IN")} / sq ft. Treat strictly as exploratory context.`
       );
     }
 
@@ -724,17 +1236,14 @@
     return lines.join("\n");
   }
 
-  /* Blind Public E-Auction & Allotment Clearing Test Evaluator.
-   * Each row: { auctionId, district, lat, lon, priceSqft, gvSqft?, sourceUrl, date }
-   * Villages: pilot village summaries [{ v, d, lat, lon, med, gate, evN, evDom }]
-   */
+  /* Blind Public E-Auction & Allotment Clearing Test Evaluator (all 38 TN districts). */
   function evaluateBlindAuctionRows(rows, { villages = [], nearbyPool = [], cvBenchmark, gate = {}, districtMedians = {} } = {}) {
     const G = Object.assign({}, DEFAULT_GATE, gate);
     if (!Array.isArray(rows) || !rows.length) {
       return { ok: false, reason: "No blind auction clearing rows provided." };
     }
     if (!cvBenchmark || !cvBenchmark.ok) {
-      return { ok: false, reason: "Valid pilot CV benchmark is required." };
+      return { ok: false, reason: "Valid CV benchmark is required." };
     }
 
     const existingUrls = new Set(
@@ -751,13 +1260,12 @@
 
     for (const row of rows) {
       const dist = normalizeDistrict(row.district);
-      if (!isPilotDistrict(dist)) continue;
+      if (!isTNDistrict(dist)) continue;
       if (row.sourceUrl && existingUrls.has(String(row.sourceUrl).trim())) {
         leakageRejected++;
         continue;
       }
 
-      // Nearest official residential village anchor within 5 km
       let bestV = null;
       let bestD = Infinity;
       for (const v of villages) {
@@ -795,6 +1303,7 @@
         guidelineAnchor: anchor,
         nearbyEntries: near,
         cvBenchmark,
+        villageFeatures: bestV && Array.isArray(bestV.f) ? bestV.f : null,
         gate: G
       });
 
@@ -832,19 +1341,8 @@
       results.push(entry);
     }
 
-    const score = (errs) => {
-      if (!errs.length) return null;
-      const s = errs.slice().sort((a, b) => a - b);
-      return {
-        n: s.length,
-        mdapePct: Math.round(quantile(s, 0.5) * 1000) / 10,
-        p90ApePct: Math.round(quantile(s, 0.9) * 1000) / 10,
-        within25Pct: Math.round((s.filter((x) => x <= 0.25).length / s.length) * 1000) / 10
-      };
-    };
-
-    const anchorScore = score(anchorErrs);
-    const naiveScore = score(naiveErrs);
+    const anchorScore = scoreErrorArray(anchorErrs);
+    const naiveScore = scoreErrorArray(naiveErrs);
     const blindCoveragePct = benchmarkedCount ? Math.round((coveredCount / benchmarkedCount) * 1000) / 10 : null;
 
     return {
@@ -866,10 +1364,13 @@
 
   BL.PilotEngine = {
     PILOT_DISTRICTS,
+    TN_DISTRICTS,
     DEFAULT_GATE,
+    ML_FEATURE_META,
     EPISTEMIC_AUDIT,
     normalizeDistrict,
     isPilotDistrict,
+    isTNDistrict,
     hav,
     toSqftRate,
     extractDomain,
@@ -879,8 +1380,14 @@
     dedupeEvidence,
     stratifyEvidence,
     collectPilotEvidencePool,
+    fitRidge,
+    predictRidgeResidual,
+    evaluateSpatialResidualRidgeCV,
     evaluateAnchorRelativeCV,
+    calculateTNClosingCosts,
+    calculateInvestmentBreakEven,
     evaluateQuote,
+    projectDistanceKm,
     nearbyCatalysts,
     dueDiligenceChecklist,
     formatUnderwritingMemoMarkdown,
